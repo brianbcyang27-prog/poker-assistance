@@ -9,8 +9,10 @@ pydantic-settings>=2.0.0
 openai-whisper>=20230918
 # pyaudio>=0.2.13  # Optional: for microphone input
 
-# Voice - Text-to-speech (Phase 3)
+# Voice - Text-to-speech
+# kokoro>=0.8.0  # Optional: local neural TTS (install separately)
 # piper-tts>=1.0.0  # Optional: alternative TTS
+soundfile>=0.12.0
 
 # Memory (Phase 2)
 # sqlite3 is built-in

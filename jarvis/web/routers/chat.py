@@ -4,11 +4,13 @@ from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
+from pathlib import Path
 import json
 import uuid
 
 from jarvis.web.main import jarvis
 from jarvis.core.database import get_db
+from jarvis.core.config import get_config
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -16,12 +18,14 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    voice_id: Optional[str] = None
 
 
 class ChatResponse(BaseModel):
     response: str
     session_id: str
     agents_active: list[dict] = []
+    audio_url: Optional[str] = None
 
 
 @router.post("", response_model=ChatResponse)
@@ -33,11 +37,19 @@ async def chat(req: ChatRequest):
     db = await get_db()
     await db.save_conversation(session_id, "user", req.message)
     
+    # Load LLM conversation context for multi-turn
+    if hasattr(jarvis, '_llm') and jarvis._llm:
+        await jarvis._llm.load_session_context(session_id)
+    
     # Process through JARVIS agent hierarchy
     response = await jarvis.process_user_request(req.message)
     
     # Save assistant response
     await db.save_conversation(session_id, "assistant", response)
+    
+    # Save LLM conversation context for next turn
+    if hasattr(jarvis, '_llm') and jarvis._llm:
+        await jarvis._llm.save_session_context(session_id)
     
     # Get active agents for UI
     active_agents = []
@@ -46,10 +58,36 @@ async def chat(req: ChatRequest):
         if king_dict.get("state") != "idle":
             active_agents.append(king_dict)
     
+    # Generate TTS audio if enabled
+    audio_url = None
+    config = get_config()
+    if config.tts_enabled:
+        try:
+            from jarvis.web.services.tts import voice_engine
+            import hashlib
+            import os
+            
+            # Generate audio filename
+            audio_hash = hashlib.md5(f"{session_id}:{response[:50]}".encode()).hexdigest()[:12]
+            audio_filename = f"chat_{audio_hash}"
+            audio_path = Path("audio_cache") / audio_filename
+            audio_path.parent.mkdir(exist_ok=True)
+            
+            # Generate audio (provider will add extension)
+            result = voice_engine.generate(response, str(audio_path))
+            if result:
+                # Get the actual filename with extension
+                actual_filename = Path(result).name
+                audio_url = f"/api/voice/audio/{actual_filename}"
+        except Exception as e:
+            print(f"TTS error: {e}")
+            pass  # TTS is optional
+    
     return ChatResponse(
         response=response,
         session_id=session_id,
         agents_active=active_agents,
+        audio_url=audio_url,
     )
 
 

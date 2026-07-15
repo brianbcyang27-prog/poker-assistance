@@ -26,11 +26,13 @@ dependencies = [
     "aiosqlite>=0.20.0",
     "python-multipart>=0.0.9",
     "websockets>=12.0",
+    "soundfile>=0.12.0",
 ]
 
 [project.optional-dependencies]
 voice = [
     "openai-whisper>=20230918",
+    "kokoro>=0.8.0",
 ]
 dev = [
     "pytest>=7.0",

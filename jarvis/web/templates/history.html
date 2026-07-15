@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .history-container {
+        max-width: 1000px;
+        margin: 80px auto 20px;
+        padding: 0 20px;
+    }
+    
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+    
+    .history-header h1 {
+        font-size: 24px;
+        font-weight: 300;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: var(--accent);
+    }
+    
+    .history-stats {
+        display: flex;
+        gap: 20px;
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+    
+    .stat-value {
+        color: var(--accent);
+        font-weight: 600;
+    }
+    
+    .history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .history-item {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .history-item:hover {
+        border-color: var(--accent);
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+    }
+    
+    .history-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+    
+    .history-goal {
+        font-size: 16px;
+        color: var(--text-primary);
+        flex: 1;
+    }
+    
+    .history-status {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+    }
+    
+    .history-status.completed {
+        color: var(--success);
+        border-color: var(--success);
+    }
+    
+    .history-status.failed {
+        color: var(--danger);
+        border-color: var(--danger);
+    }
+    
+    .history-meta {
+        display: flex;
+        gap: 20px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 12px;
+    }
+    
+    .history-tasks {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .history-task {
+        padding: 4px 10px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 11px;
+        color: var(--text-secondary);
+    }
+    
+    .history-task.completed {
+        border-color: var(--success);
+        color: var(--success);
+    }
+    
+    .history-task.failed {
+        border-color: var(--danger);
+        color: var(--danger);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--text-secondary);
+    }
+    
+    .empty-state h3 {
+        font-size: 18px;
+        font-weight: 400;
+        margin-bottom: 12px;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 40px;
+        color: var(--text-secondary);
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 24px;
+    }
+    
+    .pagination button {
+        padding: 8px 16px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .pagination button:hover:not(:disabled) {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+    
+    .pagination button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    /* Detail Modal */
+    .detail-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 5, 16, 0.9);
+        z-index: 1000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(10px);
+    }
+    
+    .detail-modal.open {
+        display: flex;
+    }
+    
+    .detail-content {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+        padding: 32px;
+    }
+    
+    .detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+    
+    .detail-header h2 {
+        font-size: 20px;
+        font-weight: 400;
+        color: var(--text-primary);
+        flex: 1;
+    }
+    
+    .detail-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        font-size: 24px;
+        padding: 4px;
+    }
+    
+    .detail-close:hover {
+        color: var(--accent);
+    }
+    
+    .detail-tasks {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .detail-task {
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+    }
+    
+    .detail-task-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .detail-task-name {
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+    
+    .detail-task-result {
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-top: 8px;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+        font-family: 'SF Mono', monospace;
+    }
+</style>
+
+<div class="history-container">
+    <div class="history-header">
+        <h1>Task History</h1>
+        <div class="history-stats">
+            <span>Total: <span class="stat-value" id="total-count">0</span></span>
+        </div>
+    </div>
+    
+    <div id="history-list" class="history-list">
+        <div class="loading">Loading history...</div>
+    </div>
+    
+    <div class="pagination">
+        <button id="prev-btn" onclick="loadHistory(currentPage - 1)" disabled>Previous</button>
+        <button id="next-btn" onclick="loadHistory(currentPage + 1)">Next</button>
+    </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="detail-modal" id="detail-modal">
+    <div class="detail-content">
+        <div class="detail-header">
+            <h2 id="detail-title">Workspace Details</h2>
+            <button class="detail-close" onclick="closeDetail()">&times;</button>
+        </div>
+        <div id="detail-body" class="detail-tasks"></div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 0;
+    const pageSize = 20;
+    
+    async function loadHistory(page = 0) {
+        currentPage = page;
+        const listEl = document.getElementById('history-list');
+        listEl.innerHTML = '<div class="loading">Loading history...</div>';
+        
+        try {
+            const response = await fetch(`/api/workspace/history?limit=${pageSize}&offset=${page * pageSize}`);
+            const data = await response.json();
+            
+            document.getElementById('total-count').textContent = data.total;
+            
+            if (data.history.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No task history yet</h3>
+                        <p>Complete a workspace to see it here</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            listEl.innerHTML = data.history.map(item => `
+                <div class="history-item" onclick="showDetail('${item.plan_id}')">
+                    <div class="history-item-header">
+                        <div class="history-goal">${escapeHtml(item.user_request)}</div>
+                        <div class="history-status completed">Completed</div>
+                    </div>
+                    <div class="history-meta">
+                        <span>Owner: ${item.owner || 'Unknown'}</span>
+                        <span>${formatDate(item.created_at)}</span>
+                        ${item.duration_ms ? `<span>Duration: ${formatDuration(item.duration_ms)}</span>` : ''}
+                    </div>
+                    <div class="history-tasks">
+                        ${(item.tasks || []).slice(0, 5).map(t => `
+                            <div class="history-task ${t.status}">${escapeHtml(t.name || t.id)}</div>
+                        `).join('')}
+                        ${(item.tasks || []).length > 5 ? `<div class="history-task">+${item.tasks.length - 5} more</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+            
+            // Update pagination
+            document.getElementById('prev-btn').disabled = page === 0;
+            document.getElementById('next-btn').disabled = data.history.length < pageSize;
+            
+        } catch (error) {
+            listEl.innerHTML = '<div class="empty-state">Failed to load history</div>';
+        }
+    }
+    
+    async function showDetail(planId) {
+        const modal = document.getElementById('detail-modal');
+        const titleEl = document.getElementById('detail-title');
+        const bodyEl = document.getElementById('detail-body');
+        
+        modal.classList.add('open');
+        titleEl.textContent = 'Loading...';
+        bodyEl.innerHTML = '';
+        
+        try {
+            const response = await fetch(`/api/workspace/${planId}/replay`);
+            const data = await response.json();
+            
+            if (data.error) {
+                titleEl.textContent = 'Error';
+                bodyEl.innerHTML = `<p>${data.error}</p>`;
+                return;
+            }
+            
+            titleEl.textContent = data.goal || 'Workspace Details';
+            
+            bodyEl.innerHTML = `
+                <div class="history-meta" style="margin-bottom: 16px;">
+                    <span>Owner: ${data.owner || 'Unknown'}</span>
+                    <span>Status: ${data.status || 'Unknown'}</span>
+                    ${data.duration_ms ? `<span>Duration: ${formatDuration(data.duration_ms)}</span>` : ''}
+                </div>
+                <div class="detail-tasks">
+                    ${(data.tasks || []).map(t => `
+                        <div class="detail-task">
+                            <div class="detail-task-header">
+                                <div class="detail-task-name">${escapeHtml(t.name || t.id)}</div>
+                                <div class="history-status ${t.status}">${t.status}</div>
+                            </div>
+                            ${t.assigned_to ? `<div style="font-size: 12px; color: var(--text-secondary);">Assigned to: ${t.assigned_to}</div>` : ''}
+                            ${t.confidence ? `<div style="font-size: 12px; color: var(--text-secondary);">Confidence: ${(t.confidence * 100).toFixed(1)}%</div>` : ''}
+                            ${t.result ? `<div class="detail-task-result">${escapeHtml(t.result)}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } catch (error) {
+            titleEl.textContent = 'Error';
+            bodyEl.innerHTML = '<p>Failed to load workspace details</p>';
+        }
+    }
+    
+    function closeDetail() {
+        document.getElementById('detail-modal').classList.remove('open');
+    }
+    
+    function formatDate(isoString) {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
+    
+    function formatDuration(ms) {
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        if (hours > 0) return `${hours}h ${minutes % 60}m`;
+        if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+        return `${seconds}s`;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Load history on page load
+    document.addEventListener('DOMContentLoaded', () => loadHistory());
+    
+    // Close modal on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDetail();
+    });
+</script>
+{% endblock %}

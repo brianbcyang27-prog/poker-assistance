@@ -85,6 +85,23 @@ async def lifespan(app: FastAPI):
     # Initialize agents
     initialize_agents()
     
+    # Restore agent states from database
+    try:
+        from jarvis.core.models import AgentState
+        saved_states = await db.get_agent_states()
+        for king in jarvis.get_all_kings():
+            if king.card_id in saved_states:
+                try:
+                    king.state = AgentState(saved_states[king.card_id])
+                except ValueError:
+                    pass
+    except Exception:
+        pass  # Don't fail startup on state restoration errors
+    
+    # Load voice engine
+    from jarvis.web.services.tts import voice_engine
+    voice_engine.load()
+    
     # Initialize workspace manager
     global workspace_manager
     workspace_manager = WorkspaceManager()

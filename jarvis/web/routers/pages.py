@@ -25,3 +25,9 @@ async def command_map(request: Request):
 async def settings_page(request: Request):
     """Settings page."""
     return templates.TemplateResponse("settings.html", {"request": request})
+
+
+@router.get("/history")
+async def history_page(request: Request):
+    """Task History page."""
+    return templates.TemplateResponse("history.html", {"request": request})

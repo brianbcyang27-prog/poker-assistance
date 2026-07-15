@@ -110,6 +110,9 @@ class Database:
                 user_request TEXT NOT NULL,
                 summary TEXT,
                 tasks_json TEXT,
+                workspace_id TEXT,
+                owner TEXT,
+                duration_ms INTEGER,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             
@@ -129,6 +132,20 @@ class Database:
                 reason TEXT,
                 context TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            -- Agent States (for persistence across restarts)
+            CREATE TABLE IF NOT EXISTS agent_states (
+                card_id TEXT PRIMARY KEY,
+                state TEXT NOT NULL DEFAULT 'idle',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            -- LLM Conversation Context (for multi-turn persistence)
+            CREATE TABLE IF NOT EXISTS llm_context (
+                session_id TEXT PRIMARY KEY,
+                context_json TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """)
         await self._db.commit()
@@ -298,6 +315,90 @@ class Database:
             )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
+    
+    # Agent States (persistence across restarts)
+    async def save_agent_state(self, card_id: str, state: str):
+        await self._db.execute(
+            "INSERT OR REPLACE INTO agent_states (card_id, state, updated_at) VALUES (?, ?, ?)",
+            (card_id, state, datetime.now().isoformat())
+        )
+        await self._db.commit()
+    
+    async def get_agent_states(self) -> dict[str, str]:
+        cursor = await self._db.execute("SELECT card_id, state FROM agent_states")
+        rows = await cursor.fetchall()
+        return {row["card_id"]: row["state"] for row in rows}
+    
+    async def get_agent_state(self, card_id: str) -> Optional[str]:
+        cursor = await self._db.execute("SELECT state FROM agent_states WHERE card_id = ?", (card_id,))
+        row = await cursor.fetchone()
+        return row["state"] if row else None
+    
+    # LLM Conversation Context (for multi-turn persistence)
+    async def save_llm_context(self, session_id: str, context: list[dict]):
+        await self._db.execute(
+            "INSERT OR REPLACE INTO llm_context (session_id, context_json, updated_at) VALUES (?, ?, ?)",
+            (session_id, json.dumps(context), datetime.now().isoformat())
+        )
+        await self._db.commit()
+    
+    async def get_llm_context(self, session_id: str) -> Optional[list[dict]]:
+        cursor = await self._db.execute(
+            "SELECT context_json FROM llm_context WHERE session_id = ?", (session_id,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            return json.loads(row["context_json"])
+        return None
+    
+    # Task History (for history page and replay)
+    async def save_task_history(self, history: dict):
+        await self._db.execute(
+            """INSERT INTO task_history 
+               (plan_id, user_request, summary, tasks_json, workspace_id, owner, duration_ms)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                history["plan_id"],
+                history["user_request"],
+                history.get("summary", ""),
+                json.dumps(history.get("tasks", [])),
+                history.get("workspace_id"),
+                history.get("owner"),
+                history.get("duration_ms"),
+            )
+        )
+        await self._db.commit()
+    
+    async def get_task_history(self, limit: int = 20, offset: int = 0) -> list[dict]:
+        cursor = await self._db.execute(
+            "SELECT * FROM task_history ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset)
+        )
+        rows = await cursor.fetchall()
+        result = []
+        for row in rows:
+            d = dict(row)
+            d["tasks"] = json.loads(d.get("tasks_json", "[]"))
+            del d["tasks_json"]
+            result.append(d)
+        return result
+    
+    async def get_task_history_count(self) -> int:
+        cursor = await self._db.execute("SELECT COUNT(*) as count FROM task_history")
+        row = await cursor.fetchone()
+        return row["count"]
+    
+    async def get_task_history_by_id(self, plan_id: str) -> Optional[dict]:
+        cursor = await self._db.execute(
+            "SELECT * FROM task_history WHERE plan_id = ?", (plan_id,)
+        )
+        row = await cursor.fetchone()
+        if row:
+            d = dict(row)
+            d["tasks"] = json.loads(d.get("tasks_json", "[]"))
+            del d["tasks_json"]
+            return d
+        return None
 
 
 # Singleton instance

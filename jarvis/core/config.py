@@ -38,6 +38,10 @@ class Config(BaseSettings):
     tts_enabled: bool = Field(default=True, env="TTS_ENABLED")
     stt_enabled: bool = Field(default=True, env="STT_ENABLED")
     wake_word_enabled: bool = Field(default=False, env="WAKE_WORD_ENABLED")
+    tts_provider: str = Field(default="macos", env="TTS_PROVIDER")  # macos|kokoro|openai|piper
+    tts_voice: str = Field(default="", env="TTS_VOICE")  # Voice ID for the provider
+    tts_model: str = Field(default="tts-1", env="TTS_MODEL")  # Model for cloud providers
+    openai_api_key: str = Field(default="", env="OPENAI_API_KEY")  # For OpenAI TTS
     
     # Memory Configuration
     db_path: Path = Field(default=Path("jarvis.db"), env="DB_PATH")

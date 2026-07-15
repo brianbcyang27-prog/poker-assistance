@@ -1,6 +1,7 @@
 """Voice router - Voice samples and TTS."""
 
 from fastapi import APIRouter, UploadFile, File
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 from pathlib import Path
@@ -9,6 +10,7 @@ import uuid
 
 from jarvis.core.config import get_config
 from jarvis.core.database import get_db
+from jarvis.web.services.tts import voice_engine
 
 router = APIRouter(prefix="/api/voice", tags=["voice"])
 
@@ -61,3 +63,30 @@ async def delete_voice_sample(sample_id: int):
     await db._db.execute("DELETE FROM voice_samples WHERE id = ?", (sample_id,))
     await db._db.commit()
     return {"status": "deleted"}
+
+
+@router.get("/models")
+async def get_voice_models():
+    """Get available TTS providers and voices."""
+    return {
+        "providers": list(voice_engine.providers.keys()),
+        "voices": voice_engine.get_all_voices(),
+    }
+
+
+@router.get("/audio/{filename}")
+async def serve_audio(filename: str):
+    """Serve generated audio files."""
+    audio_path = Path("audio_cache") / filename
+    if audio_path.exists():
+        # Determine media type based on extension
+        ext = audio_path.suffix.lower()
+        media_types = {
+            ".wav": "audio/wav",
+            ".mp3": "audio/mpeg",
+            ".aiff": "audio/aiff",
+            ".ogg": "audio/ogg",
+        }
+        media_type = media_types.get(ext, "application/octet-stream")
+        return FileResponse(audio_path, media_type=media_type)
+    return {"error": "Audio file not found"}

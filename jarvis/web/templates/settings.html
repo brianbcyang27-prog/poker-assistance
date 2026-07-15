@@ -234,6 +234,39 @@
                 </div>
                 <div class="setting-row">
                     <div class="setting-info">
+                        <div class="setting-name">TTS Provider</div>
+                        <div class="setting-desc">Text-to-speech backend (kokoro: local neural, macos: built-in, openai: cloud API)</div>
+                    </div>
+                    <div class="setting-control">
+                        <select name="tts_provider" id="tts-provider">
+                            <option value="macos">macOS (Built-in)</option>
+                            <option value="kokoro">Kokoro (Local Neural)</option>
+                            <option value="openai">OpenAI (Cloud)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">TTS Voice</div>
+                        <div class="setting-desc">Voice selection for the chosen provider</div>
+                    </div>
+                    <div class="setting-control">
+                        <select name="tts_voice" id="tts-voice">
+                            <option value="">Default</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">OpenAI API Key</div>
+                        <div class="setting-desc">API key for OpenAI TTS (if using OpenAI provider)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="password" name="openai_api_key" placeholder="sk-...">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
                         <div class="setting-name">Speech-to-Text</div>
                         <div class="setting-desc">Enable voice input via microphone</div>
                     </div>
@@ -315,8 +348,63 @@
                         el.value = value;
                     }
                 }
+                
+                // Load voice models
+                await loadVoiceModels();
             } catch (e) {
                 console.log('Could not load settings');
+            }
+        }
+        
+        async function loadVoiceModels() {
+            try {
+                const res = await fetch('/api/voice/models');
+                const data = await res.json();
+                
+                const providerSelect = document.getElementById('tts-provider');
+                const voiceSelect = document.getElementById('tts-voice');
+                
+                // Update provider options
+                providerSelect.innerHTML = '';
+                for (const provider of data.providers) {
+                    const option = document.createElement('option');
+                    option.value = provider;
+                    option.textContent = provider.charAt(0).toUpperCase() + provider.slice(1);
+                    providerSelect.appendChild(option);
+                }
+                
+                // Update voices when provider changes
+                providerSelect.addEventListener('change', () => {
+                    updateVoices(data.voices, providerSelect.value);
+                });
+                
+                // Set current provider
+                const currentProvider = document.querySelector('[name="tts_provider"]')?.value || 'macos';
+                providerSelect.value = currentProvider;
+                updateVoices(data.voices, currentProvider);
+                
+            } catch (e) {
+                console.log('Could not load voice models');
+            }
+        }
+        
+        function updateVoices(voices, provider) {
+            const voiceSelect = document.getElementById('tts-voice');
+            const currentVoice = document.querySelector('[name="tts_voice"]')?.value || '';
+            
+            voiceSelect.innerHTML = '<option value="">Default</option>';
+            
+            const providerVoices = voices[provider] || [];
+            for (const voice of providerVoices) {
+                const option = document.createElement('option');
+                option.value = voice.id;
+                option.textContent = `${voice.name} (${voice.language})`;
+                voiceSelect.appendChild(option);
+            }
+            
+            // Restore selected voice if available
+            if (currentVoice) {
+                voiceSelect.value = currentVoice;
             }
         }
 

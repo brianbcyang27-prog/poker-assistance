@@ -28,6 +28,7 @@ class LLM:
         
         self.use_nvidia = bool(config.nvidia_api_key)
         self.conversation_history: list[dict] = []
+        self._current_session_id: Optional[str] = None
     
     def _init_ollama(self):
         """Initialize Ollama client if available."""
@@ -65,6 +66,31 @@ class LLM:
     def switch_to_nvidia(self):
         """Switch to NVIDIA backend."""
         self.use_nvidia = True
+    
+    async def load_session_context(self, session_id: str):
+        """Load conversation context from database for a session."""
+        if self._current_session_id == session_id:
+            return  # Already loaded
+        
+        try:
+            from ..core.database import get_db
+            db = await get_db()
+            context = await db.get_llm_context(session_id)
+            if context:
+                self.conversation_history = context
+                self._current_session_id = session_id
+        except Exception:
+            pass
+    
+    async def save_session_context(self, session_id: str):
+        """Save conversation context to database."""
+        try:
+            from ..core.database import get_db
+            db = await get_db()
+            await db.save_llm_context(session_id, self.conversation_history)
+            self._current_session_id = session_id
+        except Exception:
+            pass
     
     def chat(
         self,
@@ -132,6 +158,7 @@ class LLM:
     def clear_history(self):
         """Clear the conversation history."""
         self.conversation_history = []
+        self._current_session_id = None
     
     def set_history(self, history: list[dict]):
         """Set the conversation history."""

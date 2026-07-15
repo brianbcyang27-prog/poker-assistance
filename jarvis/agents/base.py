@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Any
 from datetime import datetime
+import asyncio
 
 from ..core.models import (
     AgentRole, AgentState, AgentMessage, Task, Suit, Rank
@@ -58,13 +59,49 @@ class BaseAgent(ABC):
         return "Professional and efficient"
     
     def set_state(self, state: AgentState):
-        """Update agent state."""
+        """Update agent state and persist to database."""
         self.state = state
+        # Persist state change to database (fire and forget)
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(self._persist_state(state))
+            else:
+                loop.run_until_complete(self._persist_state(state))
+        except RuntimeError:
+            pass  # No event loop running, skip persistence
+    
+    async def _persist_state(self, state: AgentState):
+        """Persist agent state to database."""
+        try:
+            from ..core.database import get_db
+            db = await get_db()
+            await db.save_agent_state(self.card_id, state.value)
+        except Exception:
+            pass  # Don't fail on persistence errors
     
     def receive_message(self, message: AgentMessage) -> Optional[AgentMessage]:
         """Receive a message from another agent."""
         self._message_history.append(message)
+        # Persist message to database (fire and forget)
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.ensure_future(self._persist_message(message))
+            else:
+                loop.run_until_complete(self._persist_message(message))
+        except RuntimeError:
+            pass
         return self.process_message(message)
+    
+    async def _persist_message(self, message: AgentMessage):
+        """Persist agent message to database."""
+        try:
+            from ..core.database import get_db
+            db = await get_db()
+            await db.save_agent_message(message.to_dict())
+        except Exception:
+            pass  # Don't fail on persistence errors
     
     @abstractmethod
     def process_message(self, message: AgentMessage) -> Optional[AgentMessage]:

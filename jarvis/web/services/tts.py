@@ -1,38 +1,209 @@
-"""Voice engine service for web interface."""
+"""Voice engine service for web interface with provider pattern."""
 
 from typing import Optional
 from pathlib import Path
 import subprocess
 import platform
+import os
+import hashlib
+import time
+
+
+class TTSProvider:
+    """Base class for TTS providers."""
+    
+    def generate(self, text: str, output_path: str, voice: str = "") -> Optional[str]:
+        """Generate speech audio file. Returns path to generated file or None."""
+        raise NotImplementedError
+    
+    def get_voices(self) -> list[dict]:
+        """Get available voices for this provider."""
+        return []
+    
+    @property
+    def name(self) -> str:
+        return "base"
+
+
+class MacosProvider(TTSProvider):
+    """macOS native TTS using 'say' command."""
+    
+    @property
+    def name(self) -> str:
+        return "macos"
+    
+    def generate(self, text: str, output_path: str, voice: str = "") -> Optional[str]:
+        try:
+            # macOS say requires .aiff extension for output
+            p = Path(output_path)
+            if p.suffix in (".wav", ".mp3", ".aiff"):
+                aiff_path = str(p.with_suffix(".aiff"))
+            else:
+                aiff_path = str(p) + ".aiff"
+            
+            cmd = ["say", "-o", aiff_path]
+            if voice:
+                cmd.extend(["-v", voice])
+            cmd.append(text)
+            subprocess.run(cmd, check=True, timeout=30)
+            
+            # Convert to WAV using ffmpeg if available
+            wav_path = str(p.with_suffix(".wav"))
+            try:
+                subprocess.run(["ffmpeg", "-i", aiff_path, "-y", wav_path], 
+                             capture_output=True, timeout=30)
+                os.remove(aiff_path)
+                return wav_path
+            except FileNotFoundError:
+                # ffmpeg not available, return aiff file
+                return aiff_path
+        except Exception as e:
+            print(f"macOS TTS failed: {e}")
+            return None
+    
+    def get_voices(self) -> list[dict]:
+        try:
+            result = subprocess.run(["say", "-v", "?"], capture_output=True, text=True, timeout=5)
+            voices = []
+            for line in result.stdout.strip().split("\n"):
+                if line.strip():
+                    parts = line.split()
+                    if len(parts) >= 2:
+                        voices.append({"id": parts[0], "name": parts[0], "language": parts[1] if len(parts) > 1 else ""})
+            return voices
+        except Exception:
+            return []
+
+
+class KokoroProvider(TTSProvider):
+    """Kokoro TTS - local neural TTS."""
+    
+    def __init__(self):
+        self._pipeline = None
+    
+    @property
+    def name(self) -> str:
+        return "kokoro"
+    
+    def _load_pipeline(self):
+        if self._pipeline is None:
+            try:
+                from kokoro import KPipeline
+                self._pipeline = KPipeline(lang_code="a")  # Default to English
+            except ImportError:
+                raise RuntimeError("Kokoro not installed. Run: pip install kokoro")
+    
+    def generate(self, text: str, output_path: str, voice: str = "") -> Optional[str]:
+        try:
+            self._load_pipeline()
+            import soundfile as sf
+            
+            voice = voice or "af_heart"  # Default Kokoro voice
+            wav_path = output_path if output_path.endswith(".wav") else output_path.replace(".mp3", ".wav")
+            
+            # Generate audio
+            generator = self._pipeline(text, voice=voice)
+            audio_data = []
+            for _, _, audio in generator:
+                audio_data.append(audio)
+            
+            import numpy as np
+            full_audio = np.concatenate(audio_data)
+            sf.write(wav_path, full_audio, 24000)
+            return wav_path
+        except Exception as e:
+            print(f"Kokoro TTS failed: {e}")
+            return None
+    
+    def get_voices(self) -> list[dict]:
+        return [
+            {"id": "af_heart", "name": "Heart (Female)", "language": "en-US"},
+            {"id": "af_bella", "name": "Bella (Female)", "language": "en-US"},
+            {"id": "af_nicole", "name": "Nicole (Female)", "language": "en-US"},
+            {"id": "af_sarah", "name": "Sarah (Female)", "language": "en-US"},
+            {"id": "am_adam", "name": "Adam (Male)", "language": "en-US"},
+            {"id": "am_michael", "name": "Michael (Male)", "language": "en-US"},
+        ]
+
+
+class OpenAIProvider(TTSProvider):
+    """OpenAI TTS API - cloud-based."""
+    
+    def __init__(self, api_key: str = ""):
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
+    
+    @property
+    def name(self) -> str:
+        return "openai"
+    
+    def generate(self, text: str, output_path: str, voice: str = "") -> Optional[str]:
+        if not self.api_key:
+            raise RuntimeError("OpenAI API key not configured")
+        
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=self.api_key)
+            
+            voice = voice or "alloy"
+            mp3_path = output_path if output_path.endswith(".mp3") else output_path.replace(".wav", ".mp3")
+            
+            response = client.audio.speech.create(
+                model="tts-1",
+                voice=voice,
+                input=text,
+            )
+            response.stream_to_file(mp3_path)
+            
+            # Convert to WAV if needed
+            if output_path.endswith(".wav"):
+                wav_path = output_path
+                subprocess.run(["ffmpeg", "-i", mp3_path, "-y", wav_path], 
+                             capture_output=True, timeout=30)
+                os.remove(mp3_path)
+                return wav_path
+            
+            return mp3_path
+        except Exception as e:
+            print(f"OpenAI TTS failed: {e}")
+            return None
+    
+    def get_voices(self) -> list[dict]:
+        return [
+            {"id": "alloy", "name": "Alloy", "language": "en-US"},
+            {"id": "echo", "name": "Echo", "language": "en-US"},
+            {"id": "fable", "name": "Fable", "language": "en-US"},
+            {"id": "onyx", "name": "Onyx", "language": "en-US"},
+            {"id": "nova", "name": "Nova", "language": "en-US"},
+            {"id": "shimmer", "name": "Shimmer", "language": "en-US"},
+        ]
 
 
 class VoiceEngine:
-    """Voice engine for TTS in web interface."""
+    """Voice engine for TTS in web interface with provider pattern."""
     
     def __init__(self):
-        self.backend = self._detect_backend()
+        self.providers: dict[str, TTSProvider] = {}
         self._loaded = False
+        self._init_providers()
     
-    def _detect_backend(self) -> str:
-        """Detect available TTS backend."""
-        system = platform.system()
+    def _init_providers(self):
+        """Initialize available TTS providers."""
+        # Always register macOS provider on macOS
+        if platform.system() == "Darwin":
+            self.providers["macos"] = MacosProvider()
         
-        if system == "Darwin":
-            return "macos"
-        
-        # Check for piper
+        # Try to register Kokoro
         try:
-            result = subprocess.run(
-                ["piper", "--version"],
-                capture_output=True,
-                timeout=5,
-            )
-            if result.returncode == 0:
-                return "piper"
-        except (FileNotFoundError, subprocess.TimeoutExpired):
+            from kokoro import KPipeline
+            self.providers["kokoro"] = KokoroProvider()
+        except ImportError:
             pass
         
-        return "none"
+        # Register OpenAI if API key is available
+        from jarvis.core.config import get_config
+        config = get_config()
+        if config.openai_api_key:
+            self.providers["openai"] = OpenAIProvider(config.openai_api_key)
     
     def load(self):
         """Load the voice engine."""
@@ -41,28 +212,34 @@ class VoiceEngine:
     @property
     def is_available(self) -> bool:
         """Check if voice engine is available."""
-        return self.backend != "none" and self._loaded
+        return len(self.providers) > 0 and self._loaded
     
-    def generate(self, text: str, output_path: str) -> Optional[str]:
-        """Generate speech audio file."""
-        if not self.is_available:
-            return None
+    def get_provider(self, name: Optional[str] = None) -> Optional[TTSProvider]:
+        """Get a specific provider or the default one."""
+        if name and name in self.providers:
+            return self.providers[name]
         
-        try:
-            if self.backend == "macos":
-                wav_path = output_path.replace(".mp3", ".wav")
-                subprocess.run(
-                    ["say", "-o", wav_path, text],
-                    check=True,
-                    timeout=30,
-                )
-                return wav_path
-        
-        except Exception as e:
-            print(f"TTS generation failed: {e}")
-            return None
+        # Default priority: kokoro > openai > macos
+        for priority in ["kokoro", "openai", "macos"]:
+            if priority in self.providers:
+                return self.providers[priority]
         
         return None
+    
+    def generate(self, text: str, output_path: str, voice: str = "", provider: str = "") -> Optional[str]:
+        """Generate speech audio file."""
+        tts_provider = self.get_provider(provider)
+        if not tts_provider:
+            return None
+        
+        return tts_provider.generate(text, output_path, voice)
+    
+    def get_all_voices(self) -> dict[str, list[dict]]:
+        """Get all available voices from all providers."""
+        voices = {}
+        for name, provider in self.providers.items():
+            voices[name] = provider.get_voices()
+        return voices
 
 
 # Singleton
