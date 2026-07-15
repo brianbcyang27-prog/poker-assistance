@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+    // Initialize JARVIS Core on load
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            const container = document.getElementById('jarvis-canvas');
+            window.jarvisCore = new JarvisCore(container);
+        } catch (e) {
+            console.warn('JarvisCore init failed:', e);
+        }
+
+        try {
+            window.jarvisState = new JarvisState();
+        } catch (e) {
+            console.warn('JarvisState init failed:', e);
+        }
+
+        try {
+            window.audioAnalyzer = new AudioAnalyzer();
+        } catch (e) {
+            console.warn('AudioAnalyzer init failed:', e);
+        }
+
+        // Connect state machine to visualization
+        if (window.jarvisState) {
+            window.jarvisState.onStateChange((state) => {
+                if (window.jarvisCore) window.jarvisCore.setState(state);
+                const el = document.getElementById('core-state');
+                if (el) el.textContent = state.toUpperCase();
+            });
+        }
+
+        // Initialize card visualization
+        try {
+            window.cardViz = new CardVisualization(document.getElementById('hierarchy-content'));
+
+            const response = await fetch('/api/agents/hierarchy');
+            const hierarchy = await response.json();
+            window.cardViz.update(hierarchy);
+
+            setInterval(async () => {
+                try {
+                    const res = await fetch('/api/agents/hierarchy');
+                    const h = await res.json();
+                    window.cardViz.update(h);
+                } catch (e) {}
+            }, 2000);
+        } catch (e) {
+            console.log('Agent hierarchy not yet available');
+        }
+
+        // Set initial state - always show READY
+        const coreStateEl = document.getElementById('core-state');
+        if (coreStateEl) coreStateEl.textContent = 'READY';
+        if (window.jarvisState) window.jarvisState.set('idle');
+    });
+</script>
+{% endblock %}

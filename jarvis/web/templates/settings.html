@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS - Settings</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .settings-page {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 40px 24px 100px;
+        }
+        .settings-page h1 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 32px;
+            color: var(--text-primary);
+        }
+        .settings-section {
+            margin-bottom: 32px;
+        }
+        .settings-section h2 {
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-info { flex: 1; margin-right: 20px; }
+        .setting-name {
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+        .setting-desc {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        .setting-control { flex-shrink: 0; }
+        .setting-control input[type="text"],
+        .setting-control input[type="password"],
+        .setting-control input[type="number"],
+        .setting-control select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            padding: 8px 12px;
+            font-size: 13px;
+            font-family: inherit;
+            width: 200px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .setting-control input:focus,
+        .setting-control select:focus {
+            border-color: var(--accent);
+        }
+        .setting-control input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+        .settings-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        .btn-save {
+            padding: 10px 24px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-save:hover { opacity: 0.85; }
+        .btn-reset {
+            padding: 10px 24px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-reset:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+        .toast {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--bg-secondary);
+            border: 1px solid var(--success);
+            color: var(--success);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 13px;
+            z-index: 1000;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        .nav-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .nav-bar a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 12px;
+            letter-spacing: 1px;
+            transition: color 0.2s;
+        }
+        .nav-bar a:hover { color: var(--accent); }
+        .nav-bar .current { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="settings-page">
+        <div class="nav-bar">
+            <a href="/">HOME</a>
+            <a href="/command-map">COMMAND MAP</a>
+            <span class="current">SETTINGS</span>
+        </div>
+
+        <h1>Settings</h1>
+
+        <form id="settings-form" onsubmit="return false;">
+            <!-- LLM Configuration -->
+            <div class="settings-section">
+                <h2>AI Model</h2>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">NVIDIA API Key</div>
+                        <div class="setting-desc">API key for NVIDIA NIM inference</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="password" name="nvidia_api_key" placeholder="nvapi-...">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Model</div>
+                        <div class="setting-desc">LLM model identifier</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" name="nvidia_model" value="meta/llama-3.1-8b-instruct">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Temperature</div>
+                        <div class="setting-desc">Controls response randomness (0.0 - 1.0)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" name="default_llm_temperature" value="0.7" min="0" max="1" step="0.1">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Max Tokens</div>
+                        <div class="setting-desc">Maximum response length</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" name="max_tokens" value="4096" min="256" max="32768" step="256">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Configuration -->
+            <div class="settings-section">
+                <h2>Agents</h2>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Confidence Threshold</div>
+                        <div class="setting-desc">Minimum confidence for agent task completion (0.0 - 1.0)</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" name="confidence_threshold" value="0.9" min="0" max="1" step="0.05">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Safety -->
+            <div class="settings-section">
+                <h2>Safety</h2>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Require Confirmation</div>
+                        <div class="setting-desc">Ask before executing system commands</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="checkbox" name="require_confirmation" checked>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voice -->
+            <div class="settings-section">
+                <h2>Voice</h2>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Text-to-Speech</div>
+                        <div class="setting-desc">Enable voice output</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="checkbox" name="tts_enabled" checked>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Speech-to-Text</div>
+                        <div class="setting-desc">Enable voice input via microphone</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="checkbox" name="stt_enabled" checked>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Wake Word Detection</div>
+                        <div class="setting-desc">Listen for "Hey JARVIS" to activate</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="checkbox" name="wake_word_enabled">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Whisper Model</div>
+                        <div class="setting-desc">Speech recognition model (tiny/base/small/medium/large)</div>
+                    </div>
+                    <div class="setting-control">
+                        <select name="whisper_model">
+                            <option value="tiny">tiny</option>
+                            <option value="base" selected>base</option>
+                            <option value="small">small</option>
+                            <option value="medium">medium</option>
+                            <option value="large">large</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Server -->
+            <div class="settings-section">
+                <h2>Server</h2>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Host</div>
+                        <div class="setting-desc">Network interface to bind to</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="text" name="host" value="127.0.0.1">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Port</div>
+                        <div class="setting-desc">HTTP server port</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="number" name="port" value="8000" min="1024" max="65535">
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button type="submit" class="btn-save" onclick="saveSettings()">Save Settings</button>
+                <button type="button" class="btn-reset" onclick="resetSettings()">Reset to Defaults</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="toast" id="toast">Settings saved</div>
+
+    <script>
+        async function loadSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                const settings = await res.json();
+                const form = document.getElementById('settings-form');
+
+                for (const [key, value] of Object.entries(settings)) {
+                    const el = form.elements[key];
+                    if (!el) continue;
+                    if (el.type === 'checkbox') {
+                        el.checked = !!value;
+                    } else {
+                        el.value = value;
+                    }
+                }
+            } catch (e) {
+                console.log('Could not load settings');
+            }
+        }
+
+        async function saveSettings() {
+            const form = document.getElementById('settings-form');
+            const data = {};
+
+            for (const el of form.elements) {
+                if (!el.name) continue;
+                if (el.type === 'checkbox') {
+                    data[el.name] = el.checked;
+                } else if (el.type === 'number') {
+                    data[el.name] = parseFloat(el.value);
+                } else {
+                    data[el.name] = el.value;
+                }
+            }
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+
+                if (res.ok) {
+                    showToast('Settings saved');
+                } else {
+                    showToast('Error saving settings');
+                }
+            } catch (e) {
+                showToast('Error: ' + e.message);
+            }
+        }
+
+        function resetSettings() {
+            if (confirm('Reset all settings to defaults?')) {
+                const defaults = {
+                    nvidia_model: 'meta/llama-3.1-8b-instruct',
+                    default_llm_temperature: 0.7,
+                    max_tokens: 4096,
+                    confidence_threshold: 0.9,
+                    require_confirmation: true,
+                    tts_enabled: true,
+                    stt_enabled: true,
+                    wake_word_enabled: false,
+                    whisper_model: 'base',
+                    host: '127.0.0.1',
+                    port: 8000,
+                };
+                const form = document.getElementById('settings-form');
+                for (const [key, value] of Object.entries(defaults)) {
+                    const el = form.elements[key];
+                    if (!el) continue;
+                    if (el.type === 'checkbox') el.checked = value;
+                    else el.value = value;
+                }
+                form.elements['nvidia_api_key'].value = '';
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSettings);
+    </script>
+</body>
+</html>

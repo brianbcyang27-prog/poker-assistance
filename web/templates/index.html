@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script>
+    // Initialize JARVIS Core on load
+    document.addEventListener('DOMContentLoaded', () => {
+        const container = document.getElementById('jarvis-canvas');
+        window.jarvisCore = new JarvisCore(container);
+        window.jarvisState = new JarvisState();
+        window.audioAnalyzer = new AudioAnalyzer();
+
+        // Connect state machine to visualization
+        window.jarvisState.onStateChange((state) => {
+            window.jarvisCore.setState(state);
+            document.getElementById('core-state').textContent = state.toUpperCase();
+        });
+
+        // Set initial state
+        setTimeout(() => {
+            window.jarvisState.set('idle');
+            document.getElementById('core-state').textContent = 'READY';
+        }, 1500);
+    });
+</script>
+{% endblock %}

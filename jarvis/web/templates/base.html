@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS - AI Operating System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- Three.js (local) -->
+    <script src="/static/vendor/three.min.js"></script>
+    <script src="/static/vendor/CopyShader.js"></script>
+    <script src="/static/vendor/LuminosityHighPassShader.js"></script>
+    <script src="/static/vendor/EffectComposer.js"></script>
+    <script src="/static/vendor/RenderPass.js"></script>
+    <script src="/static/vendor/ShaderPass.js"></script>
+    <script src="/static/vendor/UnrealBloomPass.js"></script>
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Three.js Canvas Container -->
+        <div id="jarvis-canvas"></div>
+        
+        <!-- UI Overlay -->
+        <div id="ui-overlay">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <div class="logo">
+                    <div class="logo-dot"></div>
+                    <span class="logo-text">JARVIS</span>
+                </div>
+                <div class="status-badge">
+                    <div class="status-dot"></div>
+                    <span class="status-text">ONLINE</span>
+                </div>
+            </div>
+            
+            <!-- Center Status -->
+            <div class="center-status">
+                <div class="status-label">NEURAL CORE</div>
+                <div class="status-state" id="core-state">INITIALIZING</div>
+            </div>
+        </div>
+        
+        <!-- Card Hierarchy Panel -->
+        <div class="card-hierarchy" id="card-hierarchy">
+            <div class="hierarchy-header">
+                <span>AGENT HIERARCHY</span>
+                <button class="panel-close" onclick="toggleHierarchy()">&times;</button>
+            </div>
+            <div class="hierarchy-content" id="hierarchy-content">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+        
+        <!-- Navigation Buttons -->
+        <div class="nav-buttons">
+            <button class="nav-btn" onclick="togglePanel('memory')" title="Memory">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                    <path d="M2 17l10 5 10-5"/>
+                    <path d="M2 12l10 5 10-5"/>
+                </svg>
+            </button>
+            <button class="nav-btn" onclick="toggleHierarchy()" title="Agent Hierarchy">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="7" height="7"/>
+                    <rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/>
+                    <rect x="3" y="14" width="7" height="7"/>
+                </svg>
+            </button>
+            <a href="/command-map" class="nav-btn" title="Command Map" style="text-decoration:none;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    <path d="M2 12h20"/>
+                </svg>
+            </a>
+            <a href="/settings" class="nav-btn" title="Settings" style="text-decoration:none;">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+            </a>
+            <button class="nav-btn" onclick="togglePanel('workspace')" title="Workspace">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                </svg>
+            </button>
+        </div>
+        
+        <!-- Memory Panel -->
+        <div class="side-panel left" id="memory-panel">
+            <div class="panel-header">
+                <h3>Memory</h3>
+                <button class="panel-close" onclick="togglePanel('memory')">&times;</button>
+            </div>
+            <div class="panel-content">
+                <div id="memory-content" hx-get="/api/memory" hx-trigger="load" hx-swap="innerHTML">
+                    <p style="color: var(--text-secondary); font-size: 12px;">Loading...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Workspace Panel -->
+        <div class="side-panel right" id="workspace-panel">
+            <div class="panel-header">
+                <h3>Active Missions</h3>
+                <button class="panel-close" onclick="togglePanel('workspace')">&times;</button>
+            </div>
+            <div class="panel-content">
+                <div id="workspace-content" hx-get="/api/workspace" hx-trigger="load" hx-swap="innerHTML">
+                    <p style="color: var(--text-secondary); font-size: 12px;">Loading...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat Panel -->
+        <div class="chat-panel" id="chat-panel">
+            <div class="chat-header" onclick="toggleChat()">
+                <div class="chat-header-left">
+                    <h3>Communication</h3>
+                    <span class="message-count" id="message-count">0</span>
+                </div>
+                <button class="toggle-chat-btn">&#9660;</button>
+            </div>
+            
+            <div class="messages-container" id="messages"></div>
+            
+            <div class="chat-input-area">
+                <div class="input-row">
+                    <button id="mic-btn" onclick="toggleVoice()" class="btn-icon" title="Toggle voice input">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                        </svg>
+                    </button>
+                    <textarea
+                        id="message-input"
+                        placeholder="Speak to JARVIS..."
+                        rows="1"
+                        onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage()}"
+                    ></textarea>
+                    <button onclick="sendMessage()" class="btn-send" title="Send">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% block content %}{% endblock %}
+
+    <!-- JARVIS Core Scripts -->
+    <script src="/static/js/jarvis-core.js"></script>
+    <script src="/static/js/card-visualization.js"></script>
+    <script src="/static/js/audio-analyzer.js"></script>
+    <script src="/static/js/state-machine.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/voice.js"></script>
+</body>
+</html>
