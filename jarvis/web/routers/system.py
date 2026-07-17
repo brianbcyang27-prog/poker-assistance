@@ -735,3 +735,141 @@ async def timeline_record_event(mission_id: str, body: dict):
         agent_id=body.get("agent_id", ""),
     )
     return {"ok": True}
+
+
+# ===== OBSERVABILITY =====
+
+@router.get("/health")
+async def system_health():
+    """Get comprehensive system health."""
+    from jarvis.brain.observability import observability
+    return await observability.get_system_health()
+
+
+@router.get("/metrics")
+async def get_metrics(name: Optional[str] = None, limit: int = 100):
+    """Get recorded metrics."""
+    from jarvis.brain.observability import observability
+    return {"metrics": observability.get_metrics(name=name, limit=limit)}
+
+
+@router.get("/metrics/counters")
+async def get_counters():
+    """Get metric counters."""
+    from jarvis.brain.observability import observability
+    return observability.get_counters()
+
+
+@router.get("/metrics/gauges")
+async def get_gauges():
+    """Get metric gauges."""
+    from jarvis.brain.observability import observability
+    return observability.get_gauges()
+
+
+@router.post("/metrics/record")
+async def record_metric(body: dict):
+    """Record a custom metric."""
+    from jarvis.brain.observability import observability
+    observability.record_metric(
+        name=body.get("name", "custom"),
+        value=body.get("value", 0),
+        tags=body.get("tags", {}),
+    )
+    return {"ok": True}
+
+
+@router.get("/traces")
+async def get_traces(limit: int = 20):
+    """Get recent traces."""
+    from jarvis.brain.observability import observability
+    return {"traces": observability.get_recent_traces(limit)}
+
+
+@router.get("/traces/{trace_id}")
+async def get_trace(trace_id: str):
+    """Get a specific trace."""
+    from jarvis.brain.observability import observability
+    trace = observability.get_trace(trace_id)
+    return trace or {"error": "Trace not found"}
+
+
+@router.post("/traces/start")
+async def start_trace(body: dict):
+    """Start a new trace."""
+    from jarvis.brain.observability import observability
+    trace_id = observability.start_trace(
+        operation=body.get("operation", "unknown"),
+        tags=body.get("tags", {}),
+    )
+    return {"trace_id": trace_id}
+
+
+@router.post("/traces/{trace_id}/end")
+async def end_trace(trace_id: str, body: dict = None):
+    """End a trace."""
+    from jarvis.brain.observability import observability
+    observability.end_trace(trace_id, status=(body or {}).get("status", "ok"))
+    return {"ok": True}
+
+
+# ===== DEVELOPER MODE =====
+
+@router.get("/dev/stats")
+async def dev_stats():
+    """Get developer mode stats."""
+    from jarvis.brain.developer import developer_mode
+    return developer_mode.get_stats()
+
+
+@router.get("/dev/flags")
+async def dev_flags():
+    """Get all feature flags."""
+    from jarvis.brain.developer import developer_mode
+    return {"flags": developer_mode.get_flags()}
+
+
+@router.post("/dev/flags/{flag_name}/toggle")
+async def dev_toggle_flag(flag_name: str):
+    """Toggle a feature flag."""
+    from jarvis.brain.developer import developer_mode
+    flag = developer_mode.toggle(flag_name)
+    return flag.to_dict() if flag else {"error": "Flag not found"}
+
+
+@router.post("/dev/flags/{flag_name}")
+async def dev_set_flag(flag_name: str, body: dict):
+    """Set a feature flag."""
+    from jarvis.brain.developer import developer_mode
+    flag = developer_mode.set_flag(flag_name, body.get("enabled", True))
+    return flag.to_dict()
+
+
+@router.get("/dev/state")
+async def dev_internal_state():
+    """Get internal state of all subsystems."""
+    from jarvis.brain.developer import developer_mode
+    return developer_mode.get_internal_state()
+
+
+@router.get("/dev/env")
+async def dev_env():
+    """Get sanitized environment variables."""
+    from jarvis.brain.developer import developer_mode
+    return developer_mode.get_env()
+
+
+@router.get("/dev/debug")
+async def dev_debug(key: Optional[str] = None):
+    """Get debug data."""
+    from jarvis.brain.developer import developer_mode
+    data = developer_mode.get_debug(key)
+    return {"data": data}
+
+
+@router.post("/dev/debug")
+async def dev_set_debug(body: dict):
+    """Store debug data."""
+    from jarvis.brain.developer import developer_mode
+    developer_mode.set_debug(body.get("key", ""), body.get("value"))
+    return {"ok": True}
