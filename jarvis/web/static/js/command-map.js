@@ -901,3 +901,32 @@ document.addEventListener('DOMContentLoaded', () => {
     loadMissions();
     setInterval(loadMissions, 5000);
 });
+
+/* v3.2.0: Open explainability panel for selected agent */
+function openExplainPanel() {
+    if (!window.commandMap || !window.commandMap.selectedAgent) return;
+    const agent = window.commandMap.agentData.get(window.commandMap.selectedAgent);
+    if (!agent) return;
+
+    // Build explanation data from agent info
+    const explainData = {
+        name: agent.name || agent.card_id,
+        id: agent.card_id,
+        department: agent.suit === 'spades' ? 'engineering' :
+                    agent.suit === 'hearts' ? 'research' :
+                    agent.suit === 'diamonds' ? 'personal' : 'system',
+        confidence: agent.confidence || 0.85,
+        model: agent.model || 'meta/llama-3.1-8b-instruct',
+        duration: agent.lastDuration || null,
+        thoughts: agent.thoughts || [
+            { icon: '\u2022', text: agent.thinking || 'Awaiting task', confidence: agent.confidence || 0.5 }
+        ],
+        capabilities: agent.abilities || [],
+        memories: agent.relevantMemories || [],
+        timeline: agent.timeline || [],
+    };
+
+    if (window.explainability) {
+        window.explainability.show('agent', explainData, window.innerWidth / 2, window.innerHeight / 2);
+    }
+}

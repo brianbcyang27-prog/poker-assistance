@@ -306,6 +306,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.livingUI = new LivingInterface();
     } catch (e) { console.warn('LivingInterface:', e); }
 
+    // v3.2.0: Initialize new components
+    try {
+        window.deptIdentity = new DepartmentIdentity();
+        window.deptIdentity.renderAll();
+    } catch (e) { console.warn('DepartmentIdentity:', e); }
+
+    try {
+        window.explainability = new ExplainabilityOverlay();
+    } catch (e) { console.warn('ExplainabilityOverlay:', e); }
+
+    try {
+        window.missionDAG = new MissionDAG(document.getElementById('mission-dag-container'));
+        window.missionDAG.init();
+    } catch (e) { console.warn('MissionDAG:', e); }
+
     if (window.jarvisState) {
         window.jarvisState.onStateChange(state => {
             if (window.jarvisCore) window.jarvisCore.setState(state);
@@ -317,6 +332,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (window.livingUI) {
         window.livingUI.setState('idle');
         window.livingUI.startMissionPolling();
+        // v3.2.0: Connect to Event Bus WebSocket for real-time thought stream
+        window.livingUI.connectEvents();
     }
 
     loadSettings();

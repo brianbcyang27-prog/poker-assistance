@@ -767,3 +767,345 @@ body.system-error #input-bar::before {
     0%, 100% { opacity: 0.6; }
     50% { opacity: 1; }
 }
+
+/* ============================================================
+   v3.2.0 — Living Intelligence Interface Styles
+   ============================================================ */
+
+/* ---- Thought Stream ---- */
+#thought-stream {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 15;
+}
+
+.thought {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(5, 11, 20, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.15);
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    opacity: 0;
+    animation: thoughtFade 5.8s ease-in-out forwards;
+    white-space: nowrap;
+    backdrop-filter: blur(8px);
+}
+
+.thought-icon { font-size: 13px; }
+.thought-text { letter-spacing: 0.3px; }
+
+.thought-process { border-color: rgba(0, 240, 255, 0.2); }
+.thought-work { border-color: rgba(0, 240, 255, 0.3); }
+.thought-plan { border-color: rgba(136, 68, 255, 0.3); }
+.thought-delegate { border-color: rgba(255, 170, 0, 0.3); }
+.thought-review { border-color: rgba(0, 204, 102, 0.3); }
+.thought-complete { border-color: rgba(0, 204, 102, 0.5); }
+.thought-error { border-color: rgba(255, 51, 102, 0.4); }
+
+@keyframes thoughtFade {
+    0% { opacity: 0; transform: translateY(8px); }
+    8% { opacity: 1; transform: translateY(0); }
+    85% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-12px) translateX(var(--drift-x, 0)); }
+}
+
+/* ---- Department Badges ---- */
+#department-badges {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 20;
+}
+
+.dept-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba(5, 11, 20, 0.8);
+    border: 1px solid var(--dept-color, var(--color-line));
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(8px);
+}
+
+.dept-badge:hover,
+.dept-badge.active {
+    border-color: var(--dept-color);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--dept-color) 30%, transparent);
+    background: rgba(5, 11, 20, 0.95);
+}
+
+.dept-badge .dept-icon {
+    font-size: 16px;
+    color: var(--dept-color);
+}
+
+.dept-badge .dept-name {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--color-text-primary);
+}
+
+.dept-badge .dept-motto {
+    font-size: 9px;
+    color: var(--color-text-muted);
+    letter-spacing: 0.3px;
+}
+
+/* ---- Explainability Overlay ---- */
+#explain-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 90;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+#explain-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+#explain-panel {
+    position: fixed;
+    width: 380px;
+    max-height: 80vh;
+    background: rgba(8, 16, 28, 0.95);
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    z-index: 95;
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    pointer-events: none;
+    transition: all 0.3s ease;
+    overflow-y: auto;
+    backdrop-filter: blur(16px);
+}
+#explain-panel.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: all;
+}
+
+.explain-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid var(--color-line);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent, var(--color-primary)) 8%, transparent), transparent);
+}
+
+.explain-icon { font-size: 24px; }
+.explain-title { flex: 1; }
+.explain-title h3 { margin: 0; font-size: 14px; color: var(--color-text-primary); }
+.explain-type { font-size: 10px; color: var(--color-text-muted); letter-spacing: 1px; }
+
+.explain-close {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+}
+.explain-close:hover { color: var(--color-text-primary); }
+
+.explain-body { padding: 12px 16px; }
+
+.explain-section { margin-bottom: 16px; }
+.explain-section h4 {
+    margin: 0 0 8px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+}
+
+/* Reasoning chain */
+.reasoning-chain {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.reasoning-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    border-left: 2px solid var(--color-line);
+    padding-left: 10px;
+    margin-bottom: 4px;
+}
+.step-conf {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+/* Metrics */
+.explain-metrics { display: flex; flex-direction: column; gap: 6px; }
+.metric-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+.metric-label { color: var(--color-text-muted); min-width: 80px; }
+.metric-value { color: var(--color-text-primary); font-family: var(--font-mono); }
+.metric-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--color-line);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.metric-bar {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+
+/* Tags */
+.explain-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.explain-tag {
+    padding: 3px 8px;
+    background: rgba(0, 240, 255, 0.08);
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: 4px;
+    font-size: 10px;
+    color: var(--color-primary);
+    font-family: var(--font-mono);
+}
+
+/* Memories */
+.explain-memories { display: flex; flex-direction: column; gap: 4px; }
+.memory-item {
+    display: flex;
+    gap: 8px;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    font-size: 11px;
+}
+.mem-source {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: 9px;
+    min-width: 60px;
+}
+.mem-text {
+    color: var(--color-text-secondary);
+    flex: 1;
+}
+
+/* Timeline */
+.explain-timeline {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.timeline-event {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}
+.tl-time {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--color-text-muted);
+    min-width: 50px;
+}
+
+/* ---- Mission DAG Container ---- */
+#mission-dag-container {
+    width: 100%;
+    height: 300px;
+    margin-top: 20px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: rgba(5, 11, 20, 0.5);
+    overflow: hidden;
+}
+
+.mission-dag-svg { display: block; }
+
+/* ---- Memory Galaxy Container ---- */
+#memory-galaxy-container {
+    width: 100%;
+    height: 400px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: #050b14;
+    overflow: hidden;
+    cursor: grab;
+}
+#memory-galaxy-container:active { cursor: grabbing; }
+
+/* ---- Mission State (bottom-left) ---- */
+#mission-state {
+    position: fixed;
+    bottom: 80px;
+    left: 20px;
+    padding: 10px 16px;
+    background: rgba(5, 11, 20, 0.9);
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    z-index: 20;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.4s ease;
+    backdrop-filter: blur(8px);
+    max-width: 260px;
+}
+#mission-state.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.mission-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.mission-bar {
+    height: 3px;
+    background: var(--color-line);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+.mission-fill {
+    height: 100%;
+    background: var(--color-primary);
+    border-radius: 2px;
+    transition: width 1s ease;
+}
+
+.mission-detail {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+}

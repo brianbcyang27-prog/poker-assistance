@@ -500,6 +500,24 @@ body {
     border-radius: 8px;
 }
 
+/* v3.2.0: Explain button */
+.detail-explain-btn {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid var(--accent-cyan);
+    color: var(--accent-cyan);
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+.detail-explain-btn:hover {
+    background: rgba(0, 212, 255, 0.1);
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+}
+
 @keyframes pulse-thinking {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }

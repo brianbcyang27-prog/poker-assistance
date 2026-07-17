@@ -35,6 +35,17 @@ class Graph3D {
         this.targetPulseSpeedMult = 1.0;
         this.currentPulseSpeedMult = 1.0;
 
+        // v3.2.0: Ambient and state-specific
+        this._targetColorShift = 0; // 0=gold, 0.3=cyan-gold
+        this._currentColorShift = 0;
+        this._targetParticleDrift = 0.0002;
+        this._currentParticleDrift = 0.0002;
+        this._ambientPhase = 0;
+        this._memoryFlashTimer = 0;
+        this._delegationBurstTimer = 0;
+        this._completionPulseTimer = 0;
+        this._breathPhase = 0;
+
         // Golden palette
         this.GOLD = 0xffaa00;
         this.GOLD_BRIGHT = 0xfff0b3;
@@ -541,6 +552,7 @@ class Graph3D {
 
     setState(newState) {
         if (this.state === newState) return;
+        const oldState = this.state;
         this.state = newState;
 
         switch (newState) {
@@ -552,6 +564,8 @@ class Graph3D {
                 this.targetCorePulseSpeed = 1.5;
                 this.targetMaxPulses = 1;
                 this.targetPulseSpeedMult = 1.0;
+                this._targetColorShift = 0; // gold
+                this._targetParticleDrift = 0.0002;
                 break;
             case 'thinking':
                 this.targetBloom = 3.0;
@@ -561,6 +575,8 @@ class Graph3D {
                 this.targetCorePulseSpeed = 4.0;
                 this.targetMaxPulses = 8;
                 this.targetPulseSpeedMult = 3.5;
+                this._targetColorShift = 0; // bright gold
+                this._targetParticleDrift = 0.001;
                 break;
             case 'listening':
                 this.targetBloom = 2.2;
@@ -570,6 +586,8 @@ class Graph3D {
                 this.targetCorePulseSpeed = 2.5;
                 this.targetMaxPulses = 3;
                 this.targetPulseSpeedMult = 1.8;
+                this._targetColorShift = 0;
+                this._targetParticleDrift = 0.0005;
                 break;
             case 'speaking':
                 this.targetBloom = 2.5;
@@ -579,6 +597,8 @@ class Graph3D {
                 this.targetCorePulseSpeed = 3.0;
                 this.targetMaxPulses = 4;
                 this.targetPulseSpeedMult = 2.2;
+                this._targetColorShift = 0;
+                this._targetParticleDrift = 0.0006;
                 break;
             case 'working':
                 this.targetBloom = 2.8;
@@ -588,8 +608,80 @@ class Graph3D {
                 this.targetCorePulseSpeed = 3.5;
                 this.targetMaxPulses = 6;
                 this.targetPulseSpeedMult = 2.8;
+                this._targetColorShift = 0;
+                this._targetParticleDrift = 0.0008;
+                break;
+            // ---- v3.2.0: New AI states ----
+            case 'retrieving':
+                // Particles flow inward — memory convergence
+                this.targetBloom = 2.6;
+                this.targetRotSpeed = 0.001;
+                this.targetRingSpeedMult = 1.5;
+                this.targetLineOpacity = 0.65;
+                this.targetCorePulseSpeed = 2.0;
+                this.targetMaxPulses = 5;
+                this.targetPulseSpeedMult = 2.0;
+                this._targetColorShift = 0.3; // cyan-gold blend
+                this._targetParticleDrift = -0.001; // inward drift
+                this._triggerMemoryFlash = true;
+                break;
+            case 'planning':
+                // Network expands — new branches appear
+                this.targetBloom = 2.4;
+                this.targetRotSpeed = 0.002;
+                this.targetRingSpeedMult = 2.2;
+                this.targetLineOpacity = 0.55;
+                this.targetCorePulseSpeed = 3.0;
+                this.targetMaxPulses = 4;
+                this.targetPulseSpeedMult = 2.5;
+                this._targetColorShift = 0.15; // slight warm shift
+                this._targetParticleDrift = 0.0005;
+                this._expandNetwork = true;
+                break;
+            case 'delegating':
+                // Energy pulses travel outward — delegation burst
+                this.targetBloom = 3.2;
+                this.targetRotSpeed = 0.0035;
+                this.targetRingSpeedMult = 3.5;
+                this.targetLineOpacity = 0.75;
+                this.targetCorePulseSpeed = 4.5;
+                this.targetMaxPulses = 12;
+                this.targetPulseSpeedMult = 4.0;
+                this._targetColorShift = 0.1;
+                this._targetParticleDrift = 0.0015;
+                this._delegationBurst = true;
+                break;
+            case 'reviewing':
+                // Golden energy returns — calm assessment
+                this.targetBloom = 2.0;
+                this.targetRotSpeed = 0.0008;
+                this.targetRingSpeedMult = 1.2;
+                this.targetLineOpacity = 0.45;
+                this.targetCorePulseSpeed = 2.0;
+                this.targetMaxPulses = 3;
+                this.targetPulseSpeedMult = 1.5;
+                this._targetColorShift = 0.05;
+                this._targetParticleDrift = 0.0003;
+                break;
+            case 'complete':
+                // Entire network settles — calm completion pulse
+                this.targetBloom = 2.2;
+                this.targetRotSpeed = 0.0004;
+                this.targetRingSpeedMult = 0.8;
+                this.targetLineOpacity = 0.4;
+                this.targetCorePulseSpeed = 1.2;
+                this.targetMaxPulses = 2;
+                this.targetPulseSpeedMult = 1.0;
+                this._targetColorShift = 0;
+                this._targetParticleDrift = 0.0001;
+                this._completionPulse = true;
                 break;
         }
+
+        // Emit state change event for other systems
+        window.dispatchEvent(new CustomEvent('jarvis-state-change', {
+            detail: { from: oldState, to: newState }
+        }));
     }
 
     /* ================================================================
@@ -624,6 +716,14 @@ class Graph3D {
         this.currentLineOpacity += (this.targetLineOpacity - this.currentLineOpacity) * lerp;
         this.currentMaxPulses += (this.targetMaxPulses - this.currentMaxPulses) * lerp;
         this.currentPulseSpeedMult += (this.targetPulseSpeedMult - this.currentPulseSpeedMult) * lerp;
+        this._currentColorShift += ((this._targetColorShift || 0) - this._currentColorShift) * lerp;
+        this._currentParticleDrift += ((this._targetParticleDrift || 0) - this._currentParticleDrift) * lerp;
+
+        // ---- Ambient breathing (always active, subtle) ----
+        this._breathPhase += dt * 0.8;
+        this._ambientPhase += dt;
+        const breathScale = 1.0 + Math.sin(this._breathPhase) * 0.008; // very subtle
+        this.particlesGroup.scale.setScalar(breathScale);
 
         // ---- Mouse parallax ----
         this.mouse.x += (this.mouse.tx - this.mouse.x) * 0.04;
@@ -671,8 +771,92 @@ class Graph3D {
         const corePulse = 1.0 + Math.sin(this.time * this.targetCorePulseSpeed) * 0.12;
         this.coreGlow.scale.setScalar(corePulse);
 
+        // ---- v3.2.0: State-specific visual effects ----
+
+        // Memory retrieval flash — particles converge toward center
+        if (this._triggerMemoryFlash) {
+            this._memoryFlashTimer = 2.0; // 2 second effect
+            this._triggerMemoryFlash = false;
+        }
+        if (this._memoryFlashTimer > 0) {
+            this._memoryFlashTimer -= dt;
+            const flashIntensity = this._memoryFlashTimer / 2.0;
+            // Pulse the core brighter during retrieval
+            this.coreGlow.scale.setScalar(corePulse * (1.0 + flashIntensity * 0.3));
+        }
+
+        // Delegation burst — energy radiates outward
+        if (this._delegationBurst) {
+            this._delegationBurstTimer = 1.5;
+            this._delegationBurst = false;
+        }
+        if (this._delegationBurstTimer > 0) {
+            this._delegationBurstTimer -= dt;
+            const burstT = 1.0 - (this._delegationBurstTimer / 1.5);
+            // Expand rings temporarily
+            for (const ring of this.rings) {
+                const expand = 1.0 + burstT * 0.15;
+                ring.scale.setScalar(expand);
+            }
+        } else {
+            for (const ring of this.rings) {
+                ring.scale.setScalar(1.0);
+            }
+        }
+
+        // Completion pulse — calm settling wave
+        if (this._completionPulse) {
+            this._completionPulseTimer = 3.0;
+            this._completionPulse = false;
+        }
+        if (this._completionPulseTimer > 0) {
+            this._completionPulseTimer -= dt;
+            const settleT = this._completionPulseTimer / 3.0;
+            // Gentle bloom pulse
+            this.bloomPass.strength += settleT * 0.3;
+        }
+
+        // Ambient idle behavior — random micro-pulses when idle
+        if (this.state === 'idle') {
+            // Occasional tiny communication pulse
+            if (Math.random() < 0.002) { // ~once every 8 seconds at 60fps
+                this._spawnPulse();
+            }
+        }
+
         // ---- Particle shader time ----
         this.particles.material.uniforms.uTime.value = this.time;
+
+        // ---- v3.2.0: Particle drift (inward for retrieve, outward for delegate) ----
+        if (Math.abs(this._currentParticleDrift) > 0.0001) {
+            const pos = this.nodePositions;
+            const count = this.nodeCount;
+            for (let i = 0; i < count; i++) {
+                const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+                const dist = Math.sqrt(x * x + y * y + z * z);
+                if (dist > 0.1) {
+                    // Normalize direction, apply drift
+                    const nx = x / dist, ny = y / dist, nz = z / dist;
+                    const drift = this._currentParticleDrift * (0.5 + Math.sin(i * 0.1 + this.time) * 0.5);
+                    pos[i * 3]     += nx * drift;
+                    pos[i * 3 + 1] += ny * drift;
+                    pos[i * 3 + 2] += nz * drift;
+                    // Keep within bounds
+                    const newDist = Math.sqrt(pos[i*3]**2 + pos[i*3+1]**2 + pos[i*3+2]**2);
+                    if (newDist > this.SPACE_RADIUS * 1.2) {
+                        pos[i * 3]     *= this.SPACE_RADIUS * 1.1 / newDist;
+                        pos[i * 3 + 1] *= this.SPACE_RADIUS * 1.1 / newDist;
+                        pos[i * 3 + 2] *= this.SPACE_RADIUS * 1.1 / newDist;
+                    }
+                    if (newDist < 1.0) {
+                        pos[i * 3]     *= 1.5 / newDist;
+                        pos[i * 3 + 1] *= 1.5 / newDist;
+                        pos[i * 3 + 2] *= 1.5 / newDist;
+                    }
+                }
+            }
+            this.particles.geometry.attributes.position.needsUpdate = true;
+        }
 
         // ---- Constellation web opacity ----
         this.lines.material.opacity = this.currentLineOpacity;
