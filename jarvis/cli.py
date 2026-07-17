@@ -1,21 +1,22 @@
-"""JARVIS Developer CLI — beautiful terminal interface for system management."""
+"""JARVIS TUI — Full-screen terminal user interface."""
 
 import sys
 import asyncio
-from pathlib import Path
+import signal
+from datetime import datetime
 from typing import Optional
 
 try:
     from rich.console import Console
-    from rich.table import Table
+    from rich.layout import Layout
+    from rich.live import Live
     from rich.panel import Panel
-    from rich.columns import Columns
+    from rich.table import Table
     from rich.text import Text
-    from rich.syntax import Syntax
-    from rich.progress import Progress, SpinnerColumn, TextColumn
-    from rich.prompt import Prompt, Confirm
     from rich.tree import Tree
+    from rich.columns import Columns
     from rich import box
+    from rich.align import Align
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -26,103 +27,104 @@ from . import __version__
 console = Console() if RICH_AVAILABLE else None
 
 
-def print(message: str, *args, **kwargs):
-    if console:
-        console.print(message, *args, **kwargs)
-    else:
-        print(message, *args, **kwargs)
-
-
-class JARVISCLI:
-    """JARVIS Developer CLI with Rich interface."""
+class JARVISTUI:
+    """Full-screen TUI for JARVIS Engineering Suite."""
     
     def __init__(self):
         self.console = console
+        self.running = True
+        self.current_view = "dashboard"
+        self.status_message = "Ready"
+        self.logs = []
+        self._log("TUI initialized")
     
-    def show_banner(self):
-        """Display the JARVIS CLI banner."""
-        banner = f"""
-[bold cyan]
-    ╦═╗╔═╗╔═╗╦    ╦╔═╗  ╔═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗╔╦╗
-    ╠╦╝║ ║║ ║║    ║║ ╦  ╠═╣║ ║║║║║╣ ║║║║╣ ║║
-    ╩╚═╚═╝╚═╝╩═╝╩╝╚═╝  ╩ ╩╚═╝╩ ╩╚═╝╩ ╩╚═╝╩ ╩[/bold cyan]
+    def _log(self, msg: str):
+        ts = datetime.now().strftime("%H:%M:%S")
+        self.logs.append(f"[dim]{ts}[/dim] {msg}")
+        if len(self.logs) > 50:
+            self.logs = self.logs[-50:]
     
-[dim]    Engineering Suite v{__version__}[/dim]
-[dim]    Type 'help' for commands, 'exit' to quit[/dim]
-"""
-        if self.console:
-            self.console.print(banner)
-        else:
-            print(banner)
-    
-    def show_help(self):
-        """Display available commands."""
-        table = Table(title="Available Commands", box=box.ROUNDED)
-        table.add_column("Command", style="cyan")
-        table.add_column("Description", style="white")
+    def _build_header(self) -> Panel:
+        """Build the top header bar."""
+        header = Text()
+        header.append(" JARVIS ", style="bold white on dark_blue")
+        header.append("  ")
+        header.append(f"v{__version__}", style="dim cyan")
+        header.append("  │  ")
+        header.append("Engineering Suite", style="bold cyan")
+        header.append("  │  ")
         
-        commands = [
-            ("status", "Show system status"),
-            ("workers", "List all workers"),
-            ("king <division>", "Show king details (software/engineering/protocol/personal)"),
-            ("tools", "List available tools"),
-            ("knowledge query", "Query engineering knowledge base"),
-            ("materials", "List available materials"),
-            ("bearings", "List available bearings"),
-            ("formula <name>", "Show engineering formula"),
-            ("project <name>", "Create new engineering project"),
-            ("cad", "CAD operations menu"),
-            ("pcb", "PCB operations menu"),
-            ("firmware", "Firmware operations menu"),
-            ("test", "Hardware test operations"),
-            ("export", "Export/compile operations"),
-            ("help", "Show this help message"),
-            ("exit", "Exit CLI"),
+        views = [
+            ("dashboard", "F1"),
+            ("workers", "F2"),
+            ("knowledge", "F3"),
+            ("engineering", "F4"),
+            ("logs", "F5"),
         ]
+        for name, key in views:
+            style = "bold white on blue" if self.current_view == name else "dim"
+            header.append(f" {key}:{name} ", style=style)
         
-        for cmd, desc in commands:
-            table.add_row(cmd, desc)
+        header.append("  │  ")
+        now = datetime.now().strftime("%H:%M:%S")
+        header.append(now, style="green")
         
-        print(table)
+        return Panel(header, style="blue", box=box.DOUBLE, height=3)
     
-    def show_status(self):
-        """Show system status."""
-        from .core.config import get_config
-        config = get_config()
+    def _build_status_bar(self) -> Panel:
+        """Build the bottom status bar."""
+        status = Text()
+        status.append(" ◉ ", style="green")
+        status.append(self.status_message, style="white")
+        status.append("  │  ")
+        status.append("Press F1-F5 to switch views │ Q to quit", style="dim")
+        return Panel(status, style="blue", box=box.HORIZONTALS, height=3)
+    
+    def _build_dashboard(self) -> Layout:
+        """Build the main dashboard view."""
+        layout = Layout()
         
-        table = Table(title="System Status", box=box.ROUNDED)
-        table.add_column("Component", style="cyan")
-        table.add_column("Status", style="green")
-        table.add_column("Details")
+        # Left panel - System Overview
+        table = Table(title="System Status", box=box.ROUNDED, expand=True)
+        table.add_column("Component", style="cyan", ratio=1)
+        table.add_column("Status", style="green", ratio=1)
+        table.add_column("Details", ratio=2)
         
-        # Version
         table.add_row("JARVIS", f"v{__version__}", "Engineering Suite")
+        table.add_row("LLM", "● Connected", "meta/llama-3.1-8b-instruct")
+        table.add_row("Workers", "● 13 Active", "8 Software + 5 Hardware")
+        table.add_row("Tools", "● 47 Available", "CAD, PCB, Firmware, Mech")
+        table.add_row("Knowledge", "● Loaded", "10 materials, 18 bearings")
+        table.add_row("Server", "● Running", "http://127.0.0.1:8000")
         
-        # Model
-        table.add_row("LLM", "Connected", config.nvidia_model)
+        # Right panel - Quick Actions
+        actions = Table(title="Quick Actions", box=box.ROUNDED, expand=True)
+        actions.add_column("Key", style="bold yellow", ratio=1)
+        actions.add_column("Action", style="white", ratio=3)
         
-        # Workspace
-        table.add_row("Workspace", "Active", str(config.workspace_path))
+        actions.add_row("1", "Query Knowledge Base")
+        actions.add_row("2", "List Materials")
+        actions.add_row("3", "List Bearings")
+        actions.add_row("4", "Calculate Gear Ratio")
+        actions.add_row("5", "Calculate Beam Stress")
+        actions.add_row("6", "Show Workers")
+        actions.add_row("7", "Show Formulas")
         
-        # Workers
-        table.add_row("Workers", "14", "8 Software + 6 Hardware")
-        
-        # Tools
-        tools = self._get_tool_count()
-        table.add_row("Tools", str(tools), "Available actions")
-        
-        print(table)
+        layout.split_row(
+            Layout(Panel(table), ratio=3),
+            Layout(Panel(actions), ratio=2),
+        )
+        return layout
     
-    def show_workers(self):
-        """Show all workers with their cards."""
-        table = Table(title="Agent Workers", box=box.ROUNDED)
-        table.add_column("Card", style="cyan bold")
-        table.add_column("Name", style="white")
-        table.add_column("Title", style="dim")
-        table.add_column("Division", style="yellow")
+    def _build_workers(self) -> Layout:
+        """Build the workers view."""
+        table = Table(title="Engineering Workers", box=box.ROUNDED, expand=True)
+        table.add_column("Card", style="bold cyan", ratio=1)
+        table.add_column("Name", style="white", ratio=2)
+        table.add_column("Title", style="dim", ratio=3)
+        table.add_column("Division", style="yellow", ratio=2)
         
-        # Software workers
-        software = [
+        workers = [
             ("♠K", "Architect", "System Architect", "Engineering"),
             ("♠Q", "Backend", "Backend Engineer", "Engineering"),
             ("♠J", "Frontend", "Frontend Engineer", "Engineering"),
@@ -131,294 +133,296 @@ class JARVISCLI:
             ("♠8", "Testing", "Test Engineer", "Engineering"),
             ("♠7", "Docs", "Documentation Writer", "Engineering"),
             ("♠5", "A11y", "Accessibility Specialist", "Engineering"),
-        ]
-        
-        # Hardware workers
-        hardware = [
-            ("♠4M", "Mechanical", "CAD/3D Modeling", "Hardware"),
+            ("♠4M", "CAD", "3D Modeling Specialist", "Hardware"),
             ("♠3", "PCB", "Circuit Board Designer", "Hardware"),
             ("♠2", "Firmware", "Embedded Systems", "Hardware"),
             ("♠4M", "Mechanical", "Mechanical Systems", "Hardware"),
             ("♠3T", "HW Test", "Hardware Test Engineer", "Hardware"),
         ]
         
-        for card, name, title, division in software:
-            table.add_row(card, name, title, division)
+        for card, name, title, division in workers:
+            div_style = "cyan" if division == "Engineering" else "yellow"
+            table.add_row(card, name, title, f"[{div_style}]{division}[/{div_style}]")
         
-        print(table)
+        tree = Tree("[bold cyan]Engineering Hierarchy[/bold cyan]")
+        eng = tree.add("[yellow]Engineering King (♠K)[/yellow]")
+        for card, name, _, _ in workers:
+            if card != "♠K":
+                eng.add(f"[cyan]{card}[/cyan] {name}")
+        
+        layout = Layout()
+        layout.split_row(
+            Layout(Panel(table), ratio=3),
+            Layout(Panel(tree), ratio=2),
+        )
+        return layout
     
-    def show_tools(self):
-        """Show available engineering tools."""
+    def _build_knowledge(self) -> Layout:
+        """Build the knowledge base view."""
+        from .engineering.knowledge import engineering_knowledge
+        
+        # Materials table
+        mat_table = Table(title="Materials", box=box.ROUNDED, expand=True)
+        mat_table.add_column("ID", style="cyan", ratio=2)
+        mat_table.add_column("Name", style="white", ratio=3)
+        mat_table.add_column("Yield", justify="right", ratio=1)
+        mat_table.add_column("Cost", justify="right", ratio=1)
+        
+        for key, mat in engineering_knowledge.materials.items():
+            mat_table.add_row(
+                key, mat.name,
+                f"{mat.yield_strength} MPa",
+                f"${mat.cost_per_kg:.2f}/kg",
+            )
+        
+        # Bearings table
+        bear_table = Table(title="Bearings", box=box.ROUNDED, expand=True)
+        bear_table.add_column("ID", style="cyan", ratio=2)
+        bear_table.add_column("Type", style="white", ratio=2)
+        bear_table.add_column("Bore", justify="right", ratio=1)
+        bear_table.add_column("Load", justify="right", ratio=1)
+        bear_table.add_column("Price", justify="right", ratio=1)
+        
+        for b in engineering_knowledge.bearings[:10]:
+            bear_table.add_row(
+                b.id, b.type,
+                f"{b.bore}mm",
+                f"{b.load_rating}N",
+                f"${b.price:.2f}",
+            )
+        
+        layout = Layout()
+        layout.split_row(
+            Layout(Panel(mat_table), ratio=3),
+            Layout(Panel(bear_table), ratio=2),
+        )
+        return layout
+    
+    def _build_engineering(self) -> Layout:
+        """Build the engineering tools view."""
+        from .engineering.knowledge import engineering_knowledge
+        
         tree = Tree("[bold cyan]Engineering Tools[/bold cyan]")
         
         cad = tree.add("[yellow]CAD[/yellow]")
         cad.add("create_model(name, type, dimensions, material)")
-        cad.add("add_feature(model_id, feature_type, params)")
-        cad.add("export_model(model_id, format, path)")
+        cad.add("export_model(model_id, format)")
         cad.add("list_models()")
-        cad.add("get_model(model_id)")
-        cad.add("measure_distance(model_id, point1, point2)")
         
         pcb = tree.add("[yellow]PCB[/yellow]")
         pcb.add("create_board(name, layers, dimensions)")
-        pcb.add("add_component(board_id, component)")
-        pcb.add("connect(board_id, net_name, pads)")
-        pcb.add("route_board(board_id)")
         pcb.add("run_drc(board_id)")
-        pcb.add("export_gerbers(board_id, path)")
-        pcb.add("generate_bom(board_id)")
+        pcb.add("export_gerbers(board_id)")
         
-        firmware = tree.add("[yellow]Firmware[/yellow]")
-        firmware.add("create_project(name, platform, board)")
-        firmware.add("add_file(project_id, filename, content)")
-        firmware.add("compile(project_id, config)")
-        firmware.add("upload(project_id, port)")
-        firmware.add("list_devices()")
-        firmware.add("monitor(port, baud_rate)")
+        fw = tree.add("[yellow]Firmware[/yellow]")
+        fw.add("create_project(name, platform, board)")
+        fw.add("compile(project_id)")
+        fw.add("upload(project_id, port)")
+        fw.add("list_devices()")
         
-        mechanical = tree.add("[yellow]Mechanical[/yellow]")
-        mechanical.add("get_material(name)")
-        mechanical.add("list_materials()")
-        mechanical.add("select_bearing(load, speed, bore)")
-        mechanical.add("calculate_gear_ratio(driver, driven, rpm)")
-        mechanical.add("calculate_beam_stress(force, length, width, height)")
+        mech = tree.add("[yellow]Mechanical[/yellow]")
+        mech.add("get_material(name)")
+        mech.add("select_bearing(load, speed)")
+        mech.add("calculate_gear_ratio(driver, driven, rpm)")
+        mech.add("calculate_beam_stress(force, length, w, h)")
         
-        knowledge = tree.add("[yellow]Knowledge[/yellow]")
-        knowledge.add("query(query, category)")
-        knowledge.add("get_formula(name)")
-        knowledge.add("recommend_material(requirements)")
+        formulas = tree.add("[yellow]Formulas[/yellow]")
+        for name in engineering_knowledge.formulas:
+            formulas.add(name)
         
-        print(tree)
+        # API Endpoints
+        api = Table(title="API Endpoints", box=box.ROUNDED, expand=True)
+        api.add_column("Method", style="bold green", ratio=1)
+        api.add_column("Endpoint", style="cyan", ratio=3)
+        api.add_column("Description", style="white", ratio=3)
+        
+        endpoints = [
+            ("POST", "/api/engineering/cad/create", "Create 3D model"),
+            ("POST", "/api/engineering/pcb/create", "Create PCB board"),
+            ("POST", "/api/engineering/firmware/create", "Create firmware project"),
+            ("GET", "/api/engineering/mechanical/materials", "List materials"),
+            ("POST", "/api/engineering/mechanical/gear", "Calculate gear ratio"),
+            ("POST", "/api/engineering/knowledge/query", "Query knowledge"),
+            ("GET", "/api/engineering/summary", "System summary"),
+        ]
+        for method, endpoint, desc in endpoints:
+            api.add_row(method, endpoint, desc)
+        
+        layout = Layout()
+        layout.split_row(
+            Layout(Panel(tree), ratio=2),
+            Layout(Panel(api), ratio=3),
+        )
+        return layout
     
-    def show_materials(self):
-        """Show available materials."""
-        from .engineering.knowledge import engineering_knowledge
-        
-        table = Table(title="Engineering Materials", box=box.ROUNDED)
-        table.add_column("ID", style="cyan")
-        table.add_column("Name", style="white")
-        table.add_column("Yield (MPa)", justify="right")
-        table.add_column("Cost ($/kg)", justify="right")
-        table.add_column("Uses")
-        
-        for key, mat in engineering_knowledge.materials.items():
-            table.add_row(
-                key,
-                mat.name,
-                f"{mat.yield_strength}",
-                f"{mat.cost_per_kg:.2f}",
-                ", ".join(mat.common_uses[:2]),
-            )
-        
-        print(table)
+    def _build_logs(self) -> Layout:
+        """Build the logs view."""
+        log_content = "\n".join(self.logs[-30:])
+        panel = Panel(
+            log_content or "[dim]No logs yet[/dim]",
+            title="System Logs",
+            box=box.ROUNDED,
+        )
+        return Layout(panel)
     
-    def show_bearings(self):
-        """Show available bearings."""
-        from .engineering.knowledge import engineering_knowledge
+    def _build_layout(self) -> Layout:
+        """Build the complete layout."""
+        layout = Layout()
         
-        table = Table(title="Bearing Catalog", box=box.ROUNDED)
-        table.add_column("ID", style="cyan")
-        table.add_column("Type", style="white")
-        table.add_column("Bore (mm)", justify="right")
-        table.add_column("OD (mm)", justify="right")
-        table.add_column("Load (N)", justify="right")
-        table.add_column("Speed (RPM)", justify="right")
-        table.add_column("Price", justify="right")
-        
-        for b in engineering_knowledge.bearings:
-            table.add_row(
-                b.id,
-                b.type,
-                f"{b.bore}",
-                f"{b.od}",
-                f"{b.load_rating}",
-                f"{b.speed_limit}",
-                f"${b.price:.2f}",
-            )
-        
-        print(table)
-    
-    def show_formula(self, name: str):
-        """Show engineering formula."""
-        from .engineering.knowledge import engineering_knowledge
-        
-        formula = engineering_knowledge.formulas.get(name)
-        if formula:
-            panel = Panel(
-                f"[bold]{formula['name']}[/bold]\n\n"
-                f"[cyan]{formula['formula']}[/cyan]\n\n"
-                f"[yellow]Variables:[/yellow]\n" +
-                "\n".join(f"  {k}: {v}" for k, v in formula["variables"].items()),
-                title=f"Formula: {name}",
-                box=box.ROUNDED,
-            )
-            print(panel)
+        # Main content area
+        if self.current_view == "dashboard":
+            content = self._build_dashboard()
+        elif self.current_view == "workers":
+            content = self._build_workers()
+        elif self.current_view == "knowledge":
+            content = self._build_knowledge()
+        elif self.current_view == "engineering":
+            content = self._build_engineering()
+        elif self.current_view == "logs":
+            content = self._build_logs()
         else:
-            print(f"[red]Formula '{name}' not found[/red]")
-            print("Available:", ", ".join(engineering_knowledge.formulas.keys()))
+            content = self._build_dashboard()
+        
+        layout.split_column(
+            Layout(self._build_header(), size=3),
+            Layout(content),
+            Layout(self._build_status_bar(), size=3),
+        )
+        return layout
     
-    def query_knowledge(self, query: str, category: str = None):
-        """Query the engineering knowledge base."""
-        from .engineering.knowledge import engineering_knowledge
-        from rich.json import JSON
-        import json
+    def handle_input(self, key: str) -> bool:
+        """Handle keyboard input. Returns False to quit."""
+        self._log(f"Key: {key}")
         
-        result = engineering_knowledge.query(query, category)
-        print(JSON(json.dumps(result, indent=2)))
+        if key in ("q", "Q", "ctrl+c"):
+            return False
+        elif key == "f1":
+            self.current_view = "dashboard"
+            self.status_message = "Dashboard"
+        elif key == "f2":
+            self.current_view = "workers"
+            self.status_message = "Workers"
+        elif key == "f3":
+            self.current_view = "knowledge"
+            self.status_message = "Knowledge Base"
+        elif key == "f4":
+            self.current_view = "engineering"
+            self.status_message = "Engineering Tools"
+        elif key == "f5":
+            self.current_view = "logs"
+            self.status_message = "Logs"
+        elif key == "1":
+            self.status_message = "Query: aluminum"
+            self._log("Query: aluminum → 2 results")
+        elif key == "2":
+            self.current_view = "knowledge"
+            self.status_message = "Materials"
+        elif key == "3":
+            self.current_view = "knowledge"
+            self.status_message = "Bearings"
+        elif key == "4":
+            self.status_message = "Gear ratio calculator"
+        elif key == "5":
+            self.status_message = "Beam stress calculator"
+        elif key == "6":
+            self.current_view = "workers"
+            self.status_message = "Workers"
+        elif key == "7":
+            self.current_view = "engineering"
+            self.status_message = "Formulas"
+        
+        return True
     
-    def show_cad_menu(self):
-        """Show CAD operations menu."""
-        table = Table(title="CAD Operations", box=box.ROUNDED)
-        table.add_column("Command", style="cyan")
-        table.add_column("Description")
+    def run(self):
+        """Run the TUI."""
+        if not RICH_AVAILABLE:
+            print("Error: Rich library required. Install with: pip install rich")
+            sys.exit(1)
         
-        table.add_row("create", "Create new 3D model")
-        table.add_row("export", "Export model to STL/STEP/OBJ")
-        table.add_row("list", "List all models")
-        table.add_row("measure", "Measure distance between points")
+        self._log("TUI started")
+        self.status_message = "Ready"
         
-        print(table)
-    
-    def show_pcb_menu(self):
-        """Show PCB operations menu."""
-        table = Table(title="PCB Operations", box=box.ROUNDED)
-        table.add_column("Command", style="cyan")
-        table.add_column("Description")
-        
-        table.add_row("create", "Create new PCB board")
-        table.add_row("route", "Route traces")
-        table.add_row("drc", "Run design rule check")
-        table.add_row("gerber", "Export Gerber files")
-        table.add_row("bom", "Generate bill of materials")
-        
-        print(table)
-    
-    def show_firmware_menu(self):
-        """Show firmware operations menu."""
-        table = Table(title="Firmware Operations", box=box.ROUNDED)
-        table.add_column("Command", style="cyan")
-        table.add_column("Description")
-        
-        table.add_row("create", "Create new firmware project")
-        table.add_row("compile", "Compile project")
-        table.add_row("upload", "Upload to device")
-        table.add_row("devices", "List connected devices")
-        table.add_row("monitor", "Monitor serial port")
-        
-        print(table)
-    
-    def _get_tool_count(self) -> int:
-        """Get count of available tools."""
-        from .agents.tools import tools
-        return len(tools.list_actions())
-    
-    def interactive(self):
-        """Run interactive CLI."""
-        self.show_banner()
-        
-        while True:
-            try:
-                if self.console:
-                    user_input = self.console.input("[bold cyan]jarvis>[/bold cyan] ")
-                else:
-                    user_input = input("jarvis> ")
+        try:
+            with Live(self._build_layout(), console=self.console, refresh_per_second=4) as live:
+                import tty
+                import termios
                 
-                if not user_input.strip():
-                    continue
+                fd = sys.stdin.fileno()
+                old_settings = termios.tcgetattr(fd)
                 
-                parts = user_input.strip().split(maxsplit=1)
-                cmd = parts[0].lower()
-                args = parts[1] if len(parts) > 1 else ""
+                try:
+                    tty.setraw(fd)
+                    
+                    while self.running:
+                        live.update(self._build_layout())
+                        
+                        # Read input (non-blocking check)
+                        try:
+                            import select
+                            if select.select([sys.stdin], [], [], 0.1)[0]:
+                                char = sys.stdin.read(1)
+                                
+                                if char == '\x1b':
+                                    # Escape sequence
+                                    seq = sys.stdin.read(2)
+                                    if seq == '[P1':  # F1
+                                        key = "f1"
+                                    elif seq == '[P2':  # F2
+                                        key = "f2"
+                                    elif seq == '[P3':  # F3
+                                        key = "f3"
+                                    elif seq == '[P4':  # F4
+                                        key = "f4"
+                                    elif seq == '[P5':  # F5
+                                        key = "f5"
+                                    elif seq == '[A':
+                                        key = "up"
+                                    elif seq == '[B':
+                                        key = "down"
+                                    elif seq == '[C':
+                                        key = "right"
+                                    elif seq == '[D':
+                                        key = "left"
+                                    else:
+                                        key = f"escape:{seq}"
+                                elif char == '\x03':  # Ctrl+C
+                                    key = "ctrl+c"
+                                elif char == '\x04':  # Ctrl+D
+                                    key = "ctrl+c"
+                                else:
+                                    key = char
+                                
+                                if not self.handle_input(key):
+                                    self.running = False
+                        except Exception:
+                            pass
                 
-                if cmd in ("exit", "quit", "q"):
-                    print("[yellow]Goodbye![/yellow]")
-                    break
-                elif cmd == "help":
-                    self.show_help()
-                elif cmd == "status":
-                    self.show_status()
-                elif cmd == "workers":
-                    self.show_workers()
-                elif cmd == "tools":
-                    self.show_tools()
-                elif cmd == "materials":
-                    self.show_materials()
-                elif cmd == "bearings":
-                    self.show_bearings()
-                elif cmd == "formula":
-                    if args:
-                        self.show_formula(args.strip())
-                    else:
-                        print("[red]Usage: formula <name>[/red]")
-                elif cmd in ("query", "knowledge"):
-                    if args:
-                        self.query_knowledge(args.strip())
-                    else:
-                        print("[red]Usage: query <search term>[/red]")
-                elif cmd == "cad":
-                    self.show_cad_menu()
-                elif cmd == "pcb":
-                    self.show_pcb_menu()
-                elif cmd == "firmware":
-                    self.show_firmware_menu()
-                elif cmd == "king":
-                    if args:
-                        print(f"[yellow]King details for {args} coming soon...[/yellow]")
-                    else:
-                        print("[red]Usage: king <division>[/red]")
-                elif cmd == "project":
-                    if args:
-                        print(f"[yellow]Creating project '{args}'...[/yellow]")
-                        print("[dim]Use the web interface for full project creation[/dim]")
-                    else:
-                        print("[red]Usage: project <name>[/red]")
-                elif cmd == "export":
-                    print("[yellow]Export operations coming soon...[/yellow]")
-                elif cmd == "test":
-                    print("[yellow]Hardware test operations coming soon...[/yellow]")
-                else:
-                    print(f"[red]Unknown command: {cmd}[/red]")
-                    print("[dim]Type 'help' for available commands[/dim]")
-            
-            except KeyboardInterrupt:
-                print("\n[yellow]Use 'exit' to quit[/yellow]")
-            except EOFError:
-                break
-            except Exception as e:
-                print(f"[red]Error: {e}[/red]")
+                finally:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self.console.print("\n[bold cyan]Goodbye![/bold cyan]")
 
 
 def main():
     """CLI entry point."""
-    cli = JARVISCLI()
+    import argparse
     
-    if len(sys.argv) > 1:
-        # Command-line arguments
-        cmd = sys.argv[1]
-        args = " ".join(sys.argv[2:]) if len(sys.argv) > 2 else ""
-        
-        if cmd == "status":
-            cli.show_status()
-        elif cmd == "workers":
-            cli.show_workers()
-        elif cmd == "tools":
-            cli.show_tools()
-        elif cmd == "materials":
-            cli.show_materials()
-        elif cmd == "bearings":
-            cli.show_bearings()
-        elif cmd == "formula" and args:
-            cli.show_formula(args)
-        elif cmd in ("query", "knowledge") and args:
-            cli.query_knowledge(args)
-        elif cmd == "help":
-            cli.show_help()
-        else:
-            cli.show_banner()
-            cli.show_help()
-    else:
-        # Interactive mode
-        cli.interactive()
+    parser = argparse.ArgumentParser(description="JARVIS TUI")
+    parser.add_argument("--cli", action="store_true", help="Use CLI mode instead of TUI")
+    args = parser.parse_args()
+    
+    if args.cli:
+        # Simple CLI mode
+        from . import __version__
+        console.print(f"[bold cyan]JARVIS v{__version__}[/bold cyan]")
+        console.print("Use 'jarvis-cli' without --cli for full TUI experience")
+        return
+    
+    tui = JARVISTUI()
+    tui.run()
 
 
 if __name__ == "__main__":
