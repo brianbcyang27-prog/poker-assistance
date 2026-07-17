@@ -873,3 +873,60 @@ async def dev_set_debug(body: dict):
     from jarvis.brain.developer import developer_mode
     developer_mode.set_debug(body.get("key", ""), body.get("value"))
     return {"ok": True}
+
+
+# ===== GRAPHIFY KNOWLEDGE GRAPH =====
+
+@router.get("/graphify/stats")
+async def graphify_stats():
+    """Get knowledge graph statistics."""
+    from jarvis.brain.graphify_integration import get_graphify
+    g = get_graphify()
+    return g.get_stats()
+
+
+@router.get("/graphify/query")
+async def graphify_query(q: str):
+    """Query the knowledge graph."""
+    from jarvis.brain.graphify_integration import get_graphify
+    g = get_graphify()
+    return g.query(q)
+
+
+@router.get("/graphify/node/{node_id}")
+async def graphify_node(node_id: str):
+    """Get a node and its connections."""
+    from jarvis.brain.graphify_integration import get_graphify
+    g = get_graphify()
+    result = g.get_node(node_id)
+    if result is None:
+        return {"error": "Node not found"}
+    return result
+
+
+@router.get("/graphify/path")
+async def graphify_path(source: str, target: str):
+    """Find shortest path between two nodes."""
+    from jarvis.brain.graphify_integration import get_graphify
+    g = get_graphify()
+    path = g.shortest_path(source, target)
+    if path is None:
+        return {"error": "No path found"}
+    return {"path": path}
+
+
+@router.get("/graphify/community/{community_id}")
+async def graphify_community(community_id: int):
+    """Get all nodes in a community."""
+    from jarvis.brain.graphify_integration import get_graphify
+    g = get_graphify()
+    nodes = g.get_community(community_id)
+    return {"community_id": community_id, "nodes": nodes, "count": len(nodes)}
+
+
+@router.get("/graphify/threejs")
+async def graphify_threejs(max_nodes: int = 500):
+    """Get graph data formatted for Three.js visualization."""
+    from jarvis.brain.graphify_integration import get_graphify
+    g = get_graphify()
+    return g.to_three_js(max_nodes=max_nodes)

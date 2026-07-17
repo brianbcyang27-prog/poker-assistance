@@ -31,3 +31,7 @@ Thumbs.db
 /tmp/
 *.log
 audio_cache/
+
+# Graphify generated files
+graphify-out/
+graphify-out/cost.json
