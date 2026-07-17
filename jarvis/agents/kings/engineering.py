@@ -59,28 +59,4 @@ class EngineeringKing(BaseKing):
             "Will not approve work that doesn't meet high standards."
         )
     
-    def _get_worker_for_task(self, task_description: str) -> str:
-        """Select the appropriate worker based on task description."""
-        desc = task_description.lower()
-        
-        # Hardware engineering tasks
-        if any(kw in desc for kw in ["cad", "3d model", "stl", "parametric", "fusion", "blender", "openscad", "solidworks"]):
-            return "♠4M"  # MechanicalWorker (CAD)
-        if any(kw in desc for kw in ["pcb", "circuit board", "schematic", "gerber", "kicad", "eagle", "layout"]):
-            return "♠3"   # PCBWorker
-        if any(kw in desc for kw in ["firmware", "arduino", "esp32", "embedded", "platformio", "micropython", "upload code"]):
-            return "♠2"   # FirmwareWorker
-        if any(kw in desc for kw in ["mechanical", "stress", "deflection", "gear", "bearing", "material strength", "thermal analysis"]):
-            return "♠4M"  # MechanicalWorker
-        if any(kw in desc for kw in ["test", "oscilloscope", "multimeter", "validation", "measure", "calibration"]):
-            return "♠3T"  # HardwareTestWorker
-        
-        # Software tasks (delegate to parent)
-        return super()._get_worker_for_task(task_description)
-    
-    def get_model_config(self) -> dict:
-        """Engineering-specific model configuration."""
-        return {
-            "temperature": 0.3,  # Lower temperature for engineering precision
-            "max_tokens": 4096,
-        }
+

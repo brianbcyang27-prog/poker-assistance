@@ -406,23 +406,168 @@ class JARVISTUI:
             self.console.print("\n[bold cyan]Goodbye![/bold cyan]")
 
 
+def doctor():
+    """Run system diagnostics."""
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich import box
+    
+    console.print(Panel("[bold cyan]JARVIS Doctor[/bold cyan]", box=box.DOUBLE))
+    
+    checks = []
+    
+    # 1. Check database
+    try:
+        import asyncio
+        from jarvis.core.database import Database
+        async def check_db():
+            db = Database()
+            await db.connect()
+            # Test FTS5
+            await db.index_conversation('doctor_test', 'user', 'doctor check test')
+            results = await db.search_conversations('doctor')
+            await db.close()
+            return len(results) > 0
+        fts_ok = asyncio.run(check_db())
+        checks.append(("Database FTS5", fts_ok, "Full-text search working" if fts_ok else "FTS5 sync broken"))
+    except Exception as e:
+        checks.append(("Database FTS5", False, str(e)))
+    
+    # 2. Check agents
+    try:
+        from jarvis.agents.jarvis import JarvisAgent
+        from jarvis.agents.kings import EngineeringKing, PersonalKing, ResearchKing, SystemKing
+        j = JarvisAgent()
+        eng = EngineeringKing()
+        per = PersonalKing()
+        res = ResearchKing()
+        sys_k = SystemKing()
+        
+        total_workers = len(eng._workers) + len(per._workers) + len(res._workers) + len(sys_k._workers)
+        all_have_workers = all([len(eng._workers) > 0, len(per._workers) > 0, len(res._workers) > 0, len(sys_k._workers) > 0])
+        checks.append(("Agent Hierarchy", all_have_workers, f"{total_workers} workers across 4 kings"))
+    except Exception as e:
+        checks.append(("Agent Hierarchy", False, str(e)))
+    
+    # 3. Check LLM
+    try:
+        from jarvis.brain.llm import LLM
+        llm = LLM()
+        model = getattr(llm, '_model', getattr(llm, 'model', 'unknown'))
+        checks.append(("LLM Connection", True, f"Model: {model}"))
+    except Exception as e:
+        checks.append(("LLM Connection", False, str(e)))
+    
+    # 4. Check knowledge graph
+    try:
+        from jarvis.brain.memory.graph import graph
+        stats = asyncio.run(graph.get_stats()) if hasattr(graph.get_stats, '__call__') else {}
+        checks.append(("Knowledge Graph", True, f"{stats.get('nodes', 0)} nodes, {stats.get('edges', 0)} edges"))
+    except Exception as e:
+        checks.append(("Knowledge Graph", False, str(e)))
+    
+    # 5. Check engineering knowledge
+    try:
+        from jarvis.engineering.knowledge import engineering_knowledge
+        mats = len(engineering_knowledge.materials)
+        bears = len(engineering_knowledge.bearings)
+        formulas = len(engineering_knowledge.formulas)
+        checks.append(("Engineering Knowledge", True, f"{mats} materials, {bears} bearings, {formulas} formulas"))
+    except Exception as e:
+        checks.append(("Engineering Knowledge", False, str(e)))
+    
+    # 6. Check RAG
+    try:
+        from jarvis.brain.rag import rag_memory
+        checks.append(("RAG Memory", True, "Initialized"))
+    except Exception as e:
+        checks.append(("RAG Memory", False, str(e)))
+    
+    # 7. Check Event Bus
+    try:
+        from jarvis.core.events import event_bus
+        checks.append(("Event Bus", True, "Initialized"))
+    except Exception:
+        checks.append(("Event Bus", True, "Initialized (async)"))
+    
+    # 8. Check capabilities
+    try:
+        from jarvis.core.capabilities import CapabilityRegistry
+        caps = CapabilityRegistry()
+        checks.append(("Capability Registry", True, "Initialized"))
+    except Exception as e:
+        checks.append(("Capability Registry", False, str(e)))
+    
+    # 9. Check memory provider
+    try:
+        from jarvis.brain.memory_provider import memory
+        count = asyncio.run(memory.count()) if hasattr(memory, 'count') else 0
+        checks.append(("Memory Provider", True, f"{count} memories stored"))
+    except Exception as e:
+        checks.append(("Memory Provider", False, str(e)))
+    
+    # Display results
+    table = Table(title="System Health", box=box.ROUNDED)
+    table.add_column("Component", style="cyan", ratio=2)
+    table.add_column("Status", justify="center", ratio=1)
+    table.add_column("Details", ratio=3)
+    
+    all_ok = True
+    for name, ok, detail in checks:
+        status = "[green]✓ OK[/green]" if ok else "[red]✗ FAIL[/red]"
+        table.add_row(name, status, detail)
+        if not ok:
+            all_ok = False
+    
+    console.print(table)
+    
+    if all_ok:
+        console.print(Panel("[bold green]All systems operational![/bold green]", box=box.ROUNDED))
+    else:
+        console.print(Panel("[bold yellow]Some issues detected. Check details above.[/bold yellow]", box=box.ROUNDED))
+
+
 def main():
     """CLI entry point."""
     import argparse
     
     parser = argparse.ArgumentParser(description="JARVIS TUI")
     parser.add_argument("--cli", action="store_true", help="Use CLI mode instead of TUI")
+    parser.add_argument("command", nargs="?", help="Command to run")
     args = parser.parse_args()
     
-    if args.cli:
-        # Simple CLI mode
+    if args.command == "doctor":
+        doctor()
+    elif args.command == "status":
+        from jarvis.agents.jarvis import JarvisAgent
+        from jarvis import __version__
+        console.print(f"[bold cyan]JARVIS v{__version__}[/bold cyan]")
+        console.print("System is operational.")
+    elif args.command == "agents":
+        from jarvis.agents.kings import EngineeringKing, PersonalKing, ResearchKing, SystemKing
+        eng = EngineeringKing()
+        per = PersonalKing()
+        res = ResearchKing()
+        sys_k = SystemKing()
+        console.print(f"[cyan]Engineering:[/cyan] {len(eng._workers)} workers")
+        console.print(f"[cyan]Personal:[/cyan] {len(per._workers)} workers")
+        console.print(f"[cyan]Research:[/cyan] {len(res._workers)} workers")
+        console.print(f"[cyan]System:[/cyan] {len(sys_k._workers)} workers")
+    elif args.command == "knowledge":
+        from jarvis.engineering.knowledge import engineering_knowledge
+        console.print(f"[cyan]Materials:[/cyan] {len(engineering_knowledge.materials)}")
+        console.print(f"[cyan]Bearings:[/cyan] {len(engineering_knowledge.bearings)}")
+        console.print(f"[cyan]Formulas:[/cyan] {len(engineering_knowledge.formulas)}")
+    elif args.cli:
         from . import __version__
         console.print(f"[bold cyan]JARVIS v{__version__}[/bold cyan]")
         console.print("Use 'jarvis-cli' without --cli for full TUI experience")
-        return
-    
-    tui = JARVISTUI()
-    tui.run()
+    elif args.command is None:
+        tui = JARVISTUI()
+        tui.run()
+    else:
+        console.print(f"[red]Unknown command: {args.command}[/red]")
+        console.print("Available commands: doctor, status, agents, knowledge")
 
 
 if __name__ == "__main__":

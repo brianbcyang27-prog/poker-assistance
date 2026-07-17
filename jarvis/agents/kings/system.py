@@ -13,6 +13,13 @@ class SystemKing(BaseKing):
     
     def __init__(self):
         super().__init__(suit=Suit.CLUBS)
+        self._register_workers()
+
+    def _register_workers(self):
+        from ..workers.system import FilesWorker, TerminalWorker, ApplicationsWorker
+        self.register_worker(FilesWorker())
+        self.register_worker(TerminalWorker())
+        self.register_worker(ApplicationsWorker())
     
     @property
     def name(self) -> str:

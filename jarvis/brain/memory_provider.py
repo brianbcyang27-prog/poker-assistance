@@ -162,8 +162,11 @@ class SQLiteMemoryProvider(MemoryProvider):
                 entry.timestamp,
             ),
         )
-        # v3.1: Rebuild FTS index to sync with memories table
-        await db._db.execute("INSERT INTO memories_fts(memories_fts) VALUES('rebuild')")
+        # v3.1: Sync to standalone FTS5 index
+        await db._db.execute(
+            "INSERT INTO memories_fts (type, content, source, tags) VALUES (?, ?, ?, ?)",
+            (entry.type, entry.content, entry.source, json.dumps(entry.tags)),
+        )
         await db._db.commit()
         return {"ok": True, "id": entry_id}
 
@@ -219,10 +222,12 @@ class SQLiteMemoryProvider(MemoryProvider):
         try:
             cursor = await db._db.execute(
                 """SELECT m.id, m.type, m.content, m.metadata, m.source, m.tags,
-                          m.timestamp, snippet(memories_fts, 2, '<b>', '</b>', '...', 32) as snip,
+                          m.timestamp, snippet(memories_fts, 1, '<b>', '</b>', '...', 32) as snip,
                           rank
-                   FROM memories_fts
-                   JOIN memories m ON memories_fts.rowid = m.rowid
+                   FROM memories_fts f
+                   JOIN memories m ON m.type = f.type
+                       AND m.content = f.content
+                       AND m.source = f.source
                    WHERE memories_fts MATCH ?
                    ORDER BY rank
                    LIMIT ?""",

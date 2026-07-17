@@ -126,15 +126,21 @@ class JarvisAgent(BaseAgent):
             )
             
             self.set_state(AgentState.WORKING)
-            result = await king.execute_task(task_obj)
-            results.append(result.content)
+            try:
+                result = await king.execute_task(task_obj)
+                results.append(result.content)
+            except Exception as e:
+                results.append(f"Error from {king.name}: {e}")
         
         self.set_state(AgentState.IDLE)
         
         # Combine results into natural response
         if results:
             combined = "\n\n".join(results)
-            response = await self._compose_response(user_message, combined)
+            try:
+                response = await self._compose_response(user_message, combined)
+            except Exception:
+                response = combined
 
             # v3.1: Speculative planning — predict follow-ups
             try:

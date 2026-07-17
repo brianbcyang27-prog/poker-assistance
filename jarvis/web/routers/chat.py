@@ -35,7 +35,7 @@ async def chat(req: ChatRequest):
     
     # Save user message
     db = await get_db()
-    await db.save_conversation(session_id, "user", req.message)
+    await db.index_conversation(session_id, "user", req.message)
     
     # Load LLM conversation context for multi-turn
     if hasattr(web_main.jarvis, '_llm') and web_main.jarvis._llm:
@@ -45,7 +45,7 @@ async def chat(req: ChatRequest):
     response = await web_main.jarvis.process_user_request(req.message)
     
     # Save assistant response
-    await db.save_conversation(session_id, "assistant", response)
+    await db.index_conversation(session_id, "assistant", response)
     
     # Record as a learned skill if task was delegated (from Hermes pattern)
     try:
@@ -112,6 +112,8 @@ async def chat_stream(message: str, session_id: Optional[str] = None):
     sid = session_id or str(uuid.uuid4())[:8]
     
     async def event_generator():
+        # NOTE: This is not true streaming — it awaits the full response before
+        # sending. Real streaming would require the LLM backend to support it.
         # Send thinking state
         yield f"data: {json.dumps({'type': 'state', 'state': 'thinking'})}\n\n"
         

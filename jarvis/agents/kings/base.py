@@ -197,10 +197,8 @@ Respond with JSON:
                 priority=subtask.get("priority", 5),
             )
             
-            # Worker executes
-            worker.set_state(AgentState.WORKING)
+            # Worker executes (workers manage their own state)
             result = await worker.execute_task(subtask_obj)
-            worker.set_state(AgentState.IDLE)
             
             results.append(result)
         

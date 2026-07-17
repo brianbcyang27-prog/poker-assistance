@@ -13,6 +13,14 @@ class PersonalKing(BaseKing):
     
     def __init__(self):
         super().__init__(suit=Suit.HEARTS)
+        self._register_workers()
+
+    def _register_workers(self):
+        from ..workers.personal import CalendarWorker, EmailWorker, TasksWorker, SchedulingWorker
+        self.register_worker(CalendarWorker())
+        self.register_worker(EmailWorker())
+        self.register_worker(TasksWorker())
+        self.register_worker(SchedulingWorker())
     
     @property
     def name(self) -> str:

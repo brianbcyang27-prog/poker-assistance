@@ -13,6 +13,13 @@ class ResearchKing(BaseKing):
     
     def __init__(self):
         super().__init__(suit=Suit.DIAMONDS)
+        self._register_workers()
+
+    def _register_workers(self):
+        from ..workers.research import WebResearchWorker, DocumentationWorker, FactCheckWorker
+        self.register_worker(WebResearchWorker())
+        self.register_worker(DocumentationWorker())
+        self.register_worker(FactCheckWorker())
     
     @property
     def name(self) -> str:

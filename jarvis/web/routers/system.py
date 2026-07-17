@@ -1,5 +1,6 @@
 """System router — Events, capabilities, and system status for v3.1."""
 
+import time
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional

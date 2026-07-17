@@ -211,7 +211,9 @@ function addChatMessage(role, text) {
 }
 
 function _md(text) {
-    return text
+    // Sanitize: strip HTML tags to prevent XSS, then apply markdown
+    const clean = text.replace(/<[^>]*>/g, '');
+    return clean
         .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
         .replace(/`([^`]+)`/g, '<code>$1</code>')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')

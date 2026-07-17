@@ -56,14 +56,15 @@ class BaseWorker(CardAgent):
     
     async def execute_task(self, task: Task) -> AgentMessage:
         """Execute a task and return result with confidence.
-        
+
         Workers can now use tools (computer control, web search, IoT)
         by having the LLM call them via tool_use format in the response.
         """
+        from ...core.events import event_bus, Event
+
         self.set_state(AgentState.WORKING)
 
         # v3.1: Emit event
-        from ...core.events import event_bus, Event
         await event_bus.emit(Event(
             type="worker.started",
             data={"worker": self.card_id, "task": task.name},

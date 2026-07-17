@@ -172,8 +172,11 @@ class RAGMemory:
         if db and (not sources_filter or "memory_store" in sources_filter):
             try:
                 cursor = await db._db.execute(
-                    """SELECT m.content, m.type, m.tags, m.timestamp FROM memories m
-                       JOIN memories_fts f ON m.rowid = f.rowid
+                    """SELECT m.content, m.type, m.tags, m.timestamp
+                       FROM memories_fts f
+                       JOIN memories m ON m.type = f.type
+                           AND m.content = f.content
+                           AND m.source = f.source
                        WHERE memories_fts MATCH ?
                        ORDER BY rank LIMIT ?""",
                     (query.text, query.max_chunks),

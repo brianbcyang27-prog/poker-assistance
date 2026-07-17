@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from jarvis import __version__
 from jarvis.core.config import get_config
 from jarvis.core.database import get_db
 from jarvis.agents.jarvis import JarvisAgent
@@ -188,7 +189,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="JARVIS",
         description="Multi-Agent AI Operating System",
-        version="3.0.0",
+        version=__version__,
         lifespan=lifespan,
     )
     

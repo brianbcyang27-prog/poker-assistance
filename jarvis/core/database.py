@@ -190,6 +190,17 @@ class Database:
         """)
         await self._db.commit()
         
+        # Performance indexes for frequently queried columns
+        for idx_sql in [
+            "CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id)",
+            "CREATE INDEX IF NOT EXISTS idx_tasks_workspace_id ON tasks(workspace_id)",
+            "CREATE INDEX IF NOT EXISTS idx_agent_messages_task_id ON agent_messages(task_id)",
+            "CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type)",
+            "CREATE INDEX IF NOT EXISTS idx_memories_timestamp ON memories(timestamp)",
+        ]:
+            await self._db.execute(idx_sql)
+        await self._db.commit()
+        
         # FTS5 full-text search tables
         await self._init_fts_tables()
         
@@ -234,12 +245,11 @@ class Database:
                 content_rowid=id
             )
         """)
-        # v3.1: Memories FTS5
+        # v3.1: Memories FTS5 — standalone table, synced manually
+        await self._db.execute("DROP TABLE IF EXISTS memories_fts")
         await self._db.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
-                type, content, source, tags,
-                content=memories,
-                content_rowid=rowid
+                type, content, source, tags
             )
         """)
         await self._db.commit()
@@ -534,7 +544,7 @@ class Database:
     
     # Task History (for history page and replay)
     async def save_task_history(self, history: dict):
-        await self._db.execute(
+        cursor = await self._db.execute(
             """INSERT INTO task_history 
                (plan_id, user_request, summary, tasks_json, workspace_id, owner, duration_ms)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -546,6 +556,18 @@ class Database:
                 history.get("workspace_id"),
                 history.get("owner"),
                 history.get("duration_ms"),
+            )
+        )
+        rowid = cursor.lastrowid
+        await self._db.execute(
+            """INSERT INTO task_history_fts (rowid, plan_id, user_request, summary, tasks_json)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                rowid,
+                history["plan_id"],
+                history["user_request"],
+                history.get("summary", ""),
+                json.dumps(history.get("tasks", [])),
             )
         )
         await self._db.commit()
