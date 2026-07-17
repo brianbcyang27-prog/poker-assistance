@@ -580,3 +580,158 @@ async def demo_outcome(demo_id: str, body: dict):
     from jarvis.brain.demo_learning import demo_learner
     await demo_learner.record_replay_outcome(demo_id, body.get("success", True))
     return {"ok": True}
+
+
+# ===== DAG PLANNER =====
+
+@router.get("/dag/missions")
+async def dag_missions():
+    """List all missions."""
+    from jarvis.brain.dag_planner import dag_planner
+    return {"missions": dag_planner.get_all_missions()}
+
+
+@router.get("/dag/stats")
+async def dag_stats():
+    """Get DAG planner stats."""
+    from jarvis.brain.dag_planner import dag_planner
+    return dag_planner.get_stats()
+
+
+@router.post("/dag/mission")
+async def dag_create_mission(body: dict):
+    """Create a new mission with task DAG."""
+    from jarvis.brain.dag_planner import dag_planner, DAGNode
+    nodes = [
+        DAGNode(
+            id=n["id"],
+            name=n["name"],
+            description=n.get("description", ""),
+            assigned_to=n.get("assigned_to", ""),
+            priority=n.get("priority", 5),
+            dependencies=n.get("dependencies", []),
+            estimated_duration_ms=n.get("estimated_duration_ms", 0),
+        )
+        for n in body.get("nodes", [])
+    ]
+    return dag_planner.create_mission(body.get("mission_id", f"mission_{int(time.time())}"), nodes)
+
+
+@router.get("/dag/mission/{mission_id}")
+async def dag_mission_status(mission_id: str):
+    """Get mission status."""
+    from jarvis.brain.dag_planner import dag_planner
+    return dag_planner.get_mission_status(mission_id)
+
+
+@router.get("/dag/mission/{mission_id}/next")
+async def dag_next_tasks(mission_id: str):
+    """Get next ready tasks."""
+    from jarvis.brain.dag_planner import dag_planner
+    return {"tasks": dag_planner.get_next_actions(mission_id)}
+
+
+@router.post("/dag/mission/{mission_id}/start/{node_id}")
+async def dag_start_task(mission_id: str, node_id: str):
+    """Start a task."""
+    from jarvis.brain.dag_planner import dag_planner
+    node = dag_planner.start_task(mission_id, node_id)
+    return {"ok": node is not None, "node": node.to_dict() if node else None}
+
+
+@router.post("/dag/mission/{mission_id}/complete/{node_id}")
+async def dag_complete_task(mission_id: str, node_id: str, body: dict = None):
+    """Complete a task."""
+    from jarvis.brain.dag_planner import dag_planner
+    node = dag_planner.complete_task(mission_id, node_id, (body or {}).get("result", ""))
+    return {"ok": node is not None, "node": node.to_dict() if node else None}
+
+
+@router.get("/dag/mission/{mission_id}/visualize")
+async def dag_visualize(mission_id: str):
+    """Get DAG visualization data."""
+    from jarvis.brain.dag_planner import dag_planner
+    return dag_planner.visualize(mission_id)
+
+
+# ===== DYNAMIC TEAMS =====
+
+@router.get("/teams/stats")
+async def team_stats():
+    """Get team manager stats."""
+    from jarvis.brain.teams import team_manager
+    return team_manager.get_stats()
+
+
+@router.post("/teams/form")
+async def team_form(body: dict):
+    """Form a dynamic team."""
+    from jarvis.brain.teams import team_manager
+    team = await team_manager.form_team(
+        team_name=body.get("name", "unnamed"),
+        mission_id=body.get("mission_id", ""),
+        required_capabilities=body.get("capabilities", []),
+        max_members=body.get("max_members", 5),
+    )
+    return team.to_dict()
+
+
+@router.get("/teams/{team_id}")
+async def team_detail(team_id: str):
+    """Get team details."""
+    from jarvis.brain.teams import team_manager
+    team = await team_manager.get_team(team_id)
+    return team.to_dict() if team else {"error": "Team not found"}
+
+
+@router.post("/teams/{team_id}/disband")
+async def team_disband(team_id: str):
+    """Disband a team."""
+    from jarvis.brain.teams import team_manager
+    ok = await team_manager.disband_team(team_id)
+    return {"ok": ok}
+
+
+# ===== MISSION TIMELINE =====
+
+@router.get("/timeline/{mission_id}")
+async def timeline_get(mission_id: str, limit: int = 100):
+    """Get mission timeline."""
+    from jarvis.brain.teams import mission_timeline
+    return {"timeline": mission_timeline.get_timeline(mission_id, limit)}
+
+
+@router.get("/timeline/{mission_id}/visualize")
+async def timeline_visualize(mission_id: str):
+    """Get timeline visualization data."""
+    from jarvis.brain.teams import mission_timeline
+    return mission_timeline.visualize(mission_id)
+
+
+@router.get("/timeline/{mission_id}/milestones")
+async def timeline_milestones(mission_id: str):
+    """Get mission milestones."""
+    from jarvis.brain.teams import mission_timeline
+    return {"milestones": mission_timeline.get_milestones(mission_id)}
+
+
+@router.get("/timeline/{mission_id}/activity")
+async def timeline_activity(mission_id: str):
+    """Get per-agent activity."""
+    from jarvis.brain.teams import mission_timeline
+    return {"activity": mission_timeline.get_agent_activity(mission_id)}
+
+
+@router.post("/timeline/{mission_id}/event")
+async def timeline_record_event(mission_id: str, body: dict):
+    """Record a timeline event."""
+    from jarvis.brain.teams import mission_timeline
+    mission_timeline.record_event(
+        mission_id=mission_id,
+        event_type=body.get("event_type", "milestone"),
+        node_id=body.get("node_id", ""),
+        node_name=body.get("node_name", ""),
+        description=body.get("description", ""),
+        agent_id=body.get("agent_id", ""),
+    )
+    return {"ok": True}
