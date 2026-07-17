@@ -147,6 +147,46 @@ class Database:
                 context_json TEXT NOT NULL,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            -- v3.1: Unified memory store (pluggable memory backend)
+            CREATE TABLE IF NOT EXISTS memories (
+                id TEXT PRIMARY KEY,
+                type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                metadata TEXT DEFAULT '{}',
+                source TEXT DEFAULT '',
+                tags TEXT DEFAULT '[]',
+                timestamp REAL DEFAULT 0
+            );
+
+            -- v3.1: Capability registry (tools, workers, skills)
+            CREATE TABLE IF NOT EXISTS capabilities (
+                name TEXT PRIMARY KEY,
+                owner TEXT NOT NULL,
+                type TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                version TEXT DEFAULT '1.0.0',
+                latency_ms REAL DEFAULT 0,
+                cost REAL DEFAULT 0,
+                success_rate REAL DEFAULT 1.0,
+                total_calls INTEGER DEFAULT 0,
+                total_failures INTEGER DEFAULT 0,
+                required_permissions TEXT DEFAULT '[]',
+                tags TEXT DEFAULT '[]',
+                enabled INTEGER DEFAULT 1,
+                registered_at REAL DEFAULT 0,
+                last_used REAL DEFAULT 0
+            );
+
+            -- v3.1: Event log (append-only audit trail)
+            CREATE TABLE IF NOT EXISTS event_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT UNIQUE,
+                event_type TEXT NOT NULL,
+                source TEXT DEFAULT '',
+                data TEXT DEFAULT '{}',
+                timestamp REAL DEFAULT 0
+            );
         """)
         await self._db.commit()
         
@@ -192,6 +232,14 @@ class Database:
                 plan_id, user_request, summary, tasks_json,
                 content=task_history,
                 content_rowid=id
+            )
+        """)
+        # v3.1: Memories FTS5
+        await self._db.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+                type, content, source, tags,
+                content=memories,
+                content_rowid=rowid
             )
         """)
         await self._db.commit()

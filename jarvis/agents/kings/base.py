@@ -74,12 +74,32 @@ class BaseKing(CardAgent):
         """Execute a task by planning, delegating, and reviewing."""
         self.set_state(AgentState.PLANNING)
         self._active_tasks[task.id] = task
+
+        # v3.1: Emit event
+        from ...core.events import event_bus, Event
+        await event_bus.emit(Event(
+            type="king.planning",
+            data={"king": self.card_id, "task": task.name},
+            source=self.card_id,
+        ))
         
         # Step 1: Plan the work
         plan = await self._plan_work(task)
         
         # Step 2: Assemble team
         team = self._assemble_team(plan)
+
+        # v3.1: Emit delegation event
+        await event_bus.emit(Event(
+            type="king.delegated",
+            data={
+                "king": self.card_id,
+                "task": task.name,
+                "workers": [w.card_id for w in team],
+                "subtasks": len(plan.get("subtasks", [])),
+            },
+            source=self.card_id,
+        ))
         
         # Step 3: Delegate to workers
         self.set_state(AgentState.WORKING)
@@ -92,6 +112,18 @@ class BaseKing(CardAgent):
         # Step 5: Report to JARVIS
         self.set_state(AgentState.IDLE)
         self._active_tasks.pop(task.id, None)
+
+        # v3.1: Emit completion event
+        await event_bus.emit(Event(
+            type="king.completed",
+            data={
+                "king": self.card_id,
+                "task": task.name,
+                "confidence": review.confidence,
+                "issues": review.issues,
+            },
+            source=self.card_id,
+        ))
         
         return review
     

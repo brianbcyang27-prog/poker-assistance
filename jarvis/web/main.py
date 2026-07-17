@@ -122,6 +122,58 @@ async def lifespan(app: FastAPI):
         )
     except Exception:
         pass
+
+    # v3.1: Register capabilities for existing tools
+    try:
+        from jarvis.core.capabilities import registry, Capability, CapType
+        from jarvis.computer.controller import ComputerController
+        ctrl = ComputerController.__new__(ComputerController)
+        for action in ComputerController.ACTIONS if hasattr(ComputerController, 'ACTIONS') else []:
+            pass  # Actions registered lazily on first use
+
+        # Register known tool capabilities
+        tool_caps = [
+            ("browser_navigate", "♣K", "Navigate to a URL", ["web"]),
+            ("browser_screenshot", "♣K", "Screenshot current page", ["web"]),
+            ("browser_click", "♣K", "Click an element", ["web"]),
+            ("browser_type", "♣K", "Type into an input", ["web"]),
+            ("web_search", "♦K", "Search the web", ["web"]),
+            ("web_fetch", "♦K", "Fetch and extract text", ["web"]),
+            ("screen_capture", "♣K", "Capture the screen", ["screen"]),
+            ("screen_get_active_window", "♣K", "Get active window", ["screen"]),
+            ("shell_execute", "♣K", "Execute shell command", ["system"]),
+            ("resume_project", "♣K", "Resume a project", ["project"]),
+            ("register_project", "♣K", "Register a project", ["project"]),
+        ]
+        for name, owner, desc, tags in tool_caps:
+            await registry.register(Capability(
+                name=name, owner=owner, type=CapType.TOOL,
+                description=desc, tags=tags,
+            ))
+
+        # Register worker capabilities
+        for king in jarvis.get_all_kings():
+            for worker in king.get_all_workers():
+                await registry.register(Capability(
+                    name=worker.card_id,
+                    owner=king.card_id,
+                    type=CapType.WORKER,
+                    description=worker.name,
+                    tags=[king.suit.value] if king.suit else [],
+                ))
+    except Exception:
+        pass
+
+    # v3.1: Emit startup event
+    try:
+        from jarvis.core.events import event_bus, Event
+        await event_bus.emit(Event(
+            type="system.started",
+            data={"version": "3.1.0", "host": config.host, "port": config.port},
+            source="system",
+        ))
+    except Exception:
+        pass
     
     yield
     
@@ -145,7 +197,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
     
     # Include routers
-    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot
+    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system
     app.include_router(chat.router)
     app.include_router(agents.router)
     app.include_router(workspace.router)
@@ -156,6 +208,7 @@ def create_app() -> FastAPI:
     app.include_router(settings.router)
     app.include_router(computer.router)
     app.include_router(iot.router)
+    app.include_router(system.router)
     
     return app
 

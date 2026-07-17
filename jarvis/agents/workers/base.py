@@ -61,6 +61,14 @@ class BaseWorker(CardAgent):
         by having the LLM call them via tool_use format in the response.
         """
         self.set_state(AgentState.WORKING)
+
+        # v3.1: Emit event
+        from ...core.events import event_bus, Event
+        await event_bus.emit(Event(
+            type="worker.started",
+            data={"worker": self.card_id, "task": task.name},
+            source=self.card_id,
+        ))
         
         try:
             # Get specialized system prompt
@@ -103,6 +111,18 @@ After receiving tool results, continue your work. When done, provide your final 
             issues = await self._identify_issues(task, response)
             
             self.set_state(AgentState.COMPLETED)
+
+            # v3.1: Emit completion event
+            await event_bus.emit(Event(
+                type="worker.completed",
+                data={
+                    "worker": self.card_id,
+                    "task": task.name,
+                    "confidence": confidence,
+                    "issues": issues,
+                },
+                source=self.card_id,
+            ))
             
             return AgentMessage(
                 sender=self.card_id,
@@ -116,6 +136,18 @@ After receiving tool results, continue your work. When done, provide your final 
         
         except Exception as e:
             self.set_state(AgentState.ERROR)
+
+            # v3.1: Emit error event
+            await event_bus.emit(Event(
+                type="worker.error",
+                data={
+                    "worker": self.card_id,
+                    "task": task.name,
+                    "error": str(e),
+                },
+                source=self.card_id,
+            ))
+            
             return AgentMessage(
                 sender=self.card_id,
                 receiver="K",

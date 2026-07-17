@@ -63,6 +63,14 @@ class JarvisAgent(BaseAgent):
     async def process_user_request(self, user_message: str) -> str:
         """Main entry point: process a user request and return response."""
         self.set_state(AgentState.THINKING)
+
+        # v3.1: Emit event
+        from ..core.events import event_bus, Event
+        await event_bus.emit(Event(
+            type="jarvis.thinking",
+            data={"message": user_message},
+            source="J",
+        ))
         
         # Check if LLM is available
         if not self._llm.is_available():
@@ -81,7 +89,23 @@ class JarvisAgent(BaseAgent):
         
         if delegation_plan.get("direct_response"):
             self.set_state(AgentState.IDLE)
+            await event_bus.emit(Event(
+                type="jarvis.responded",
+                data={"message": user_message, "response": delegation_plan.get("response", "")[:100]},
+                source="J",
+            ))
             return delegation_plan.get("response", "How can I help?")
+        
+        # v3.1: Emit delegation event
+        await event_bus.emit(Event(
+            type="jarvis.delegated",
+            data={
+                "message": user_message,
+                "intent": delegation_plan.get("intent", ""),
+                "tasks": tasks,
+            },
+            source="J",
+        ))
         
         # Delegate to appropriate King(s)
         results = []
