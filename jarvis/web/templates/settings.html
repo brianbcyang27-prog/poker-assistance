@@ -80,16 +80,20 @@
         }
         .btn-save {
             padding: 10px 24px;
-            background: var(--accent);
-            color: #000;
+            background: #00f0ff;
+            color: #050b14;
             border: none;
             border-radius: 6px;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: all 0.2s;
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
         }
-        .btn-save:hover { opacity: 0.85; }
+        .btn-save:hover {
+            opacity: 0.85;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+        }
         .btn-reset {
             padding: 10px 24px;
             background: transparent;
@@ -124,30 +128,10 @@
             transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
-        .nav-bar {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-        .nav-bar a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 12px;
-            letter-spacing: 1px;
-            transition: color 0.2s;
-        }
-        .nav-bar a:hover { color: var(--accent); }
-        .nav-bar .current { color: var(--accent); }
     </style>
 </head>
-<body>
+<body style="background: #050b14;">
     <div class="settings-page">
-        <div class="nav-bar">
-            <a href="/">HOME</a>
-            <a href="/command-map">COMMAND MAP</a>
-            <span class="current">SETTINGS</span>
-        </div>
-
         <h1>Settings</h1>
 
         <form id="settings-form" onsubmit="return false;">
@@ -188,6 +172,35 @@
                     </div>
                     <div class="setting-control">
                         <input type="number" name="max_tokens" value="4096" min="256" max="32768" step="256">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Configuration -->
+            <div class="settings-section">
+                <h2>Interface</h2>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">View Mode</div>
+                        <div class="setting-desc">Neural Core (living particles) or 3D Knowledge Graph</div>
+                    </div>
+                    <div class="setting-control">
+                        <select name="view_mode" id="view-mode">
+                            <option value="core">Neural Core</option>
+                            <option value="graph">3D Graph</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">Chat Mode</div>
+                        <div class="setting-desc">Popup bubble (floating response) or Chat (scrollable conversation)</div>
+                    </div>
+                    <div class="setting-control">
+                        <select name="chat_mode" id="chat-mode">
+                            <option value="popup">Popup Bubble</option>
+                            <option value="chat">Normal Chat</option>
+                        </select>
                     </div>
                 </div>
             </div>
@@ -475,5 +488,70 @@
 
         document.addEventListener('DOMContentLoaded', loadSettings);
     </script>
+
+    <!-- Nav cluster -->
+    <nav id="nav-cluster">
+        <a href="/" class="nav-dot" title="Neural Core">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4m-9-9h4m14 0h4"/>
+            </svg>
+        </a>
+        <a href="/command-map" class="nav-dot" title="Command Map">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/>
+            </svg>
+        </a>
+        <a href="/history" class="nav-dot" title="History">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+        </a>
+        <a href="/settings" class="nav-dot active" title="Settings">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+        </a>
+    </nav>
+
+    <!-- Nav cluster CSS (shared across sub-pages) -->
+    <style>
+        #nav-cluster {
+            position: fixed;
+            bottom: 28px;
+            left: 24px;
+            display: flex;
+            gap: 6px;
+            z-index: 100;
+            opacity: 0.15;
+            transition: opacity 0.5s ease;
+        }
+        #nav-cluster:hover { opacity: 1; }
+        .nav-dot {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: rgba(10, 15, 30, 0.85);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }
+        .nav-dot:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(0, 212, 255, 0.1);
+            transform: scale(1.1);
+        }
+        .nav-dot.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(0, 212, 255, 0.12);
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+        }
+    </style>
 </body>
 </html>

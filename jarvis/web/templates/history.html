@@ -59,33 +59,14 @@
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
     }
     
-    .history-goal {
-        font-size: 16px;
+    .history-preview {
+        font-size: 15px;
         color: var(--text-primary);
         flex: 1;
-    }
-    
-    .history-status {
-        padding: 4px 12px;
-        border-radius: 12px;
-        font-size: 11px;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border);
-    }
-    
-    .history-status.completed {
-        color: var(--success);
-        border-color: var(--success);
-    }
-    
-    .history-status.failed {
-        color: var(--danger);
-        border-color: var(--danger);
+        line-height: 1.4;
     }
     
     .history-meta {
@@ -93,32 +74,6 @@
         gap: 20px;
         font-size: 12px;
         color: var(--text-secondary);
-        margin-bottom: 12px;
-    }
-    
-    .history-tasks {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-    
-    .history-task {
-        padding: 4px 10px;
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        font-size: 11px;
-        color: var(--text-secondary);
-    }
-    
-    .history-task.completed {
-        border-color: var(--success);
-        color: var(--success);
-    }
-    
-    .history-task.failed {
-        border-color: var(--danger);
-        color: var(--danger);
     }
     
     .empty-state {
@@ -166,7 +121,7 @@
         cursor: not-allowed;
     }
     
-    /* Detail Modal */
+    /* Conversation Modal */
     .detail-modal {
         position: fixed;
         top: 0;
@@ -190,7 +145,7 @@
         border: 1px solid var(--border);
         border-radius: 16px;
         width: 90%;
-        max-width: 800px;
+        max-width: 700px;
         max-height: 80vh;
         overflow-y: auto;
         padding: 32px;
@@ -223,47 +178,49 @@
         color: var(--accent);
     }
     
-    .detail-tasks {
+    .conversation-messages {
         display: flex;
         flex-direction: column;
         gap: 12px;
     }
     
-    .detail-task {
-        background: var(--bg-tertiary);
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 16px;
+    .conversation-msg {
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        line-height: 1.5;
+        max-width: 85%;
     }
     
-    .detail-task-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-    
-    .detail-task-name {
-        font-weight: 500;
+    .conversation-msg.user {
+        align-self: flex-end;
+        background: rgba(0, 240, 255, 0.1);
+        border: 1px solid rgba(0, 240, 255, 0.2);
         color: var(--text-primary);
     }
     
-    .detail-task-result {
-        font-size: 13px;
-        color: var(--text-secondary);
-        margin-top: 8px;
-        padding: 8px;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 4px;
-        font-family: 'SF Mono', monospace;
+    .conversation-msg.assistant {
+        align-self: flex-start;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border);
+        color: var(--text-primary);
+    }
+    
+    .conversation-msg pre {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin: 8px 0;
+        overflow-x: auto;
+        font-size: 12px;
     }
 </style>
 
 <div class="history-container">
     <div class="history-header">
-        <h1>Task History</h1>
+        <h1>Chat History</h1>
         <div class="history-stats">
-            <span>Total: <span class="stat-value" id="total-count">0</span></span>
+            <span>Sessions: <span class="stat-value" id="total-count">0</span></span>
         </div>
     </div>
     
@@ -277,14 +234,14 @@
     </div>
 </div>
 
-<!-- Detail Modal -->
+<!-- Conversation Modal -->
 <div class="detail-modal" id="detail-modal">
     <div class="detail-content">
         <div class="detail-header">
-            <h2 id="detail-title">Workspace Details</h2>
+            <h2 id="detail-title">Conversation</h2>
             <button class="detail-close" onclick="closeDetail()">&times;</button>
         </div>
-        <div id="detail-body" class="detail-tasks"></div>
+        <div id="detail-body" class="conversation-messages"></div>
     </div>
 </div>
 
@@ -298,51 +255,42 @@
         listEl.innerHTML = '<div class="loading">Loading history...</div>';
         
         try {
-            const response = await fetch(`/api/workspace/history?limit=${pageSize}&offset=${page * pageSize}`);
+            const response = await fetch(`/api/chat/sessions?limit=${pageSize}&offset=${page * pageSize}`);
             const data = await response.json();
             
             document.getElementById('total-count').textContent = data.total;
             
-            if (data.history.length === 0) {
+            if (data.sessions.length === 0) {
                 listEl.innerHTML = `
                     <div class="empty-state">
-                        <h3>No task history yet</h3>
-                        <p>Complete a workspace to see it here</p>
+                        <h3>No conversations yet</h3>
+                        <p>Start chatting with JARVIS to see history here</p>
                     </div>
                 `;
                 return;
             }
             
-            listEl.innerHTML = data.history.map(item => `
-                <div class="history-item" onclick="showDetail('${item.plan_id}')">
+            listEl.innerHTML = data.sessions.map(s => `
+                <div class="history-item" onclick="showDetail('${s.session_id}')">
                     <div class="history-item-header">
-                        <div class="history-goal">${escapeHtml(item.user_request)}</div>
-                        <div class="history-status completed">Completed</div>
+                        <div class="history-preview">${escapeHtml(s.preview || 'New conversation')}</div>
                     </div>
                     <div class="history-meta">
-                        <span>Owner: ${item.owner || 'Unknown'}</span>
-                        <span>${formatDate(item.created_at)}</span>
-                        ${item.duration_ms ? `<span>Duration: ${formatDuration(item.duration_ms)}</span>` : ''}
-                    </div>
-                    <div class="history-tasks">
-                        ${(item.tasks || []).slice(0, 5).map(t => `
-                            <div class="history-task ${t.status}">${escapeHtml(t.name || t.id)}</div>
-                        `).join('')}
-                        ${(item.tasks || []).length > 5 ? `<div class="history-task">+${item.tasks.length - 5} more</div>` : ''}
+                        <span>${s.message_count} messages</span>
+                        <span>${formatDate(s.last_at)}</span>
                     </div>
                 </div>
             `).join('');
             
-            // Update pagination
             document.getElementById('prev-btn').disabled = page === 0;
-            document.getElementById('next-btn').disabled = data.history.length < pageSize;
+            document.getElementById('next-btn').disabled = data.sessions.length < pageSize;
             
         } catch (error) {
             listEl.innerHTML = '<div class="empty-state">Failed to load history</div>';
         }
     }
     
-    async function showDetail(planId) {
+    async function showDetail(sessionId) {
         const modal = document.getElementById('detail-modal');
         const titleEl = document.getElementById('detail-title');
         const bodyEl = document.getElementById('detail-body');
@@ -352,40 +300,22 @@
         bodyEl.innerHTML = '';
         
         try {
-            const response = await fetch(`/api/workspace/${planId}/replay`);
-            const data = await response.json();
+            const response = await fetch(`/api/chat/history/${sessionId}`);
+            const messages = await response.json();
             
-            if (data.error) {
-                titleEl.textContent = 'Error';
-                bodyEl.innerHTML = `<p>${data.error}</p>`;
-                return;
-            }
+            titleEl.textContent = `Session: ${sessionId}`;
             
-            titleEl.textContent = data.goal || 'Workspace Details';
-            
-            bodyEl.innerHTML = `
-                <div class="history-meta" style="margin-bottom: 16px;">
-                    <span>Owner: ${data.owner || 'Unknown'}</span>
-                    <span>Status: ${data.status || 'Unknown'}</span>
-                    ${data.duration_ms ? `<span>Duration: ${formatDuration(data.duration_ms)}</span>` : ''}
+            bodyEl.innerHTML = messages.map(m => `
+                <div class="conversation-msg ${m.role}">
+                    ${escapeHtml(m.content)}
                 </div>
-                <div class="detail-tasks">
-                    ${(data.tasks || []).map(t => `
-                        <div class="detail-task">
-                            <div class="detail-task-header">
-                                <div class="detail-task-name">${escapeHtml(t.name || t.id)}</div>
-                                <div class="history-status ${t.status}">${t.status}</div>
-                            </div>
-                            ${t.assigned_to ? `<div style="font-size: 12px; color: var(--text-secondary);">Assigned to: ${t.assigned_to}</div>` : ''}
-                            ${t.confidence ? `<div style="font-size: 12px; color: var(--text-secondary);">Confidence: ${(t.confidence * 100).toFixed(1)}%</div>` : ''}
-                            ${t.result ? `<div class="detail-task-result">${escapeHtml(t.result)}</div>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+            `).join('');
+            
+            // Scroll to bottom
+            bodyEl.scrollTop = bodyEl.scrollHeight;
         } catch (error) {
             titleEl.textContent = 'Error';
-            bodyEl.innerHTML = '<p>Failed to load workspace details</p>';
+            bodyEl.innerHTML = '<p>Failed to load conversation</p>';
         }
     }
     
@@ -399,28 +329,80 @@
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
     }
     
-    function formatDuration(ms) {
-        const seconds = Math.floor(ms / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        
-        if (hours > 0) return `${hours}h ${minutes % 60}m`;
-        if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
-        return `${seconds}s`;
-    }
-    
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
     }
     
-    // Load history on page load
     document.addEventListener('DOMContentLoaded', () => loadHistory());
-    
-    // Close modal on escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeDetail();
     });
 </script>
+
+<!-- Nav cluster -->
+<nav id="nav-cluster">
+    <a href="/" class="nav-dot" title="Neural Core">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4m-9-9h4m14 0h4"/>
+        </svg>
+    </a>
+    <a href="/command-map" class="nav-dot" title="Command Map">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/>
+        </svg>
+    </a>
+    <a href="/history" class="nav-dot active" title="History">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+    </a>
+    <a href="/settings" class="nav-dot" title="Settings">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+    </a>
+</nav>
+
+<!-- Nav cluster CSS -->
+<style>
+    #nav-cluster {
+        position: fixed;
+        bottom: 28px;
+        left: 24px;
+        display: flex;
+        gap: 6px;
+        z-index: 100;
+        opacity: 0.15;
+        transition: opacity 0.5s ease;
+    }
+    #nav-cluster:hover { opacity: 1; }
+    .nav-dot {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: rgba(10, 15, 30, 0.85);
+        color: var(--text-secondary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        backdrop-filter: blur(12px);
+        transition: all 0.3s ease;
+    }
+    .nav-dot:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(0, 212, 255, 0.1);
+        transform: scale(1.1);
+    }
+    .nav-dot.active {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(0, 212, 255, 0.12);
+        box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+    }
+</style>
 {% endblock %}

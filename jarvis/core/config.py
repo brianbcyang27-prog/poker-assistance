@@ -66,6 +66,10 @@ class Config(BaseSettings):
     default_llm_temperature: float = Field(default=0.7, env="LLM_TEMPERATURE")
     max_tokens: int = Field(default=4096, env="MAX_TOKENS")
     confidence_threshold: float = Field(default=0.9, env="CONFIDENCE_THRESHOLD")
+
+    # UI Configuration
+    view_mode: str = Field(default="graph", env="VIEW_MODE")  # core|graph
+    chat_mode: str = Field(default="popup", env="CHAT_MODE")  # popup|chat
     
     model_config = {
         "env_file": ".env",

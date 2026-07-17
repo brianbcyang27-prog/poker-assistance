@@ -8,7 +8,7 @@ from pathlib import Path
 import json
 import uuid
 
-from jarvis.web.main import jarvis
+import jarvis.web.main as web_main
 from jarvis.core.database import get_db
 from jarvis.core.config import get_config
 
@@ -38,22 +38,22 @@ async def chat(req: ChatRequest):
     await db.save_conversation(session_id, "user", req.message)
     
     # Load LLM conversation context for multi-turn
-    if hasattr(jarvis, '_llm') and jarvis._llm:
-        await jarvis._llm.load_session_context(session_id)
+    if hasattr(web_main.jarvis, '_llm') and web_main.jarvis._llm:
+        await web_main.jarvis._llm.load_session_context(session_id)
     
     # Process through JARVIS agent hierarchy
-    response = await jarvis.process_user_request(req.message)
+    response = await web_main.jarvis.process_user_request(req.message)
     
     # Save assistant response
     await db.save_conversation(session_id, "assistant", response)
     
     # Save LLM conversation context for next turn
-    if hasattr(jarvis, '_llm') and jarvis._llm:
-        await jarvis._llm.save_session_context(session_id)
+    if hasattr(web_main.jarvis, '_llm') and web_main.jarvis._llm:
+        await web_main.jarvis._llm.save_session_context(session_id)
     
     # Get active agents for UI
     active_agents = []
-    for king in jarvis.get_all_kings():
+    for king in web_main.jarvis.get_all_kings():
         king_dict = king.to_dict()
         if king_dict.get("state") != "idle":
             active_agents.append(king_dict)
@@ -101,7 +101,7 @@ async def chat_stream(message: str, session_id: Optional[str] = None):
         yield f"data: {json.dumps({'type': 'state', 'state': 'thinking'})}\n\n"
         
         # Process message
-        response = await jarvis.process_user_request(message)
+        response = await web_main.jarvis.process_user_request(message)
         
         # Send response
         yield f"data: {json.dumps({'type': 'response', 'content': response, 'session_id': sid})}\n\n"
@@ -118,3 +118,15 @@ async def chat_history(session_id: str):
     db = await get_db()
     messages = await db.get_conversation(session_id)
     return messages
+
+
+@router.get("/sessions")
+async def list_sessions(
+    limit: int = 50,
+    offset: int = 0,
+):
+    """List all conversation sessions."""
+    db = await get_db()
+    sessions = await db.get_all_sessions(limit=limit, offset=offset)
+    total = await db.get_session_count()
+    return {"sessions": sessions, "total": total}

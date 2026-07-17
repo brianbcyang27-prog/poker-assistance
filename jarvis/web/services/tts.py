@@ -76,27 +76,48 @@ class MacosProvider(TTSProvider):
 
 
 class KokoroProvider(TTSProvider):
-    """Kokoro TTS - local neural TTS."""
+    """Kokoro TTS - local neural TTS.
+    
+    First import takes 10-30s due to torch/transformers loading.
+    Subsequent uses are fast.
+    """
     
     def __init__(self):
         self._pipeline = None
+        self._load_attempted = False
+        self._load_error = None
     
     @property
     def name(self) -> str:
         return "kokoro"
     
     def _load_pipeline(self):
-        if self._pipeline is None:
-            try:
-                from kokoro import KPipeline
-                self._pipeline = KPipeline(lang_code="a")  # Default to English
-            except ImportError:
-                raise RuntimeError("Kokoro not installed. Run: pip install kokoro")
+        if self._pipeline is not None:
+            return
+        if self._load_attempted:
+            return
+        self._load_attempted = True
+        
+        try:
+            from kokoro import KPipeline
+            self._pipeline = KPipeline(lang_code="a")  # Default to English
+            print("[Kokoro] Pipeline loaded successfully")
+        except ImportError as e:
+            self._load_error = f"Kokoro not installed: {e}"
+            print(f"[Kokoro] {self._load_error}")
+        except Exception as e:
+            self._load_error = f"Kokoro failed to load: {e}"
+            print(f"[Kokoro] {self._load_error}")
     
     def generate(self, text: str, output_path: str, voice: str = "") -> Optional[str]:
+        self._load_pipeline()
+        
+        if self._pipeline is None:
+            return None
+        
         try:
-            self._load_pipeline()
             import soundfile as sf
+            import numpy as np
             
             voice = voice or "af_heart"  # Default Kokoro voice
             wav_path = output_path if output_path.endswith(".wav") else output_path.replace(".mp3", ".wav")
@@ -107,12 +128,11 @@ class KokoroProvider(TTSProvider):
             for _, _, audio in generator:
                 audio_data.append(audio)
             
-            import numpy as np
             full_audio = np.concatenate(audio_data)
             sf.write(wav_path, full_audio, 24000)
             return wav_path
         except Exception as e:
-            print(f"Kokoro TTS failed: {e}")
+            print(f"[Kokoro] Generation failed: {e}")
             return None
     
     def get_voices(self) -> list[dict]:
@@ -192,12 +212,9 @@ class VoiceEngine:
         if platform.system() == "Darwin":
             self.providers["macos"] = MacosProvider()
         
-        # Try to register Kokoro
-        try:
-            from kokoro import KPipeline
-            self.providers["kokoro"] = KokoroProvider()
-        except ImportError:
-            pass
+        # Register Kokoro — lazy-loads torch on first use (not at import time)
+        self.providers["kokoro"] = KokoroProvider()
+        print("[TTS] Kokoro provider registered (lazy-load)")
         
         # Register OpenAI if API key is available
         from jarvis.core.config import get_config

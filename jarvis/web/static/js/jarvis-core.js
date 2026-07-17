@@ -1,6 +1,9 @@
 /**
- * JARVIS Core - Neural Memory Particle Visualization
- * Three.js powered holographic AI core
+ * JARVIS Core — Arc Reactor Holographic Interface
+ *
+ * Central pulsing sphere + 3 concentric rings with technical ticks,
+ * rotating at offset speeds. Integrated audio waveform.
+ * Hyper-futuristic, minimalist sci-fi holographic aesthetic.
  */
 
 class JarvisCore {
@@ -8,331 +11,314 @@ class JarvisCore {
         this.container = container;
         this.width = window.innerWidth;
         this.height = window.innerHeight;
-        this.particleCount = 2000;
-        this.coreRadius = 2.0;
         this.state = 'idle';
         this.time = 0;
-        this.mouse = { x: 0, y: 0 };
-
-        // Audio reactive properties
         this.audioVolume = 0;
         this.audioFrequency = 0;
-        this.audioPitch = 0;
-        this.targetScale = 1.0;
-        this.currentScale = 1.0;
+        this.waveformData = new Float32Array(64).fill(0);
+        this._animFrame = null;
 
-        // State targets
-        this.targetRotationSpeed = 0.001;
-        this.currentRotationSpeed = 0.001;
-        this.targetChaos = 0;
-        this.currentChaos = 0;
-        this.targetBrightness = 0.6;
-        this.currentBrightness = 0.6;
+        // Ring rotation speeds (radians per frame)
+        this.ringSpeeds = { inner: 0.003, mid: -0.002, outer: 0.001 };
+        this.targetRingSpeeds = { ...this.ringSpeeds };
 
         this.init();
     }
 
     init() {
-        // Scene
-        this.scene = new THREE.Scene();
-        this.scene.fog = new THREE.FogExp2(0x000510, 0.08);
+        this.container.innerHTML = '';
+        this.container.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; display: flex; align-items: center; justify-content: center;
+            background: #050b14; overflow: hidden;
+        `;
 
-        // Camera
-        this.camera = new THREE.PerspectiveCamera(60, this.width / this.height, 0.1, 100);
-        this.camera.position.z = 5;
+        // SVG viewBox centered at 0,0
+        const size = 600;
+        this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        this.svg.setAttribute('viewBox', `${-size/2} ${-size/2} ${size} ${size}`);
+        this.svg.setAttribute('width', '100%');
+        this.svg.setAttribute('height', '100%');
+        this.svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;';
+        this.container.appendChild(this.svg);
 
-        // Renderer
-        this.renderer = new THREE.WebGLRenderer({
-            antialias: true,
-            alpha: true,
-            powerPreference: 'high-performance'
+        // Defs for filters and gradients
+        const defs = this._svgEl('defs');
+        defs.innerHTML = `
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="4" result="blur"/>
+                <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+            <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="8" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-soft" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="16" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <radialGradient id="core-gradient" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.9"/>
+                <stop offset="40%" stop-color="#00c8dd" stop-opacity="0.5"/>
+                <stop offset="100%" stop-color="#006680" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="core-aura" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.15"/>
+                <stop offset="100%" stop-color="#00f0ff" stop-opacity="0"/>
+            </radialGradient>
+            <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.8"/>
+                <stop offset="50%" stop-color="#00f0ff" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#00f0ff" stop-opacity="0.8"/>
+            </linearGradient>
+        `;
+        this.svg.appendChild(defs);
+
+        // Layer groups (render order)
+        this.auraGroup = this._svgEl('g', { filter: 'url(#glow-soft)' });
+        this.ringGroup = this._svgEl('g');
+        this.coreGroup = this._svgEl('g', { filter: 'url(#glow)' });
+        this.waveGroup = this._svgEl('g');
+        this.tickGroup = this._svgEl('g');
+
+        this.svg.appendChild(this.auraGroup);
+        this.svg.appendChild(this.ringGroup);
+        this.svg.appendChild(this.tickGroup);
+        this.svg.appendChild(this.coreGroup);
+        this.svg.appendChild(this.waveGroup);
+
+        this._createAura();
+        this._createCore();
+        this._createRings();
+        this._createWaveform();
+
+        window.addEventListener('resize', () => this._onResize());
+        this._animate();
+    }
+
+    /* ===== SVG Helpers ===== */
+
+    _svgEl(tag, attrs = {}) {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        return el;
+    }
+
+    _svgCircle(cx, cy, r, attrs = {}) {
+        return this._svgEl('circle', { cx, cy, r, ...attrs });
+    }
+
+    _svgPath(d, attrs = {}) {
+        return this._svgEl('path', { d, ...attrs });
+    }
+
+    _svgLine(x1, y1, x2, y2, attrs = {}) {
+        return this._svgEl('line', { x1, y1, x2, y2, ...attrs });
+    }
+
+    /* ===== Aura ===== */
+
+    _createAura() {
+        // Outer soft glow aura
+        this.aura = this._svgCircle(0, 0, 140, {
+            fill: 'url(#core-aura)', opacity: '1'
         });
-        this.renderer.setSize(this.width, this.height);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.setClearColor(0x000510, 1);
-        this.container.appendChild(this.renderer.domElement);
-
-        // Post-processing
-        this.setupPostProcessing();
-
-        // Particles
-        this.createParticles();
-
-        // Inner glow sphere
-        this.createInnerGlow();
-
-        // Outer ring
-        this.createOuterRing();
-
-        // Neural connections
-        this.createNeuralConnections();
-
-        // Ambient particles
-        this.createAmbientParticles();
-
-        // Events
-        window.addEventListener('resize', () => this.onResize());
-        window.addEventListener('mousemove', (e) => this.onMouseMove(e));
-
-        // Start animation
-        this.animate();
+        this.auraGroup.appendChild(this.aura);
     }
 
-    setupPostProcessing() {
-        this.renderScene = new THREE.RenderPass(this.scene, this.camera);
+    /* ===== Core Sphere ===== */
 
-        this.bloomPass = new THREE.UnrealBloomPass(
-            new THREE.Vector2(this.width, this.height),
-            1.5,   // strength
-            0.4,   // radius
-            0.85   // threshold
-        );
+    _createCore() {
+        // Outer glow ring
+        this.coreGlow = this._svgCircle(0, 0, 38, {
+            fill: 'none', stroke: '#00f0ff', 'stroke-width': '0.5', opacity: '0.3'
+        });
+        this.coreGroup.appendChild(this.coreGlow);
 
-        this.composer = new THREE.EffectComposer(this.renderer);
-        this.composer.addPass(this.renderScene);
-        this.composer.addPass(this.bloomPass);
+        // Main sphere
+        this.coreSphere = this._svgCircle(0, 0, 24, {
+            fill: 'url(#core-gradient)', opacity: '0.95'
+        });
+        this.coreGroup.appendChild(this.coreSphere);
+
+        // Inner highlight
+        this.coreInner = this._svgCircle(0, 0, 12, {
+            fill: '#00f0ff', opacity: '0.4'
+        });
+        this.coreGroup.appendChild(this.coreInner);
+
+        // Center dot
+        this.coreDot = this._svgCircle(0, 0, 3, {
+            fill: '#ffffff', opacity: '0.9'
+        });
+        this.coreGroup.appendChild(this.coreDot);
     }
 
-    createParticles() {
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(this.particleCount * 3);
-        const colors = new Float32Array(this.particleCount * 3);
-        const sizes = new Float32Array(this.particleCount);
-        const velocities = new Float32Array(this.particleCount * 3);
-        const offsets = new Float32Array(this.particleCount);
+    /* ===== Concentric Rings ===== */
 
-        for (let i = 0; i < this.particleCount; i++) {
-            const i3 = i * 3;
+    _createRings() {
+        this.rings = {};
 
-            // Distribute on sphere with some variation
-            const phi = Math.acos(2 * Math.random() - 1);
-            const theta = Math.random() * Math.PI * 2;
-            const r = this.coreRadius * (0.8 + Math.random() * 0.4);
+        // Ring definitions: radius, dash pattern, stroke width
+        const ringDefs = {
+            inner: { r: 65, dash: '2 6', width: 1.2, opacity: 0.7 },
+            mid:   { r: 100, dash: '8 4 2 4', width: 1.0, opacity: 0.5 },
+            outer: { r: 140, dash: '1 8', width: 0.8, opacity: 0.35 },
+        };
 
-            positions[i3] = r * Math.sin(phi) * Math.cos(theta);
-            positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-            positions[i3 + 2] = r * Math.cos(phi);
+        for (const [name, def] of Object.entries(ringDefs)) {
+            const g = this._svgEl('g');
 
-            // Cyan/blue holographic colors
-            const hue = 0.55 + Math.random() * 0.1;  // cyan range
-            const saturation = 0.7 + Math.random() * 0.3;
-            const lightness = 0.4 + Math.random() * 0.3;
-            const color = new THREE.Color().setHSL(hue, saturation, lightness);
-            colors[i3] = color.r;
-            colors[i3 + 1] = color.g;
-            colors[i3 + 2] = color.b;
+            // Main ring circle
+            const circle = this._svgCircle(0, 0, def.r, {
+                fill: 'none',
+                stroke: '#00f0ff',
+                'stroke-width': def.width,
+                'stroke-dasharray': def.dash,
+                opacity: def.opacity,
+            });
+            g.appendChild(circle);
 
-            sizes[i] = Math.random() * 3 + 1;
+            // Tick marks
+            const tickCount = name === 'inner' ? 12 : name === 'mid' ? 24 : 36;
+            for (let i = 0; i < tickCount; i++) {
+                const angle = (i / tickCount) * Math.PI * 2;
+                const isMajor = i % (tickCount / 4) === 0;
+                const isMinor = i % 3 === 0;
 
-            // Random velocity for organic movement
-            velocities[i3] = (Math.random() - 0.5) * 0.01;
-            velocities[i3 + 1] = (Math.random() - 0.5) * 0.01;
-            velocities[i3 + 2] = (Math.random() - 0.5) * 0.01;
+                const len = isMajor ? 8 : isMinor ? 5 : 3;
+                const r1 = def.r - len;
+                const r2 = def.r;
 
-            offsets[i] = Math.random() * Math.PI * 2;
+                const x1 = Math.cos(angle) * r1;
+                const y1 = Math.sin(angle) * r1;
+                const x2 = Math.cos(angle) * r2;
+                const y2 = Math.sin(angle) * r2;
+
+                const tick = this._svgLine(x1, y1, x2, y2, {
+                    stroke: isMajor ? '#ffaa00' : '#00f0ff',
+                    'stroke-width': isMajor ? 1.2 : 0.5,
+                    opacity: isMajor ? 0.7 : isMinor ? 0.4 : 0.2,
+                });
+                g.appendChild(tick);
+
+                // Crosshair at cardinal points
+                if (isMajor) {
+                    const cx = Math.cos(angle) * def.r;
+                    const cy = Math.sin(angle) * def.r;
+                    const chSize = 3;
+                    const ch = this._svgEl('g', { opacity: '0.5' });
+                    ch.appendChild(this._svgLine(cx - chSize, cy, cx + chSize, cy, {
+                        stroke: '#ffaa00', 'stroke-width': 0.6
+                    }));
+                    ch.appendChild(this._svgLine(cx, cy - chSize, cx, cy + chSize, {
+                        stroke: '#ffaa00', 'stroke-width': 0.6
+                    }));
+                    g.appendChild(ch);
+                }
+            }
+
+            // Orbiting dot
+            const orbitDot = this._svgCircle(def.r, 0, 2, {
+                fill: '#00f0ff', opacity: '0.8', filter: 'url(#glow)'
+            });
+            g.appendChild(orbitDot);
+            this.rings[name] = { group: g, circle, orbitDot, radius: def.r };
+
+            this.ringGroup.appendChild(g);
         }
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-
-        this.particleVelocities = velocities;
-        this.particleOffsets = offsets;
-        this.particleGeometry = geometry;
-
-        const material = new THREE.ShaderMaterial({
-            uniforms: {
-                time: { value: 0 },
-                brightness: { value: 0.6 },
-                volume: { value: 0 }
-            },
-            vertexShader: `
-                attribute float size;
-                attribute vec3 color;
-                varying vec3 vColor;
-                varying float vBrightness;
-                uniform float time;
-                uniform float brightness;
-                uniform float volume;
-
-                void main() {
-                    vColor = color;
-                    vBrightness = brightness;
-
-                    vec3 pos = position;
-                    float scale = 1.0 + volume * 0.3;
-                    pos *= scale;
-
-                    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-                    gl_PointSize = size * (300.0 / -mvPosition.z) * (1.0 + volume * 0.5);
-                    gl_Position = projectionMatrix * mvPosition;
-                }
-            `,
-            fragmentShader: `
-                varying vec3 vColor;
-                varying float vBrightness;
-
-                void main() {
-                    float dist = length(gl_PointCoord - vec2(0.5));
-                    if (dist > 0.5) discard;
-
-                    float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
-                    alpha *= vBrightness;
-
-                    vec3 glow = vColor * 1.5;
-                    gl_FragColor = vec4(glow, alpha);
-                }
-            `,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-
-        this.particles = new THREE.Points(geometry, material);
-        this.scene.add(this.particles);
+        // Crosshair at center (subtle)
+        const chGroup = this._svgEl('g', { opacity: '0.15' });
+        chGroup.appendChild(this._svgLine(-8, 0, 8, 0, { stroke: '#00f0ff', 'stroke-width': 0.5 }));
+        chGroup.appendChild(this._svgLine(0, -8, 0, 8, { stroke: '#00f0ff', 'stroke-width': 0.5 }));
+        this.coreGroup.appendChild(chGroup);
     }
 
-    createInnerGlow() {
-        const geometry = new THREE.SphereGeometry(this.coreRadius * 0.4, 32, 32);
-        const material = new THREE.ShaderMaterial({
-            uniforms: {
-                time: { value: 0 },
-                color: { value: new THREE.Color(0x00d4ff) },
-                volume: { value: 0 }
-            },
-            vertexShader: `
-                varying vec3 vNormal;
-                varying vec3 vPosition;
-                void main() {
-                    vNormal = normalize(normalMatrix * normal);
-                    vPosition = position;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                }
-            `,
-            fragmentShader: `
-                uniform float time;
-                uniform vec3 color;
-                uniform float volume;
-                varying vec3 vNormal;
-                varying vec3 vPosition;
+    /* ===== Audio Waveform ===== */
 
-                void main() {
-                    float intensity = pow(0.65 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-                    float pulse = 1.0 + sin(time * 2.0) * 0.1 + volume * 0.4;
-                    vec3 glow = color * intensity * pulse;
-                    gl_FragColor = vec4(glow, intensity * 0.6);
-                }
-            `,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            side: THREE.BackSide,
-            depthWrite: false
+    _createWaveform() {
+        this.wavePath = this._svgPath('', {
+            fill: 'none',
+            stroke: '#00f0ff',
+            'stroke-width': 1.5,
+            opacity: '0.7',
+            filter: 'url(#glow)',
         });
+        this.waveGroup.appendChild(this.wavePath);
 
-        this.innerGlow = new THREE.Mesh(geometry, material);
-        this.scene.add(this.innerGlow);
+        // Mirror waveform (below center)
+        this.wavePathMirror = this._svgPath('', {
+            fill: 'none',
+            stroke: '#00f0ff',
+            'stroke-width': 1,
+            opacity: '0.3',
+        });
+        this.waveGroup.appendChild(this.wavePathMirror);
     }
 
-    createOuterRing() {
-        const geometry = new THREE.TorusGeometry(this.coreRadius * 1.3, 0.02, 16, 100);
-        const material = new THREE.MeshBasicMaterial({
-            color: 0x00d4ff,
-            transparent: true,
-            opacity: 0.3
-        });
+    _updateWaveform() {
+        const points = [];
+        const mirrorPoints = [];
+        const w = 40; // half-width of waveform
+        const segments = this.waveformData.length;
 
-        this.outerRing = new THREE.Mesh(geometry, material);
-        this.outerRing.rotation.x = Math.PI / 2;
-        this.scene.add(this.outerRing);
-
-        // Second ring
-        const geometry2 = new THREE.TorusGeometry(this.coreRadius * 1.5, 0.01, 16, 100);
-        const material2 = new THREE.MeshBasicMaterial({
-            color: 0x0088cc,
-            transparent: true,
-            opacity: 0.15
-        });
-
-        this.outerRing2 = new THREE.Mesh(geometry2, material2);
-        this.outerRing2.rotation.x = Math.PI / 3;
-        this.outerRing2.rotation.y = Math.PI / 4;
-        this.scene.add(this.outerRing2);
-    }
-
-    createNeuralConnections() {
-        const lineCount = 50;
-        const positions = new Float32Array(lineCount * 6);
-        const colors = new Float32Array(lineCount * 6);
-
-        for (let i = 0; i < lineCount; i++) {
-            const i6 = i * 6;
-
-            // Random points on sphere surface
-            const phi1 = Math.acos(2 * Math.random() - 1);
-            const theta1 = Math.random() * Math.PI * 2;
-            const phi2 = Math.acos(2 * Math.random() - 1);
-            const theta2 = Math.random() * Math.PI * 2;
-
-            const r = this.coreRadius;
-
-            positions[i6] = r * Math.sin(phi1) * Math.cos(theta1);
-            positions[i6 + 1] = r * Math.sin(phi1) * Math.sin(theta1);
-            positions[i6 + 2] = r * Math.cos(phi1);
-
-            positions[i6 + 3] = r * Math.sin(phi2) * Math.cos(theta2);
-            positions[i6 + 4] = r * Math.sin(phi2) * Math.sin(theta2);
-            positions[i6 + 5] = r * Math.cos(phi2);
-
-            const color = new THREE.Color(0x00d4ff);
-            colors[i6] = color.r;
-            colors[i6 + 1] = color.g;
-            colors[i6 + 2] = color.b;
-            colors[i6 + 3] = color.r;
-            colors[i6 + 4] = color.g;
-            colors[i6 + 5] = color.b;
+        for (let i = 0; i < segments; i++) {
+            const t = i / (segments - 1);
+            const x = -w + t * w * 2;
+            const amp = this.waveformData[i] * 12;
+            const y = -amp;
+            const yMirror = amp * 0.6;
+            points.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+            mirrorPoints.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${yMirror.toFixed(1)}`);
         }
 
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const material = new THREE.LineBasicMaterial({
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.15,
-            blending: THREE.AdditiveBlending
-        });
-
-        this.neuralLines = new THREE.LineSegments(geometry, material);
-        this.scene.add(this.neuralLines);
+        this.wavePath.setAttribute('d', points.join(' '));
+        this.wavePathMirror.setAttribute('d', mirrorPoints.join(' '));
     }
 
-    createAmbientParticles() {
-        const count = 500;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(count * 3);
+    /* ===== Animation Loop ===== */
 
-        for (let i = 0; i < count; i++) {
-            const i3 = i * 3;
-            positions[i3] = (Math.random() - 0.5) * 20;
-            positions[i3 + 1] = (Math.random() - 0.5) * 20;
-            positions[i3 + 2] = (Math.random() - 0.5) * 20;
+    _animate() {
+        this._animFrame = requestAnimationFrame(() => this._animate());
+        this.time += 0.016;
+
+        // Smooth ring speed interpolation
+        for (const name of ['inner', 'mid', 'outer']) {
+            this.ringSpeeds[name] += (this.targetRingSpeeds[name] - this.ringSpeeds[name]) * 0.03;
         }
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        // Rotate rings
+        if (this.rings.inner) {
+            const innerAngle = this.time * this.ringSpeeds.inner * 60;
+            const midAngle = this.time * this.ringSpeeds.mid * 60;
+            const outerAngle = this.time * this.ringSpeeds.outer * 60;
+            this.rings.inner.group.setAttribute('transform', `rotate(${innerAngle})`);
+            this.rings.mid.group.setAttribute('transform', `rotate(${midAngle})`);
+            this.rings.outer.group.setAttribute('transform', `rotate(${outerAngle})`);
+        }
 
-        const material = new THREE.PointsMaterial({
-            color: 0x00d4ff,
-            size: 0.02,
-            transparent: true,
-            opacity: 0.3,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
+        // Core pulse
+        const pulse = 1.0 + Math.sin(this.time * 2) * 0.06;
+        this.coreSphere.setAttribute('r', 24 * pulse);
+        this.coreGlow.setAttribute('r', 38 * pulse);
+        this.coreInner.setAttribute('r', 12 * pulse);
+        this.coreInner.setAttribute('opacity', 0.3 + Math.sin(this.time * 3) * 0.1);
 
-        this.ambientParticles = new THREE.Points(geometry, material);
-        this.scene.add(this.ambientParticles);
+        // Aura breathe
+        const auraPulse = 1.0 + Math.sin(this.time * 1.2) * 0.04;
+        this.aura.setAttribute('r', 140 * auraPulse);
+
+        // Audio reactivity — scale core glow with volume
+        const volScale = 1.0 + this.audioVolume * 0.4;
+        this.coreGlow.setAttribute('r', 38 * pulse * volScale);
+        this.coreGlow.setAttribute('opacity', 0.2 + this.audioVolume * 0.5);
+
+        // Waveform
+        this._updateWaveform();
     }
+
+    /* ===== Public API ===== */
 
     setState(newState) {
         if (this.state === newState) return;
@@ -340,34 +326,19 @@ class JarvisCore {
 
         switch (newState) {
             case 'idle':
-                this.targetRotationSpeed = 0.001;
-                this.targetChaos = 0;
-                this.targetBrightness = 0.6;
-                this.bloomPass.strength = 1.5;
+                this.targetRingSpeeds = { inner: 0.003, mid: -0.002, outer: 0.001 };
                 break;
             case 'listening':
-                this.targetRotationSpeed = 0.002;
-                this.targetChaos = 0.2;
-                this.targetBrightness = 0.8;
-                this.bloomPass.strength = 1.8;
+                this.targetRingSpeeds = { inner: 0.006, mid: -0.004, outer: 0.002 };
                 break;
             case 'thinking':
-                this.targetRotationSpeed = 0.005;
-                this.targetChaos = 0.8;
-                this.targetBrightness = 1.0;
-                this.bloomPass.strength = 2.2;
+                this.targetRingSpeeds = { inner: 0.012, mid: -0.008, outer: 0.005 };
                 break;
             case 'speaking':
-                this.targetRotationSpeed = 0.003;
-                this.targetChaos = 0.3;
-                this.targetBrightness = 0.9;
-                this.bloomPass.strength = 2.0;
+                this.targetRingSpeeds = { inner: 0.008, mid: -0.005, outer: 0.003 };
                 break;
             case 'working':
-                this.targetRotationSpeed = 0.004;
-                this.targetChaos = 0.6;
-                this.targetBrightness = 1.0;
-                this.bloomPass.strength = 2.5;
+                this.targetRingSpeeds = { inner: 0.010, mid: -0.007, outer: 0.004 };
                 break;
         }
     }
@@ -375,104 +346,36 @@ class JarvisCore {
     setAudio(volume, frequency, pitch) {
         this.audioVolume = volume;
         this.audioFrequency = frequency;
-        this.audioPitch = pitch;
-        this.targetScale = 1.0 + volume * 0.5;
+
+        // Generate waveform from volume + frequency
+        for (let i = 0; i < this.waveformData.length; i++) {
+            const t = i / this.waveformData.length;
+            const baseWave = Math.sin(t * Math.PI * 4 + this.time * 8) * volume;
+            const freqMod = Math.sin(t * Math.PI * 2 * (frequency / 500)) * volume * 0.5;
+            const noise = (Math.random() - 0.5) * volume * 0.3;
+            const target = baseWave + freqMod + noise;
+            this.waveformData[i] += (target - this.waveformData[i]) * 0.3;
+        }
+
+        // Idle breathing waveform when no audio
+        if (volume < 0.01) {
+            for (let i = 0; i < this.waveformData.length; i++) {
+                const t = i / this.waveformData.length;
+                const idle = Math.sin(t * Math.PI * 3 + this.time * 1.5) * 0.08;
+                this.waveformData[i] += (idle - this.waveformData[i]) * 0.05;
+            }
+        }
     }
 
     onResize() {
         this.width = window.innerWidth;
         this.height = window.innerHeight;
-        this.camera.aspect = this.width / this.height;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(this.width, this.height);
-        this.composer.setSize(this.width, this.height);
     }
 
-    onMouseMove(event) {
-        this.mouse.x = (event.clientX / this.width) * 2 - 1;
-        this.mouse.y = -(event.clientY / this.height) * 2 + 1;
-    }
-
-    animate() {
-        requestAnimationFrame(() => this.animate());
-
-        this.time += 0.016;
-
-        // Smooth interpolation
-        this.currentRotationSpeed += (this.targetRotationSpeed - this.currentRotationSpeed) * 0.05;
-        this.currentChaos += (this.targetChaos - this.currentChaos) * 0.05;
-        this.currentBrightness += (this.targetBrightness - this.currentBrightness) * 0.05;
-        this.currentScale += (this.targetScale - this.currentScale) * 0.1;
-
-        // Rotate particles
-        this.particles.rotation.y += this.currentRotationSpeed;
-        this.particles.rotation.x = this.mouse.y * 0.1;
-        this.particles.rotation.z = this.mouse.x * 0.05;
-
-        // Update particle positions with chaos
-        const positions = this.particleGeometry.attributes.position.array;
-        for (let i = 0; i < this.particleCount; i++) {
-            const i3 = i * 3;
-            const offset = this.particleOffsets[i];
-
-            // Orbital motion
-            const angle = this.time * 0.5 + offset;
-            const orbitalX = Math.sin(angle) * this.currentChaos * 0.1;
-            const orbitalY = Math.cos(angle) * this.currentChaos * 0.1;
-
-            // Breathing effect
-            const breathe = Math.sin(this.time * 1.5 + offset) * 0.05;
-
-            // Apply chaos displacement
-            positions[i3] += (orbitalX + this.particleVelocities[i3] * this.currentChaos) * 0.1;
-            positions[i3 + 1] += (orbitalY + this.particleVelocities[i3 + 1] * this.currentChaos) * 0.1;
-            positions[i3 + 2] += breathe;
-
-            // Keep particles on sphere surface
-            const x = positions[i3];
-            const y = positions[i3 + 1];
-            const z = positions[i3 + 2];
-            const dist = Math.sqrt(x * x + y * y + z * z);
-            const targetDist = this.coreRadius * (0.8 + Math.sin(this.time + offset) * 0.1);
-
-            if (dist > 0) {
-                const scale = targetDist / dist;
-                positions[i3] *= scale;
-                positions[i3 + 1] *= scale;
-                positions[i3 + 2] *= scale;
-            }
-        }
-        this.particleGeometry.attributes.position.needsUpdate = true;
-
-        // Update shader uniforms
-        this.particles.material.uniforms.time.value = this.time;
-        this.particles.material.uniforms.brightness.value = this.currentBrightness;
-        this.particles.material.uniforms.volume.value = this.audioVolume;
-
-        // Inner glow
-        this.innerGlow.material.uniforms.time.value = this.time;
-        this.innerGlow.material.uniforms.volume.value = this.audioVolume;
-        const glowScale = this.currentScale * (1.0 + this.audioVolume * 0.3);
-        this.innerGlow.scale.setScalar(glowScale);
-
-        // Outer rings
-        this.outerRing.rotation.z += 0.002;
-        this.outerRing2.rotation.z -= 0.001;
-        this.outerRing.scale.setScalar(this.currentScale);
-        this.outerRing2.scale.setScalar(this.currentScale * 0.9);
-
-        // Neural connections
-        this.neuralLines.material.opacity = 0.1 + this.currentChaos * 0.3;
-        this.neuralLines.rotation.y += this.currentRotationSpeed * 0.5;
-
-        // Ambient particles drift
-        this.ambientParticles.rotation.y += 0.0002;
-        this.ambientParticles.rotation.x += 0.0001;
-
-        // Render
-        this.composer.render();
+    destroy() {
+        if (this._animFrame) cancelAnimationFrame(this._animFrame);
+        this.container.innerHTML = '';
     }
 }
 
-// Export
 window.JarvisCore = JarvisCore;

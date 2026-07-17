@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from jarvis.web.main import jarvis
+import jarvis.web.main as web_main
 
 router = APIRouter(prefix="/api/agents", tags=["agents"])
 
@@ -10,28 +10,28 @@ router = APIRouter(prefix="/api/agents", tags=["agents"])
 @router.get("")
 async def get_agents():
     """Get all agents and their status."""
-    if not jarvis:
+    if not web_main.jarvis:
         return {"error": "JARVIS not initialized"}
     
-    return jarvis.get_status()
+    return web_main.jarvis.get_status()
 
 
 @router.get("/hierarchy")
 async def get_hierarchy():
     """Get agent hierarchy for visualization."""
-    if not jarvis:
+    if not web_main.jarvis:
         return {"error": "JARVIS not initialized"}
     
     hierarchy = {
         "jarvis": {
             "card_id": "J",
             "name": "JARVIS",
-            "state": jarvis.state.value,
+            "state": web_main.jarvis.state.value,
         },
         "kings": []
     }
     
-    for king in jarvis.get_all_kings():
+    for king in web_main.jarvis.get_all_kings():
         king_data = {
             "card_id": king.card_id,
             "name": king.name,
@@ -55,20 +55,20 @@ async def get_hierarchy():
 @router.get("/{card_id}")
 async def get_agent(card_id: str):
     """Get a specific agent by card_id."""
-    if not jarvis:
+    if not web_main.jarvis:
         return {"error": "JARVIS not initialized"}
     
     # Check if it's JARVIS
     if card_id == "J":
-        return jarvis.to_dict()
+        return web_main.jarvis.to_dict()
     
     # Check Kings
-    king = jarvis.get_king(card_id)
+    king = web_main.jarvis.get_king(card_id)
     if king:
         return king.to_dict()
     
     # Check workers
-    for king in jarvis.get_all_kings():
+    for king in web_main.jarvis.get_all_kings():
         worker = king.get_worker(card_id)
         if worker:
             return worker.to_dict()

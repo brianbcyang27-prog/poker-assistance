@@ -29,9 +29,22 @@ class BaseKing(CardAgent):
     
     def __init__(self, suit: Suit):
         super().__init__(suit=suit, rank=Rank.KING)
-        self._llm = LLM()
+        config = self.get_model_config()
+        self._llm = LLM(
+            model=config.get("model"),
+            api_base=config.get("api_base"),
+            api_key=config.get("api_key"),
+        )
         self._workers: dict[str, CardAgent] = {}
         self._active_tasks: dict[str, Task] = {}
+    
+    def get_model_config(self) -> dict:
+        """Override to use a different LLM for this king.
+        
+        Returns dict with optional keys: model, api_base, api_key
+        Example: {"model": "meta/llama-3.1-70b-instruct"}
+        """
+        return {}
     
     @property
     def role(self) -> AgentRole:

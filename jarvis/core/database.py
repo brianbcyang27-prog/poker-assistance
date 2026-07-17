@@ -149,6 +149,26 @@ class Database:
             );
         """)
         await self._db.commit()
+        
+        # Upgrade projects table — add columns if missing (idempotent)
+        for col, default in [
+            ("active", "1"),
+            ("last_worked_on", "NULL"),
+            ("server_command", "''"),
+            ("server_port", "0"),
+            ("url", "''"),
+            ("ai_tool_command", "''"),
+            ("ai_tool_name", "''"),
+            ("context", "'{}'"),
+            ("status", "'active'"),
+        ]:
+            try:
+                await self._db.execute(
+                    f"ALTER TABLE projects ADD COLUMN {col} DEFAULT {default}"
+                )
+            except Exception:
+                pass  # Column already exists
+        await self._db.commit()
     
     # Preferences
     async def set_preference(self, key: str, value: str):
@@ -204,6 +224,37 @@ class Database:
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in reversed(rows)]
+    
+    async def get_all_sessions(self, limit: int = 50, offset: int = 0) -> list[dict]:
+        """Get all conversation sessions with first user message as preview."""
+        cursor = await self._db.execute(
+            """SELECT session_id, 
+                      MIN(timestamp) as started_at,
+                      MAX(timestamp) as last_at,
+                      COUNT(*) as message_count
+               FROM conversations 
+               GROUP BY session_id 
+               ORDER BY last_at DESC 
+               LIMIT ? OFFSET ?""",
+            (limit, offset)
+        )
+        sessions = []
+        for row in await cursor.fetchall():
+            d = dict(row)
+            # Get first user message as preview
+            preview_cursor = await self._db.execute(
+                "SELECT content FROM conversations WHERE session_id = ? AND role = 'user' ORDER BY id LIMIT 1",
+                (d["session_id"],)
+            )
+            preview_row = await preview_cursor.fetchone()
+            d["preview"] = preview_row["content"][:100] if preview_row else ""
+            sessions.append(d)
+        return sessions
+    
+    async def get_session_count(self) -> int:
+        cursor = await self._db.execute("SELECT COUNT(DISTINCT session_id) as count FROM conversations")
+        row = await cursor.fetchone()
+        return row["count"]
     
     # Agent Messages
     async def save_agent_message(self, message: dict):

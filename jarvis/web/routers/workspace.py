@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from typing import Optional
 
-from jarvis.web.main import workspace_manager, jarvis
+import jarvis.web.main as web_main
 from jarvis.core.models import Task
 from jarvis.core.database import get_db
 
@@ -31,7 +31,7 @@ async def list_workspace_history(
 @router.post("")
 async def create_workspace(req: CreateWorkspaceRequest):
     """Create a new workspace."""
-    workspace = await workspace_manager.create_workspace(
+    workspace = await web_main.workspace_manager.create_workspace(
         goal=req.goal,
         owner=req.owner,
     )
@@ -41,14 +41,14 @@ async def create_workspace(req: CreateWorkspaceRequest):
 @router.get("")
 async def list_workspaces():
     """List all active workspaces."""
-    workspaces = await workspace_manager.get_active_workspaces()
+    workspaces = await web_main.workspace_manager.get_active_workspaces()
     return [w.model_dump() for w in workspaces]
 
 
 @router.get("/{workspace_id}")
 async def get_workspace(workspace_id: str):
     """Get workspace details."""
-    workspace = await workspace_manager.get_workspace(workspace_id)
+    workspace = await web_main.workspace_manager.get_workspace(workspace_id)
     if not workspace:
         return {"error": "Workspace not found"}
     return workspace.model_dump()
@@ -57,7 +57,7 @@ async def get_workspace(workspace_id: str):
 @router.get("/{workspace_id}/status")
 async def get_workspace_status(workspace_id: str):
     """Get workspace status for UI."""
-    return await workspace_manager.get_workspace_status(workspace_id)
+    return await web_main.workspace_manager.get_workspace_status(workspace_id)
 
 
 @router.get("/{workspace_id}/tasks")
@@ -75,7 +75,7 @@ async def replay_workspace(workspace_id: str):
     history = await db.get_task_history_by_id(workspace_id)
     if not history:
         # Try loading from workspace table
-        workspace = await workspace_manager.get_workspace(workspace_id)
+        workspace = await web_main.workspace_manager.get_workspace(workspace_id)
         if workspace:
             return {
                 "workspace_id": workspace_id,

@@ -106,6 +106,23 @@ async def lifespan(app: FastAPI):
     global workspace_manager
     workspace_manager = WorkspaceManager()
     
+    # Auto-register JARVIS itself as a known project
+    try:
+        from jarvis.brain.project_memory import project_memory
+        await project_memory.register_project(
+            name="jarvis",
+            path=str(Path(__file__).parent.parent.parent),
+            description="JARVIS — Multi-Agent AI Operating System",
+            language="python",
+            server_command="python3 run.py",
+            server_port=config.port,
+            url=f"http://{config.host}:{config.port}",
+            ai_tool_command="code /Users/brianyang/jarvis",
+            ai_tool_name="VS Code",
+        )
+    except Exception:
+        pass
+    
     yield
     
     # Shutdown
@@ -119,7 +136,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="JARVIS",
         description="Multi-Agent AI Operating System",
-        version="2.0.0",
+        version="3.0.0",
         lifespan=lifespan,
     )
     
@@ -128,7 +145,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
     
     # Include routers
-    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings
+    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot
     app.include_router(chat.router)
     app.include_router(agents.router)
     app.include_router(workspace.router)
@@ -137,6 +154,8 @@ def create_app() -> FastAPI:
     app.include_router(pages.router)
     app.include_router(websocket.router)
     app.include_router(settings.router)
+    app.include_router(computer.router)
+    app.include_router(iot.router)
     
     return app
 

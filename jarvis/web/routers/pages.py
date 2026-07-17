@@ -11,8 +11,8 @@ router = APIRouter(tags=["pages"])
 
 @router.get("/")
 async def index(request: Request):
-    """Main JARVIS page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    """Main JARVIS page — the living interface."""
+    return templates.TemplateResponse("base.html", {"request": request})
 
 
 @router.get("/command-map")

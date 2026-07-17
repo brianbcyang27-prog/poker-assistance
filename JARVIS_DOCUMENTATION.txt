@@ -1,0 +1,488 @@
+================================================================================
+                         JARVIS — AI OPERATING SYSTEM
+                          Complete System Documentation
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1. Overview
+2. Architecture
+3. Installation & Setup
+4. Configuration
+5. Agent System
+6. Computer Control
+7. IoT / ESP32 Integration
+8. Voice System
+9. Memory System
+10. Web Interface
+11. API Reference
+12. Arduino Library
+13. Troubleshooting
+
+================================================================================
+1. OVERVIEW
+================================================================================
+
+JARVIS is a hierarchical multi-agent AI operating system built in Python.
+It features a card-game-inspired hierarchy (J-K-Q-10-9...) where:
+
+  - JARVIS (Chief Executive) receives all user requests
+  - 4 Kings manage divisions (Engineering, Personal, Research, System)
+  - 18 Workers execute specialized tasks
+  - Workers can use real computer control, web search, and IoT devices
+  - Each agent can use a different LLM model
+
+Key capabilities:
+  - Natural language conversation (text + voice)
+  - Full computer control (mouse, keyboard, browser, screen)
+  - Web search and content extraction
+  - ESP32/Arduino device control over WiFi
+  - Obsidian-style knowledge graph memory
+  - 3D neural sphere visualization
+  - Multi-turn conversation with context persistence
+
+================================================================================
+2. ARCHITECTURE
+================================================================================
+
+    User → JARVIS → King → Worker → Tool → Real World
+
+    ┌─────────────────────────────────────────────────┐
+    │                    JARVIS                        │
+    │              (Chief Executive AI)                │
+    │         LLM: configurable per-agent             │
+    ├─────────┬─────────┬──────────┬─────────────────┤
+    │  ♠ Eng  │  ♥ Pers │  ♦ Res   │  ♣ System       │
+    │  King   │  King   │  King    │  King            │
+    ├─────────┼─────────┼──────────┼─────────────────┤
+    │ ♠Q Arch │ ♥Q Cal  │ ♦Q Web   │ ♣Q Files        │
+    │ ♠J Back │ ♥J Mail │ ♦J Docs  │ ♣J Terminal     │
+    │ ♠10 Frnt│ ♥10 Task│ ♦10 Fact │ ♣10 Apps        │
+    │ ♠9 React│ ♥9 Schd │          │                  │
+    │ ♠8 Py   │         │          │                  │
+    │ ♠7 Test │         │          │                  │
+    │ ♠6 Docs │         │          │                  │
+    │ ♠5 A11y │         │          │                  │
+    └─────────┴─────────┴──────────┴─────────────────┘
+                         │
+              ┌──────────┴──────────┐
+              │    ToolExecutor     │
+              │  27 real-world tools│
+              ├─────────────────────┤
+              │ Screen │ Mouse │ Kbd│
+              │ Browser│ Search│ IoT│
+              │ Shell  │ Arduino│   │
+              └─────────────────────┘
+
+Flow:
+  1. User sends message to JARVIS
+  2. JARVIS analyzes intent via LLM
+  3. JARVIS delegates to appropriate King(s)
+  4. King plans work, selects Workers
+  5. Workers execute using LLM + Tools
+  6. Workers report to King
+  7. King reviews, reports to JARVIS
+  8. JARVIS composes final response
+
+================================================================================
+3. INSTALLATION & SETUP
+================================================================================
+
+Prerequisites:
+  - Python 3.9+
+  - ffmpeg (for TTS audio conversion)
+  - Playwright + Chromium (for browser control)
+  - macOS (for mouse/keyboard/screen control)
+
+Install:
+  cd /Users/brianyang/jarvis
+  pip3 install fastapi uvicorn aiosqlite aiohttp pydantic-settings openai Pillow
+  pip3 install playwright soundfile scipy loguru
+  python3 -m playwright install chromium
+
+  # Kokoro TTS (optional, heavy install ~5min)
+  pip3 install kokoro huggingface-hub transformers torch
+
+Run:
+  cd /Users/brianyang/jarvis
+  python3 run.py
+  # Open http://127.0.0.1:8000
+
+================================================================================
+4. CONFIGURATION
+================================================================================
+
+Config file: .env (in project root)
+
+  # LLM Backend (required)
+  NVIDIA_API_KEY=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
+  NVIDIA_MODEL=meta/llama-3.1-8b-instruct
+  NVIDIA_API_BASE=https://integrate.api.nvidia.com/v1
+
+  # Interface
+  VIEW_MODE=graph              # core | graph
+  CHAT_MODE=popup              # popup | chat
+  HOST=127.0.0.1
+  PORT=8000
+
+  # Voice
+  TTS_ENABLED=true
+  TTS_PROVIDER=macos           # macos | kokoro | openai
+  TTS_VOICE=                   # voice ID (provider-specific)
+  OPENAI_API_KEY=              # for OpenAI TTS
+
+  # Memory
+  DB_PATH=jarvis.db
+
+  # Safety
+  REQUIRE_CONFIRMATION=true
+
+  # Agent
+  LLM_TEMPERATURE=0.7
+  MAX_TOKENS=4096
+  CONFIDENCE_THRESHOLD=0.9
+
+Per-Agent LLM Override:
+  Each agent can use a different model. Override in worker/king:
+
+  class MyWorker(BaseWorker):
+      def get_model_config(self):
+          return {
+              "model": "meta/llama-3.1-70b-instruct",
+              "api_base": "https://integrate.api.nvidia.com/v1",
+          }
+
+================================================================================
+5. AGENT SYSTEM
+================================================================================
+
+Classes:
+  - JarvisAgent: Chief executive, single point of contact
+  - BaseKing: Division managers, plan + delegate + review
+  - BaseWorker: Specialized executors, use LLM + Tools
+
+Agent States:
+  idle → thinking → planning → working → reviewing → idle
+                                ↘ error
+
+Worker Execution:
+  1. Receive task from King
+  2. Build system prompt (specialization + tool instructions)
+  3. LLM generates plan with optional [TOOL: action(params)] calls
+  4. ToolExecutor executes real-world actions (up to 5 iterations)
+  5. LLM processes results, generates final response
+  6. Self-assess confidence (0.0-1.0)
+  7. Return result to King
+
+King Workflow:
+  1. Plan work via LLM (generates subtask JSON)
+  2. Assemble team of Workers
+  3. Delegate subtasks sequentially
+  4. Review results (confidence threshold)
+  5. Return summary or "needs_revision"
+
+JARVIS Intent Analysis:
+  - LLM analyzes user request
+  - Determines if direct response or delegation needed
+  - Creates task plan with King assignments
+  - IMPORTANT: LLM is instructed NEVER to fabricate task results
+
+================================================================================
+6. COMPUTER CONTROL
+================================================================================
+
+ToolExecutor actions (27 total):
+
+SCREEN:
+  screen_capture              Take full screenshot → screenshots/screen_*.png
+  screen_capture_region       Region screenshot (x, y, w, h)
+  screen_list_windows         List open windows
+  screen_active_window        Get focused window info
+  screen_open_app             Open application by name
+  screen_open_url             Open URL in default browser
+
+MOUSE/KEYBOARD:
+  mouse_click                 Click at (x, y)
+  mouse_move                  Move cursor to (x, y)
+  mouse_type                  Type text string
+  mouse_hotkey                Press key combo ["cmd", "space"]
+  mouse_scroll                Scroll amount (positive=up, negative=down)
+
+BROWSER (Playwright headless Chromium):
+  browser_navigate            Go to URL
+  browser_click               Click CSS selector
+  browser_fill                Fill input field
+  browser_screenshot          Screenshot current page
+  browser_text                Get page text content
+  browser_press_key           Press keyboard key
+  browser_evaluate            Execute JavaScript
+  browser_scroll              Scroll page
+
+WEB:
+  web_search                  DuckDuckGo search → [{title, url, snippet}]
+  web_fetch                   Fetch URL → extracted text
+
+IOT:
+  arduino_list_devices        List registered ESP32 devices
+  arduino_send                Send command to device
+  arduino_read                Read sensor value
+  arduino_status              Get device status
+
+SYSTEM:
+  shell_execute               Run shell command → {stdout, stderr, returncode}
+  task_complete               Signal task completion
+
+Usage in Workers:
+  tools = self.get_tools()
+  result = await tools.execute("web_search", query="python async")
+  # result = {"success": True, "results": [...]}
+
+================================================================================
+7. IOT / ESP32 INTEGRATION
+================================================================================
+
+Protocol:
+  - HTTP JSON over WiFi (port 80 on ESP32)
+  - ESP32 runs lightweight WebServer
+  - JARVIS sends: {"cmd":"ledon","payload":{},"id":"abc123"}
+  - ESP32 responds: {"status":"ok","data":{},"id":"abc123"}
+
+Discovery:
+  1. mDNS auto-discovery (_jarvis-iot._tcp.local.)
+  2. Manual registration via POST /api/iot/register
+  3. Config file (devices.json)
+
+Device Manager (jarvis/iot/manager.py):
+  - register_device()      Add new device
+  - send_command()         Send HTTP command to device
+  - read_sensor()          Read sensor value
+  - broadcast()            Send to all online devices
+  - start_discovery()      mDNS background discovery
+
+API Endpoints:
+  GET  /api/iot/devices              List all devices
+  POST /api/iot/register             Register device
+  GET  /api/iot/{device_id}          Device details
+  POST /api/iot/{device_id}/command  Send command
+  GET  /api/iot/{device_id}/sensor/{name}  Read sensor
+  POST /api/iot/broadcast            Command all devices
+
+================================================================================
+8. VOICE SYSTEM
+================================================================================
+
+TTS Providers:
+  1. macOS (built-in) - Default, uses 'say' command
+     - Pros: Always available, no setup
+     - Cons: Robotic voice
+
+  2. Kokoro (local neural) - Best quality
+     - Install: pip3 install kokoro soundfile scipy loguru
+     - First load takes 10-30s (torch init)
+     - Voices: af_heart, af_bella, af_nicole, af_sarah, am_adam, am_michael
+     - 24kHz WAV output
+
+  3. OpenAI (cloud) - High quality
+     - Requires OPENAI_API_KEY
+     - Voices: alloy, echo, fable, onyx, nova, shimmer
+     - MP3 output
+
+Provider priority: kokoro > openai > macos
+
+Voice API:
+  GET  /api/voice/models     List providers and voices
+  GET  /api/voice/audio/*    Serve audio files
+
+================================================================================
+9. MEMORY SYSTEM
+================================================================================
+
+Knowledge Graph (jarvis/brain/memory/graph.py):
+  - SQLite-backed graph database
+  - Node types: concept, note, entity, decision, code, tag
+  - Edge types: references, co_occurs, referenced_by
+  - Full-text search across all nodes
+  - Stats: node count, edge count, density
+
+Notes (jarvis/brain/memory/note.py):
+  - Markdown files with YAML frontmatter
+  - Bidirectional [[wiki-links]]
+  - Auto-tagging
+  - Stored in memory_store/notes/
+
+Extractor (jarvis/brain/memory/extractor.py):
+  - Auto-extracts concepts from conversations
+  - Creates graph nodes and edges
+  - Identifies decisions, code refs, file paths
+
+Conversation Memory:
+  - All chats saved to conversations table
+  - LLM context persisted per session
+  - Multi-turn conversation support
+
+================================================================================
+10. WEB INTERFACE
+================================================================================
+
+Pages:
+  /              Main page (3D neural sphere or core visualization)
+  /command-map   Agent hierarchy SVG map
+  /history       Chat history with session viewer
+  /settings      Full settings page
+
+View Modes:
+  - core: 2D Arc Reactor SVG with animated rings
+  - graph: 3D Golden Neural Sphere (Three.js + WebGL)
+
+Chat Modes:
+  - popup: Floating response bubble that fades (cinematic)
+  - chat: Scrollable conversation container (persistent)
+
+Features:
+  - Real-time agent state visualization
+  - Voice input/output
+  - Settings overlay (Ctrl+,)
+  - Knowledge graph toggle (Ctrl+G)
+  - Neural pulse animation (faster when thinking)
+
+================================================================================
+11. API REFERENCE
+================================================================================
+
+Chat:
+  POST /api/chat              Send message → {response, session_id, audio_url}
+  GET  /api/chat/sessions     List sessions → {sessions[], total}
+  GET  /api/chat/history/{id} Get messages → [{role, content, timestamp}]
+
+Agents:
+  GET  /api/agents            List all agents
+  GET  /api/agents/{card_id}  Agent details
+
+Memory:
+  GET  /api/memory/graph      Knowledge graph → {nodes[], edges[]}
+  GET  /api/memory/notes      List notes
+  POST /api/memory/notes      Create note
+  POST /api/memory/extract    Extract from conversation
+  GET  /api/memory/backlinks/{id}  Get note backlinks
+
+Computer:
+  POST /api/computer/action   Execute action → {success, ...}
+  GET  /api/computer/actions  List actions
+
+IoT:
+  GET  /api/iot/devices       List devices
+  POST /api/iot/register      Register device
+  POST /api/iot/{id}/command  Send command
+  GET  /api/iot/{id}/sensor/{name}  Read sensor
+  POST /api/iot/broadcast     Command all
+
+Settings:
+  GET  /api/settings          Get all settings
+  POST /api/settings          Update settings
+
+Workspace:
+  GET  /api/workspace         List active workspaces
+  POST /api/workspace         Create workspace
+  GET  /api/workspace/history Task history
+
+Voice:
+  GET  /api/voice/models      Providers and voices
+
+================================================================================
+12. ARDUINO LIBRARY
+================================================================================
+
+Location: jarvis/iot/arduino_library/JarvisIoT/
+
+Installation:
+  Copy JarvisIoT/ folder to Arduino/libraries/
+  OR use Arduino IDE Library Manager (if published)
+
+Basic Usage:
+  #include <JarvisIoT.h>
+
+  JarvisIoT jarvis("Device Name", "WIFI_SSID", "WIFI_PASS");
+
+  void setup() {
+      jarvis.begin();
+
+      // Register command handlers
+      jarvis.onCommand("ledon", [](JsonDocument& p, JsonDocument& r) {
+          digitalWrite(LED, HIGH);
+          r["status"] = "ok";
+      });
+
+      // Register sensor readers
+      jarvis.addSensor("temperature", []() {
+          return String(analogRead(A0));
+      });
+
+      // Register actuators
+      jarvis.addActuator("led");
+
+      // Register with JARVIS server
+      jarvis.registerWith("192.168.1.100", 8000);
+  }
+
+  void loop() {
+      jarvis.update();
+  }
+
+Examples included:
+  - BasicCommand: LED on/off/toggle
+  - SensorMonitor: DHT22 temperature + LDR light
+  - ServoControl: Servo motors + RGB LED strip
+
+API:
+  onCommand(name, callback)     Register command handler
+  addSensor(name, callback)     Register sensor reader
+  addActuator(name)             Register controllable actuator
+  setMetadata(key, value)       Set device metadata
+  registerWith(host, port)      Register with JARVIS server
+  notify(event, data)           Send event to JARVIS
+
+Built-in commands:
+  ping       Returns pong
+  identify   Returns device info
+
+================================================================================
+13. TROUBLESHOOTING
+================================================================================
+
+Port 8000 in use:
+  lsof -ti:8000 | xargs kill -9
+
+Kokoro TTS slow first load:
+  - First import takes 10-30s (torch initialization)
+  - Subsequent uses are fast
+  - If too slow, use macOS TTS instead
+
+Playwright not working:
+  python3 -m playwright install chromium
+
+Mouse/keyboard not working:
+  - Grant Accessibility permissions in System Preferences
+  - Install cliclick: brew install cliclick
+
+ESP32 not discovered:
+  - Ensure same WiFi network
+  - Check mDNS is enabled on router
+  - Try manual registration via POST /api/iot/register
+
+LLM not responding:
+  - Check NVIDIA_API_KEY in .env
+  - Verify API key at https://build.nvidia.com
+  - Check network connectivity
+
+Server won't start:
+  cd /Users/brianyang/jarvis
+  python3 run.py
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
+
+Generated: 2026-07-16
+Version: 3.0.0
+Author: Brian Yang
+Repository: https://github.com/brianbcyang27-prog/poker-assistant

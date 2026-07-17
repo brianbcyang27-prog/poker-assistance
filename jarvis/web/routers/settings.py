@@ -22,6 +22,8 @@ class SettingsUpdate(BaseModel):
     whisper_model: Optional[str] = None
     host: Optional[str] = None
     port: Optional[int] = None
+    view_mode: Optional[str] = None
+    chat_mode: Optional[str] = None
 
 
 def _settings_dict(config) -> dict:
@@ -38,6 +40,8 @@ def _settings_dict(config) -> dict:
         "whisper_model": config.whisper_model,
         "host": config.host,
         "port": config.port,
+        "view_mode": config.view_mode,
+        "chat_mode": config.chat_mode,
     }
 
 
@@ -95,6 +99,8 @@ def _save_to_env(config):
         "WHISPER_MODEL": config.whisper_model,
         "HOST": config.host,
         "PORT": str(config.port),
+        "VIEW_MODE": config.view_mode,
+        "CHAT_MODE": config.chat_mode,
     }
 
     existing.update(env_map)

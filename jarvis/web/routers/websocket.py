@@ -5,7 +5,7 @@ import json
 import asyncio
 from typing import Set
 
-from jarvis.web.main import jarvis
+import jarvis.web.main as web_main
 
 router = APIRouter(tags=["websocket"])
 
@@ -13,14 +13,12 @@ router = APIRouter(tags=["websocket"])
 _clients: Set[WebSocket] = set()
 
 
-async def broadcast_status():
-    """Broadcast agent status to all connected clients."""
-    if not _clients or not jarvis:
-        return
-    
+def _get_status_with_workers():
+    """Get jarvis status including worker details."""
+    jarvis = web_main.jarvis
+    if not jarvis:
+        return None
     status = jarvis.get_status()
-    
-    # Add worker details for each king
     for king_id, king_data in status.get("kings", {}).items():
         king = jarvis.get_king(king_id)
         if king:
@@ -32,11 +30,16 @@ async def broadcast_status():
                 }
                 for w in king.get_all_workers()
             }
+    return status
+
+
+async def broadcast_status():
+    """Broadcast agent status to all connected clients."""
+    if not _clients or not web_main.jarvis:
+        return
     
-    message = json.dumps({
-        "type": "status",
-        "data": status
-    })
+    status = _get_status_with_workers()
+    message = json.dumps({"type": "status", "data": status})
     
     disconnected = set()
     for client in list(_clients):
@@ -56,47 +59,22 @@ async def websocket_agents(websocket: WebSocket):
     
     try:
         # Send initial status immediately
-        if jarvis:
-            status = jarvis.get_status()
-            for king_id, king_data in status.get("kings", {}).items():
-                king = jarvis.get_king(king_id)
-                if king:
-                    king_data["workers"] = {
-                        w.card_id: {
-                            "card_id": w.card_id,
-                            "name": w.name,
-                            "state": w.state.value,
-                        }
-                        for w in king.get_all_workers()
-                    }
+        status = _get_status_with_workers()
+        if status:
             await websocket.send_text(json.dumps({"type": "status", "data": status}))
         
         # Keep connection alive
         while True:
             try:
-                # Wait for messages from client (keeps connection alive)
                 await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
             except asyncio.TimeoutError:
-                # No message, but connection still alive
-                # Send periodic status update
-                if jarvis:
-                    status = jarvis.get_status()
-                    for king_id, king_data in status.get("kings", {}).items():
-                        king = jarvis.get_king(king_id)
-                        if king:
-                            king_data["workers"] = {
-                                w.card_id: {
-                                    "card_id": w.card_id,
-                                    "name": w.name,
-                                    "state": w.state.value,
-                                }
-                                for w in king.get_all_workers()
-                            }
+                status = _get_status_with_workers()
+                if status:
                     await websocket.send_text(json.dumps({"type": "status", "data": status}))
     
     except WebSocketDisconnect:
         _clients.discard(websocket)
-    except Exception as e:
+    except Exception:
         _clients.discard(websocket)
     finally:
         _clients.discard(websocket)

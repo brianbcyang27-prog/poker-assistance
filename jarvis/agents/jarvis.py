@@ -65,19 +65,22 @@ class JarvisAgent(BaseAgent):
         self.set_state(AgentState.THINKING)
         
         # Check if LLM is available
-        try:
-            self._llm._get_client()
-        except RuntimeError:
-            # No LLM available - provide fallback response
+        if not self._llm.is_available():
             self.set_state(AgentState.IDLE)
             return self._fallback_response(user_message)
         
         # Analyze intent and determine which King(s) to delegate to
         delegation_plan = await self._analyze_intent(user_message)
         
+        # Safety: if tasks exist, ALWAYS delegate — never fabricate a response
+        tasks = delegation_plan.get("tasks", [])
+        if tasks:
+            delegation_plan["direct_response"] = False
+            delegation_plan["response"] = ""
+        
         if delegation_plan.get("direct_response"):
             self.set_state(AgentState.IDLE)
-            return delegation_plan["response"]
+            return delegation_plan.get("response", "How can I help?")
         
         # Delegate to appropriate King(s)
         results = []
@@ -164,31 +167,71 @@ class JarvisAgent(BaseAgent):
     
     async def _analyze_intent(self, message: str) -> dict:
         """Use LLM to analyze user intent and create delegation plan."""
-        system_prompt = """You are JARVIS, an AI operating system. Analyze the user's request and determine how to handle it.
+        
+        # Build project context for the LLM
+        project_context = ""
+        try:
+            from ..brain.project_memory import project_memory
+            active = await project_memory.get_active_project()
+            if active:
+                project_context = f"""
+ACTIVE PROJECT (most recently worked on):
+- Name: {active['name']}
+- Path: {active['path']}
+- Description: {active.get('description', 'N/A')}
+- Server: {active.get('server_command', 'N/A')} (port {active.get('server_port', 'N/A')})
+- URL: {active.get('url', 'N/A')}
+- AI Tool: {active.get('ai_tool_command', 'N/A')}
+- Last worked on: {active.get('last_worked_on', 'N/A')}
+
+When the user says things like "proceed with my project", "continue working", "resume", "I'm home let's work", 
+and doesn't specify WHICH project, assume they mean the ACTIVE PROJECT listed above.
+To resume a project, delegate to ♣K with action "resume_project".
+To register a new project, delegate to ♣K with action "register_project".
+"""
+        except Exception:
+            pass
+
+        system_prompt = f"""You are JARVIS, an AI operating system. Analyze the user's request and decide: delegate or talk.
+
+DECISION RULE — memorize this:
+  If the request contains ANY of these words → direct_response = false, delegate to a King:
+    scan, check, list, find, search, run, open, install, download, upload, create, delete,
+    move, copy, rename, read, write, edit, send, schedule, set, fix, update, build, deploy,
+    test, analyze, monitor, control, turn on, turn off, connect, configure, manage, explore,
+    diagnose, clean, optimize, backup, restore, clone, pull, push, fetch, execute, launch
+
+  If the request is ONLY a greeting, small talk, or question about JARVIS itself → direct_response = true
+
+  WHEN IN DOUBT → direct_response = false. Delegation is always preferred over fabrication.
+
+YOU CANNOT DO ANYTHING YOURSELF. You have NO hands. You can ONLY delegate.
+NEVER set a "response" field with fabricated content when direct_response is false.
+NEVER claim to have done work. You have done NOTHING until a King reports back.
 
 Available Kings:
 - ♠K (Engineering King): Software development, coding, architecture, testing
 - ♥K (Personal King): Calendar, email, tasks, scheduling, personal organization
 - ♦K (Research King): Web research, documentation, fact-checking, analysis
-- ♣K (System King): File management, terminal commands, system administration, security
+- ♣K (System King): File management, terminal commands, system administration, opening apps, resuming projects, scanning system
 
-Respond with JSON:
-{
-    "intent": "brief description of what user wants",
-    "tasks": [
-        {
-            "king": "♠K",
-            "name": "task name",
-            "description": "detailed description",
-            "priority": 5
-        }
-    ],
+{project_context}
+
+RESPOND WITH ONLY VALID JSON:
+{{
+    "intent": "<brief description>",
+    "tasks": [{{"king": "<king>", "name": "<task name>", "description": "<what to do>", "priority": 5}}],
     "direct_response": false,
     "response": ""
-}
+}}
 
-If the request is simple conversation (greetings, questions about JARVIS, etc.), set direct_response to true and provide a response.
-If the request needs work, set direct_response to false and list the tasks for the appropriate King(s)."""
+EXAMPLES (study these carefully):
+- "hello" → {{"direct_response": true, "response": "Hello! How can I help?", "tasks": []}}
+- "scan my system" → {{"direct_response": false, "tasks": [{{"king": "♣K", "name": "System scan", "description": "Scan the user's computer: list drives, OS info, disk usage, running processes, network info"}}], "response": ""}}
+- "what files are on my desktop" → {{"direct_response": false, "tasks": [{{"king": "♣K", "name": "List desktop", "description": "List all files and folders on the Desktop"}}], "response": ""}}
+- "search the web for python tutorials" → {{"direct_response": false, "tasks": [{{"king": "♦K", "name": "Web search", "description": "Search for Python tutorials"}}], "response": ""}}
+- "I'm home, let's proceed with my project" → {{"direct_response": false, "tasks": [{{"king": "♣K", "name": "Resume project", "description": "Resume the active project"}}], "response": ""}}
+- "what is JARVIS?" → {{"direct_response": true, "response": "JARVIS is your AI operating system...", "tasks": []}}"""
         
         response = self._llm.chat_json(
             message=f"User request: {message}",
