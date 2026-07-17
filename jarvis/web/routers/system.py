@@ -423,3 +423,160 @@ async def evolution_prune():
     """Prune low-performing skill variants."""
     from jarvis.brain.skill_evolution import skill_evolver
     return await skill_evolver.prune_low_performers()
+
+
+# ===== ACI (Agent Communication Interface) =====
+
+@router.get("/aci/stats")
+async def aci_stats():
+    """Get ACI statistics."""
+    from jarvis.brain.aci import aci
+    return aci.get_stats()
+
+
+@router.get("/aci/history")
+async def aci_history(
+    sender: Optional[str] = None,
+    receiver: Optional[str] = None,
+    msg_type: Optional[str] = None,
+    limit: int = 50,
+):
+    """Get ACI message history."""
+    from jarvis.brain.aci import aci, MessageType
+    mt = MessageType(msg_type) if msg_type else None
+    msgs = aci.get_history(sender=sender, receiver=receiver, msg_type=mt, limit=limit)
+    return {"messages": [m.to_dict() for m in msgs], "total": len(msgs)}
+
+
+@router.get("/aci/queue/{agent_id}")
+async def aci_peek(agent_id: str):
+    """Peek at pending messages for an agent."""
+    from jarvis.brain.aci import aci
+    msgs = aci.peek(agent_id)
+    return {"agent_id": agent_id, "pending": [m.to_dict() for m in msgs], "count": len(msgs)}
+
+
+@router.post("/aci/send")
+async def aci_send(body: dict):
+    """Send a message via ACI."""
+    from jarvis.brain.aci import aci, MessageType, MessagePriority
+    msg = await aci.send(
+        sender=body.get("sender", "J"),
+        receiver=body.get("receiver", "♠K"),
+        msg_type=MessageType(body.get("type", "query")),
+        payload=body.get("payload", {}),
+        priority=MessagePriority(body.get("priority", 1)),
+    )
+    return msg.to_dict()
+
+
+@router.post("/aci/receive/{agent_id}")
+async def aci_receive(agent_id: str):
+    """Receive next message for an agent."""
+    from jarvis.brain.aci import aci
+    msg = await aci.receive(agent_id)
+    if not msg:
+        return {"empty": True}
+    return msg.to_dict()
+
+
+@router.post("/aci/broadcast")
+async def aci_broadcast(body: dict):
+    """Broadcast a message to all agents."""
+    from jarvis.brain.aci import aci, MessageType, MessagePriority
+    msg = await aci.send(
+        sender=body.get("sender", "J"),
+        receiver="*",
+        msg_type=MessageType.BROADCAST,
+        payload=body.get("payload", {}),
+        priority=MessagePriority(body.get("priority", 1)),
+    )
+    return msg.to_dict()
+
+
+# ===== DEMO LEARNING =====
+
+@router.get("/demos")
+async def list_demos(tag: Optional[str] = None):
+    """List all recorded demos."""
+    from jarvis.brain.demo_learning import demo_learner
+    demos = await demo_learner.list_demos(tag=tag)
+    return {"demos": [d.to_dict() for d in demos], "total": len(demos)}
+
+
+@router.get("/demos/stats")
+async def demo_stats():
+    """Get demo learning statistics."""
+    from jarvis.brain.demo_learning import demo_learner
+    return demo_learner.get_stats()
+
+
+@router.get("/demos/{demo_id}")
+async def get_demo(demo_id: str):
+    """Get a specific demo."""
+    from jarvis.brain.demo_learning import demo_learner
+    demo = await demo_learner.get_demo(demo_id)
+    if not demo:
+        return {"error": "Demo not found"}
+    return demo.to_dict()
+
+
+@router.post("/demos/start")
+async def demo_start(body: dict):
+    """Start recording a demo."""
+    from jarvis.brain.demo_learning import demo_learner
+    demo_id = await demo_learner.start_recording(
+        name=body.get("name", "unnamed"),
+        description=body.get("description", ""),
+        tags=body.get("tags", []),
+    )
+    return {"demo_id": demo_id, "recording": True}
+
+
+@router.post("/demos/action")
+async def demo_action(body: dict):
+    """Record an action during demo recording."""
+    from jarvis.brain.demo_learning import demo_learner, Action
+    action = Action(
+        action_type=body.get("action_type", "click"),
+        target=body.get("target", ""),
+        value=body.get("value", ""),
+        coordinates=tuple(body.get("coordinates", [0, 0])),
+        duration_ms=body.get("duration_ms", 0),
+        context=body.get("context", {}),
+    )
+    await demo_learner.record_action(action)
+    return {"ok": True}
+
+
+@router.post("/demos/stop")
+async def demo_stop():
+    """Stop recording and save the demo."""
+    from jarvis.brain.demo_learning import demo_learner
+    demo = await demo_learner.stop_recording()
+    if not demo:
+        return {"error": "No demo recording"}
+    return demo.to_dict()
+
+
+@router.post("/demos/{demo_id}/abstract")
+async def demo_abstract(demo_id: str):
+    """Abstract a demo into reusable patterns."""
+    from jarvis.brain.demo_learning import demo_learner
+    return await demo_learner.abstract_actions(demo_id)
+
+
+@router.post("/demos/{demo_id}/replay")
+async def demo_replay(demo_id: str, body: dict = None):
+    """Replay a demo with optional variations."""
+    from jarvis.brain.demo_learning import demo_learner
+    variations = (body or {}).get("variations", {})
+    return await demo_learner.replay(demo_id, variations)
+
+
+@router.post("/demos/{demo_id}/outcome")
+async def demo_outcome(demo_id: str, body: dict):
+    """Record replay outcome."""
+    from jarvis.brain.demo_learning import demo_learner
+    await demo_learner.record_replay_outcome(demo_id, body.get("success", True))
+    return {"ok": True}
