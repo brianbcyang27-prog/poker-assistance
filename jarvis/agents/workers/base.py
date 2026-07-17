@@ -110,6 +110,27 @@ After receiving tool results, continue your work. When done, provide your final 
             # Identify issues
             issues = await self._identify_issues(task, response)
             
+            # v3.1: Review pipeline quality gate
+            try:
+                from ...brain.review import review_pipeline
+                review = await review_pipeline.review(
+                    task_type=task.name,
+                    task_description=task.description,
+                    result=response,
+                    confidence=confidence,
+                    issues=issues,
+                )
+                # If review fails badly, downgrade status
+                if review.verdict.value == "fail":
+                    status = "completed_with_issues"
+                else:
+                    status = "completed"
+                # Merge review issues
+                issues = list(set(issues + review.issues))
+            except Exception:
+                review = None
+                status = "completed"
+
             self.set_state(AgentState.COMPLETED)
 
             # v3.1: Emit completion event
@@ -120,6 +141,7 @@ After receiving tool results, continue your work. When done, provide your final 
                     "task": task.name,
                     "confidence": confidence,
                     "issues": issues,
+                    "review": review.to_dict() if review else None,
                 },
                 source=self.card_id,
             ))

@@ -135,6 +135,15 @@ class JarvisAgent(BaseAgent):
         if results:
             combined = "\n\n".join(results)
             response = await self._compose_response(user_message, combined)
+
+            # v3.1: Speculative planning — predict follow-ups
+            try:
+                from ..brain.speculative import speculative_planner
+                for task in delegation_plan.get("tasks", []):
+                    speculative_planner.predict(task.get("name", "unknown"))
+            except Exception:
+                pass
+
             return response
         
         return "I've processed your request. How else can I help?"
