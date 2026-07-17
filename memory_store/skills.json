@@ -1,0 +1,17 @@
+{
+  "test_scan": {
+    "name": "test_scan",
+    "description": "Scan system files",
+    "steps": [
+      {
+        "action": "list",
+        "input": "/"
+      }
+    ],
+    "success_count": 0,
+    "failure_count": 0,
+    "created_at": 1784252517.877464,
+    "last_used": 1784252517.877465,
+    "success_rate": 0.0
+  }
+}

@@ -139,6 +139,13 @@ class LLM:
         max_tokens: int = 4096,
     ) -> str:
         """Send a message and get a response."""
+        # Scrub PII before sending to external API
+        try:
+            from .privacy import scrubber
+            message = scrubber.scrub(message)
+        except Exception:
+            pass
+        
         base_url, api_key, model = self._get_endpoint()
         
         messages = []

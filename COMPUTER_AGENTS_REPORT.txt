@@ -1,0 +1,1054 @@
+================================================================================
+        COMPREHENSIVE REPORT: MAJOR COMPUTER-USE AI AGENTS (2023-2026)
+================================================================================
+                          Compiled: July 16, 2026
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+1.  Hermes Agent (Nous Research)
+2.  Open Interpreter
+3.  OS-Copilot (Shanghai AI Lab)
+4.  Microsoft UFO³
+5.  Anthropic Computer Use (Claude)
+6.  Auto-GPT
+7.  AgentGPT (Reworkd)
+8.  SuperAGI
+9.  CogAgent (Tsinghua/Zhipu)
+10. OmniParser (Microsoft)
+11. OpenAdapt
+12. AIOS
+13. Rabbit R1 / LAM
+14. Devin (Cognition)
+15. SWE-Agent (Princeton)
+16. OSWorld
+17. OpenClaw
+18. E2B
+19. MultiOn
+20. UFO² (Microsoft)
+    Cross-Cutting Analysis
+    Features to Steal for JARVIS
+
+================================================================================
+1. HERMES AGENT (Nous Research)
+================================================================================
+Creator:    Nous Research
+Year:       2025
+Website:    hermes-agent.nousresearch.com
+GitHub:     github.com/NousResearch/hermes-agent (215K+ stars)
+
+What it does:
+  The self-improving AI agent built by Nous Research. It creates skills from
+  experience, improves them during use, nudges itself to persist knowledge,
+  searches its own past conversations, and builds a deepening model of who you
+  are across sessions. Runs anywhere -- VPS, GPU cluster, or serverless.
+
+Architecture:
+  - Local-first gateway architecture with 6 terminal backends (local, Docker,
+    SSH, Singularity, Modal, Daytona)
+  - Agent loop with tool-calling LLMs
+  - Pluggable memory system with 8 external providers (Honcho, Hindsight, Mem0,
+    OpenViking, Supermemory, etc.)
+  - Skills system for procedural memory (create, self-improve, reuse)
+  - Multi-channel messaging gateway (Telegram, Discord, Slack, WhatsApp, Signal)
+  - FTS5 session search with LLM summarization for cross-session recall
+  - MCP integration for extending tool capabilities
+
+Key Benefits:
+  + Closed learning loop: autonomous skill creation and self-improvement
+  + Runs anywhere -- not tied to laptop; works on $5 VPS or GPU clusters
+  + 8 pluggable memory providers with cross-session recall
+  + Multi-channel messaging gateway (29+ platforms)
+  + Built-in cron scheduler for unattended automations
+  + Research-ready: batch trajectory generation, RL training support
+  + MIT licensed, fully open source
+
+Key Disadvantages:
+  - Complex setup with many configuration options
+  - Large codebase (82% Python, 15% TypeScript)
+  - Requires API keys for LLM providers (not self-hosted models by default)
+  - Memory providers can be confusing to choose from
+  - Still relatively new (July 2025), ecosystem still maturing
+
+Open Source: Yes -- MIT License
+Platforms:   macOS, Linux, Windows (WSL2), Android
+
+
+================================================================================
+2. OPEN INTERPRETER
+================================================================================
+Creator:    OpenInterpreter (originally Killian Lucas, now OpenAI-affiliated)
+Year:       2023 (Python), 2025 (Rust rewrite)
+GitHub:     github.com/openinterpreter/openinterpreter (65K+ stars)
+
+What it does:
+  A coding agent optimized for low-cost models. Fork of OpenAI's Codex with
+  focus on emulating the agent harness that gets best performance from cheap
+  models. Lets LLMs run code locally via natural language.
+
+Architecture:
+  - Central OpenInterpreter class orchestrating message-passing architecture
+  - Computer class for code execution through run() method
+  - LLM class using litellm for model provider abstraction
+  - Streaming chat interface with chunk-based response format
+  - Terminal backends for different execution environments
+  - QA skill for browser automation via agent-browser
+  - Native sandboxing on macOS, Linux, Windows
+  - Agent Client Protocol (ACP) support for editor integration
+
+Key Benefits:
+  + Natural language to code execution pipeline
+  + Supports 30+ LLM providers via litellm
+  + Built-in QA skill for web and native app testing
+  + Rust rewrite (based on Codex) for performance
+  + Works with low-cost models effectively
+  + ACP support for IDE integration
+  + Local execution -- no cloud dependency
+
+Key Disadvantages:
+  - Security risks with unrestricted local code execution
+  - Requires careful sandboxing for safety
+  - Rust rewrite is newer and may have fewer features than Python version
+  - Primarily a coding tool, not a general computer-use agent
+  - No built-in memory/persistence across sessions
+
+Open Source: Yes -- Apache 2.0 License
+Platforms:   macOS, Linux, Windows
+
+
+================================================================================
+3. OS-COPILOT (Shanghai AI Lab)
+================================================================================
+Creator:    Shanghai AI Lab, East China Normal University, Princeton, HKU
+Year:       2024
+Paper:      arxiv.org/abs/2402.07456 (ICLR 2024 Workshop)
+GitHub:     github.com/OS-Copilot/OS-Copilot (1.8K stars)
+
+What it does:
+  A framework for building generalist agents capable of interfacing with
+  comprehensive OS elements: web, code terminals, files, multimedia, and
+  third-party applications. Created FRIDAY, a self-improving embodied agent.
+
+Architecture:
+  - Modular framework with universal interface for OS interactions
+  - FRIDAY agent built on top with self-directed learning
+  - Configurator with self-learning module
+  - Curriculum-based self-directed learning (generates tasks from easy to hard)
+  - Trial-and-error skill accumulation
+  - Vision mode added (2024) for screenshot-based interaction
+  - Frontend interface for user interaction
+  - Linux and macOS support
+
+Key Benefits:
+  + Self-directed learning -- accumulates skills without human supervision
+  + Outperformed baselines by 35% on GAIA benchmark
+  + Generalizes to unseen applications via accumulated skills
+  + Learns to control Excel and PowerPoint with minimal supervision
+  + Modular framework for building custom agents
+  + Research-backed with strong benchmark results
+
+Key Disadvantages:
+  - Limited to Linux and macOS (no Windows support)
+  - Single-round conversation only (no multi-turn)
+  - Relatively small community (20 contributors)
+  - Not actively maintained (last push Sept 2024)
+  - Self-learning can be slow and unpredictable
+
+Open Source: Yes -- MIT License
+Platforms:   Linux, macOS
+
+
+================================================================================
+4. MICROSOFT UFO³
+================================================================================
+Creator:    Microsoft Research
+Year:       2024 (UFO), 2025 (UFO²), 2025 (UFO³ Galaxy)
+GitHub:     github.com/microsoft/UFO (9.3K stars)
+Paper:      arxiv.org/abs/2511.11332
+
+What it does:
+  UFO³ is a multi-device agent orchestration framework that coordinates
+  intelligent agents across heterogeneous platforms (Windows, Linux, Android).
+  UFO² is the single-device Windows AgentOS with deep OS integration.
+
+Architecture:
+  - UFO²: Hierarchical multi-agent (HostAgent + AppAgents)
+  - Deep Windows OS integration: UIA, Win32, WinCOM APIs
+  - Hybrid GUI + API actions (native APIs preferred, GUI fallback)
+  - UFO³: DAG-based Constellation workflows for multi-device orchestration
+  - Agent Interaction Protocol (AIP) via WebSocket for secure coordination
+  - Knowledge Substrate: RAG-enhanced learning from docs & execution history
+  - Speculative Multi-Action: 51% fewer LLM calls via batch predictions
+  - Picture-in-Picture desktop for parallel automation
+  - MCP servers for application-specific APIs
+
+Key Benefits:
+  + Deep Windows OS integration -- not just screenshots
+  + 51% fewer LLM calls via speculative multi-action execution
+  + Cross-device orchestration with UFO³ Galaxy
+  + Picture-in-Picture desktop for non-disruptive automation
+  + Continuous learning via RAG without model retraining
+  + 10%+ better success rate than Claude/Operator on WindowsAgentArena
+  + 73K+ lines of production code
+
+Key Disadvantages:
+  - UFO² is Windows-only
+  - UFO³ is in active development, not yet stable
+  - Complex architecture with many components
+  - Steeper learning curve for UFO³ Galaxy
+  - Requires Windows-specific dependencies
+
+Open Source: Yes -- MIT License
+Platforms:   Windows (UFO²), Windows/Linux/Android (UFO³)
+
+
+================================================================================
+5. ANTHROPIC COMPUTER USE (Claude)
+================================================================================
+Creator:    Anthropic
+Year:       2024 (beta), improved through 2025-2026
+Docs:       platform.claude.com/docs/agents-and-tools/tool-use/computer-use-tool
+
+What it does:
+  Claude can interact with desktop environments through screenshot-based
+  computer use -- seeing screens, moving cursors, clicking buttons, and typing
+  text. The first frontier AI model to offer computer use in public beta.
+
+Architecture:
+  - Screenshot-based perception (captures display, sends to vision model)
+  - Mouse/keyboard control via API commands
+  - Agent loop: Claude requests actions -> app executes -> returns screenshots
+  - Containerized environment with virtual X11 display (Xvfb)
+  - Lightweight desktop (Mutter + Tint2) for consistent GUI
+  - Supports actions: click, type, scroll, drag, zoom, key combos
+  - Computer_20251124: zoom into specific screen regions at full resolution
+  - Text editor and bash tools for code operations
+
+Key Benefits:
+  + State-of-the-art on OSWorld screenshot-only category (14.9% -> 22%)
+  + Works with any application -- no API/DOM dependencies
+  + Self-correcting: retries when encountering obstacles
+  + Rapidly generalizes from minimal training software
+  + Zoom capability for precise small-element interaction
+  + Available on API, Bedrock, and Vertex AI
+
+Key Disadvantages:
+  - Slow and often error-prone (still beta)
+  - "Flipbook" view misses short-lived actions/notifications
+  - Struggles with scrolling, dragging, zooming
+  - Requires containerized/sandboxed environment
+  - Cloud-only -- requires API calls (latency + cost)
+  - No built-in memory or learning across sessions
+  - Still far from human-level (14.9% vs 72.4% human on OSWorld)
+
+Open Source: No -- API only (reference implementations are open)
+Platforms:   Any (via API -- Linux sandbox recommended)
+
+
+================================================================================
+6. AUTO-GPT
+================================================================================
+Creator:    Significant Gravitas
+Year:       2023
+GitHub:     github.com/Significant-Gravitas/AutoGPT (185K+ stars)
+
+What it does:
+  Autonomous GPT-4 agent that can pursue goals with minimal human input.
+  Originally a fully autonomous loop, now evolved into a visual workflow
+  platform for building, deploying, and managing AI agents.
+
+Architecture:
+  - Originally: ReAct loop with thought -> action -> observation cycles
+  - Memory: Embeddings via OpenAI text-embedding-ada-002 -> vector DB (Pinecone)
+  - Summarization for context management
+  - Now: Visual workflow builder (FastAPI + React + PostgreSQL)
+  - Block-based system where each block performs a single action
+  - ExecutionManager resolves dependencies, runs concurrent block executions
+  - WebSocket for real-time monitoring
+  - Plugin system (originally hook-based, now more structured)
+  - Agent Protocol standard for interoperability
+
+Key Benefits:
+  + Pioneered the autonomous agent concept
+  + Large community and ecosystem (185K+ stars)
+  + Visual workflow builder for non-developers
+  + Marketplace for pre-built agents
+  + Agent Protocol for cross-platform compatibility
+  + Active development with continuous updates
+
+Key Disadvantages:
+  - Original autonomous mode was unreliable (hallucinations, loops)
+  - Pivot to workflow platform split the community
+  - Complex architecture with many moving parts
+  - Resource-intensive (API costs for GPT-4)
+  - Platform version licensed under Polyform Shield (not fully open)
+
+Open Source: Partially -- MIT for classic agent, Polyform Shield for platform
+Platforms:   Web-based (platform), CLI (classic agent)
+
+
+================================================================================
+7. AGENTGPT (Reworkd)
+================================================================================
+Creator:    Reworkd AI
+Year:       2023
+GitHub:     github.com/reworkd/AgentGPT (36K stars)
+Status:     ARCHIVED (January 2026)
+
+What it does:
+  Browser-based platform to assemble, configure, and deploy autonomous AI
+  agents. Users name an agent, set a goal, and the agent breaks it into tasks,
+  executes them, and learns from results.
+
+Architecture:
+  - Next.js 13 frontend + FastAPI backend
+  - MySQL database via Prisma/SQLModel
+  - LangChain for LLM tooling
+  - GPT-3.5-Turbo (free) / GPT-4 (paid)
+  - Agent loop: think of tasks -> execute -> learn from results
+  - Authentication via Next-Auth.js
+  - PlanetScale for database hosting
+
+Key Benefits:
+  + Easy browser-based UI for non-developers
+  + No setup required -- hosted service
+  + Open source and self-hostable
+  + Simple goal-to-agent workflow
+  + Early pioneer in accessible autonomous agents
+
+Key Disadvantages:
+  - PROJECT ARCHIVED (no updates since Nov 2023, archived Jan 2026)
+  - Frozen at GPT-3.5/GPT-4 era -- no modern model support
+  - Limited capabilities compared to modern agents
+  - No security patches or bug fixes
+  - Paid tiers effectively dormant
+  - Last release v1.0.0 in November 2023
+
+Open Source: Yes -- GPL-3.0 License (but archived)
+Platforms:   Web browser
+
+
+================================================================================
+8. SUPERAGI
+================================================================================
+Creator:    TransformerOptimus
+Year:       2023
+GitHub:     github.com/TransformerOptimus/SuperAGI (17.6K stars)
+Status:     Stalled (last release Jan 2024)
+
+What it does:
+  Dev-first open-source autonomous AI agent framework for building, managing,
+  and running useful autonomous agents. Features GUI, tool marketplace, and
+  performance telemetry.
+
+Architecture:
+  - Python backend + Next.js frontend
+  - ReAct pattern: Thought -> Action -> Observation loop
+  - Agent Performance Monitoring (APM) dashboard
+  - Multiple Vector DB support
+  - Tool marketplace for extending capabilities
+  - Docker-based deployment
+  - Three agent types: Default, Job, and Workflow agents
+  - Token usage optimization
+
+Key Benefits:
+  + APM dashboard for monitoring agent performance
+  + Tool marketplace for extensibility
+  + Web-based GUI for agent management
+  + Multiple vector DB support
+  + Action console for human-in-the-loop
+  + Clean agent architecture for learning
+
+Key Disadvantages:
+  - PROJECT STALLED (no releases since Jan 2024)
+  - Company pivoted to commercial SaaS product
+  - Security vulnerabilities remain unaddressed
+  - Unanswered issues in tracker
+  - Pre-1.0 version (v0.0.14) signals experimental status
+  - Not recommended for production use
+
+Open Source: Yes -- MIT License
+Platforms:   Docker (any OS)
+
+
+================================================================================
+9. COGAGENT (Tsinghua/Zhipu AI)
+================================================================================
+Creator:    Tsinghua University & Zhipu AI
+Year:       2023 (18B), 2024 (9B-20241220)
+GitHub:     github.com/zai-org/cogmodel (CogVLM repo)
+Paper:      arxiv.org/abs/2312.08914 (CVPR 2024 Highlight)
+
+What it does:
+  An 18B/9B parameter visual language model specialized in GUI understanding
+  and navigation. Takes screenshots as input and predicts GUI actions. Used in
+  ZhipuAI's GLM-PC product.
+
+Architecture:
+  - Dual image encoders: low-resolution + high-resolution (1120x1120)
+  - Built on GLM-4V-9B base model (bilingual Chinese/English)
+  - GUI Grounding pre-training with REC and REG tasks
+  - Chain-of-thought reasoning: Status -> Plan -> Action -> Operation
+  - Expanded action space: click, type, scroll, launch, quote text, LLM calls
+  - 400K web data samples for GUI grounding pre-training
+  - Two-phase post-training: GUI instruction tuning + GUI agent SFT
+
+Key Benefits:
+  + Screenshot-only input -- no HTML/DOM needed
+  + Outperforms HTML-based methods on Mind2Web and AITW
+  + 1120x1120 high-resolution input for tiny element recognition
+  + Bilingual support (Chinese and English)
+  + Applied in production (GLM-PC product)
+  + CVPR 2024 Highlight paper
+
+Key Disadvantages:
+  - Imprecise output coordinates
+  - Cannot process multiple images simultaneously
+  - Large model size (9B-18B parameters)
+  - Requires GPU for inference
+  - Limited to GUI task domains
+  - Not a full agent framework -- just the vision model
+
+Open Source: Yes -- Model weights available on HuggingFace
+Platforms:   Any (model only -- requires integration)
+
+
+================================================================================
+10. OMNIPARSER (Microsoft)
+================================================================================
+Creator:    Microsoft Research
+Year:       2024 (V1), 2025 (V2)
+GitHub:     github.com/microsoft/OmniParser (25K+ stars)
+Paper:      arxiv.org/abs/2408.00203
+
+What it does:
+  A screen parsing tool that converts UI screenshots into structured,
+  easy-to-understand elements. Enhances any vision model's ability to generate
+  accurately grounded actions on interfaces.
+
+Architecture:
+  - Two fine-tuned models: icon detection + icon captioning
+  - Interactable region detection from curated web page dataset (67K images)
+  - Icon functional description via fine-tuned BLIP-v2 model
+  - OCR module for text extraction
+  - Set-of-Marks approach: overlay bounding boxes with numeric IDs
+  - OmniTool: Dockerized Windows 11 VM with agent tooling
+  - Supports multiple LLMs: GPT-4o, DeepSeek R1, Qwen 2.5VL, Claude
+  - V2: 60% latency reduction, better small icon detection
+
+Key Benefits:
+  + Pure vision-based -- no DOM/HTML/accessibility tree required
+  + Works across PC and mobile platforms
+  + 39.5% on ScreenSpot Pro (SOTA grounding benchmark)
+  + Turns any LLM into a computer-use agent
+  + OmniTool provides ready-to-use Windows VM environment
+  + Open-source models and training data
+  + 60% faster inference in V2
+
+Key Disadvantages:
+  - Detection model under AGPL license (inherited from YOLO)
+  - Requires additional LLM for action planning
+  - Adds latency from parsing step
+  - Still struggles with very complex UIs
+  - Not a complete agent -- just the perception layer
+
+Open Source: Yes -- CC-BY-4.0 (models: mixed AGPL/MIT)
+Platforms:   Any (cross-platform screen parsing)
+
+
+================================================================================
+11. OPENADAPT
+================================================================================
+Creator:    OpenAdapt AI
+Year:       2023-present
+GitHub:     github.com/OpenAdaptAI/OpenAdapt
+Website:    openadapt.ai
+
+What it does:
+  AI-first process automation platform. Record human GUI demonstrations,
+  train ML models, and deploy agents that can operate any software. Uses
+  demonstration-conditioned inference ("show, don't tell").
+
+Architecture:
+  - Demonstrate -> Learn -> Execute pipeline
+  - openadapt-capture: multi-process screen recording engine
+  - openadapt-privacy: PII/PHI detection and redaction via Presidio
+  - openadapt-ml: ML engine for training and inference
+  - openadapt-grounding: UI element localization
+  - openadapt-retrieval: multimodal demo retrieval
+  - openadapt-evals: benchmark evaluation (Windows Agent Arena)
+  - Model-agnostic: works with Claude, GPT-4V, Gemini, Qwen3-VL
+  - Demo-conditioned prompting (unique differentiator)
+
+Key Benefits:
+  + "Show, don't tell" -- learn from demonstrations, not prompts
+  + PII/PHI scrubbing built-in for privacy
+  + Model-agnostic -- works with any VLM
+  + Validated: demo-conditioned prompting improved accuracy to 100% on macOS
+  + Modular architecture with 15+ sub-packages
+  + Cross-platform recording (macOS, Windows, Linux)
+  + Active development with clear roadmap
+
+Key Disadvantages:
+  - Complex multi-package architecture
+  - Requires recording demonstrations (setup overhead)
+  - Desktop app (Tauri) not yet integrated
+  - Still experimental (v1.0+)
+  - Requires OS permissions (Accessibility, Screen Recording)
+  - Learning curve for the full pipeline
+
+Open Source: Yes -- Open source (specific license TBD)
+Platforms:   macOS, Windows, Linux
+
+
+================================================================================
+12. AIOS
+================================================================================
+Creator:    AIOS Research (agi-research)
+Year:       2024
+GitHub:     github.com/agiresearch/AIOS
+Paper:      arxiv.org/abs/2403.16971 (COLM 2025)
+
+What it does:
+  An LLM Agent Operating System that embeds large language models into the OS,
+  providing kernel-level services (scheduling, context management, memory
+  management, storage, access control) for LLM-based agents.
+
+Architecture:
+  - Two-layer design: Application layer + Kernel layer
+  - AIOS Kernel: scheduler, context manager, memory manager, storage manager,
+    tool manager, access manager
+  - System calls (AIOS syscalls) for agent resource requests
+  - FIFO and Round Robin scheduling strategies
+  - LRU-K eviction policy for memory management
+  - Context switching with snapshot and restoration
+  - AIOS SDK (Cerebrum) for agent development
+  - Multiple deployment modes: Local, Remote, Personal, Virtual
+  - Supports ReAct, Reflexion, AutoGen, OpenAGI, MetaGPT frameworks
+
+Key Benefits:
+  + OS-level resource management for agents
+  + 2.1x faster execution via proper scheduling
+  + Context switching enables concurrent agent execution
+  + Memory management prevents resource exhaustion
+  + Framework-agnostic -- works with multiple agent frameworks
+  + Academic rigor (accepted at COLM 2025)
+  + Multiple deployment modes for different use cases
+
+Key Disadvantages:
+  - Research-oriented, not production-ready
+  - Complex architecture with many components
+  - Overhead from kernel abstraction layer
+  - Limited documentation and examples
+  - Requires understanding of OS concepts
+  - Small community
+
+Open Source: Yes (custom license -- NOASSERTION)
+Platforms:   Linux, macOS (Python-based)
+
+
+================================================================================
+13. RABBIT R1 / LAM
+================================================================================
+Creator:    Rabbit Inc.
+Year:       2023 (announced), 2024 (released)
+Website:    rabbit.tech
+
+What it does:
+  A $199 AI hardware device powered by Large Action Model (LAM). LAM observes
+  how people use online interfaces and replicates those actions. Users speak
+  natural language commands and the device executes tasks across apps.
+
+Architecture:
+  - Hybrid neuro-symbolic programming model
+  - LLM for natural language understanding (routes to Perplexity, Anthropic,
+    OpenAI based on task)
+  - Computer vision for screen understanding
+  - Flexible RPA (Robotic Process Automation) for action execution
+  - Cloud-based LAM execution with ephemeral virtual environments
+  - Rabbit Hole web portal for service connections
+  - Teach Mode: record actions and teach LAM new workflows
+  - Rabbit OS: custom operating system connecting device to LAM
+
+Key Benefits:
+  + Novel approach: LAM directly models application structures
+  + One-shot learning from demonstrations
+  + No API dependencies -- works through interfaces like humans
+  + Explainable actions via neuro-symbolic approach
+  + Privacy: ephemeral sessions, no data retention
+  + Consumer-friendly device at $199 (no subscription)
+  + Teach Mode for user-created automations
+
+Key Disadvantages:
+  - Limited app support (focused on popular consumer apps)
+  - Cloud-dependent (requires internet)
+  - LAM capabilities still catching up to promises
+  - Controversial reception at launch
+  - Closed-source LAM model
+  - Hardware device may become obsolete
+  - Regulatory challenges with app automation
+
+Open Source: No -- Proprietary
+Platforms:   Rabbit R1 hardware device
+
+
+================================================================================
+14. DEVIN (Cognition)
+================================================================================
+Creator:    Cognition AI
+Year:       2024
+Website:    devin.ai
+Pricing:    Subscription-based (Individual & Teams plans)
+
+What it does:
+  The first AI software engineer. Devin can plan, write, test, and ship
+  production code autonomously. Works inside codebases with tools teams
+  already use. Merged hundreds of thousands of PRs at companies like Goldman
+  Sachs, Santander, and Nubank.
+
+Architecture:
+  - Sandboxed compute environment with shell, code editor, and browser
+  - Long-term reasoning and planning for complex engineering tasks
+  - Context recall at every step with learning over time
+  - Embedded IDE with real-time progress reporting
+  - Fleet of Devins for parallel task execution
+  - DeepWiki for codebase understanding
+  - Integration with Linear, Jira, Slack, Datadog, GitHub
+  - Fine-tuning capability for domain-specific tasks
+
+Key Benefits:
+  + 4x faster problem solving, 2x more efficient resource use year-over-year
+  + 67% PR merge rate (up from 34% at launch)
+  + Deep codebase understanding (senior-level intelligence)
+  + Fleet mode: spin up multiple Devins for parallel work
+  + Real-world deployment at major enterprises
+  + Handles code migrations, bug fixes, feature implementation
+  + 8-12x efficiency improvement demonstrated (Nubank case study)
+
+Key Disadvantages:
+  - Closed-source, proprietary product
+  - Subscription cost (not free)
+  - "Junior at execution" despite senior codebase understanding
+  - Struggles with visual design, spacing, soft skills
+  - Cannot handle extremely complex tasks (3-hour rule)
+  - Dependent on Cognition's infrastructure
+  - Cannot replace senior engineers for architecture decisions
+
+Open Source: No -- Proprietary SaaS
+Platforms:   Web-based (app.devin.ai)
+
+
+================================================================================
+15. SWE-AGENT (Princeton/Stanford)
+================================================================================
+Creator:    Princeton University & Stanford University
+Year:       2024
+GitHub:     github.com/princeton-nlp/SWE-agent (19.8K stars)
+Paper:      arxiv.org/abs/2405.15793 (NeurIPS 2024)
+
+What it does:
+  System that enables LLMs to autonomously use computers to solve software
+  engineering tasks. Features custom Agent-Computer Interfaces (ACIs) that
+  significantly enhance agent code editing, navigation, and testing abilities.
+
+Architecture:
+  - Custom Agent-Computer Interface (ACI) design
+  - Components: search/navigation, file viewer, file editor, context management
+  - ReAct pattern: thought -> command -> feedback loop
+  - Built on Linux shell with access to standard utilities
+  - Configuration file-driven ACI design
+  - Supports GPT-4, Claude, and open-source models
+  - Mini-swe-agent: simplified 100-line Python version
+  - Docker-based sandboxed execution
+
+Key Benefits:
+  + SOTA on SWE-bench (12.5% -> higher with newer models)
+  + SOTA on HumanEvalFix (87.7% pass@1)
+  + ACI design methodology improves agent performance 64% over shell-only
+  + Model-agnostic -- works with GPT-4o, Claude, open models
+  + Simple configuration-driven design
+  + Academic rigor with reproducible results
+  + mini-swe-agent achieves 65% on SWE-bench verified in 100 lines
+
+Key Disadvantages:
+  - Focused specifically on software engineering tasks
+  - Higher cost (8-13x more than RAG approaches)
+  - Requires Docker for sandboxed execution
+  - Limited to code-related tasks
+  - Performance varies significantly per instance
+  - SWE-agent now superseded by mini-swe-agent
+
+Open Source: Yes -- MIT License
+Platforms:   Linux (Docker-based)
+
+
+================================================================================
+16. OSWORLD
+================================================================================
+Creator:    XLang AI (with SalesForce, University of Virginia)
+Year:       2024
+GitHub:     github.com/xlang-ai/OSWorld
+Paper:      arxiv.org/abs/2404.07972 (NeurIPS 2024)
+
+What it does:
+  A scalable, real computer environment for multimodal agents, supporting
+  task setup, execution-based evaluation, and interactive learning across
+  Ubuntu, Windows, and macOS. Benchmark of 369 real-world computer tasks.
+
+Architecture:
+  - Virtual machine-based environment (VMware, VirtualBox, Docker, AWS)
+  - Configuration files for task initialization
+  - Execution-based evaluation scripts (134 unique evaluation functions)
+  - Supports raw keyboard/mouse control and screenshots
+  - Parallel evaluation on single host or cloud
+  - Headless operation supported
+  - Cross-OS performance correlation (insights transferable)
+  - Host-Client architecture for AWS parallel evaluation
+
+Key Benefits:
+  + First-of-its-kind scalable real computer environment
+  + 369 real-world tasks with reproducible evaluation
+  + Supports arbitrary applications across OS
+  + Cross-app workflow evaluation
+  + AWS support reduces evaluation to 1 hour via parallelization
+  + Human benchmark established (72.36% vs 12.24% best model)
+  + Community-maintained with regular updates
+
+Key Disadvantages:
+  - Benchmark/environment, not a standalone agent
+  - Requires VM setup and configuration
+  - Google Drive tasks need manual configuration
+  - Significant gap between AI and human performance
+  - Resource-intensive for parallel evaluation
+  - Primarily research-oriented
+
+Open Source: Yes
+Platforms:   Ubuntu, Windows, macOS (via VMs)
+
+
+================================================================================
+17. OPENCLAW
+================================================================================
+Creator:    OpenClaw (Peter Steinberger et al.)
+Year:       2025
+GitHub:     github.com/openclaw/openclaw
+Website:    openclaw.ai
+
+What it does:
+  Personal AI assistant you run on your own devices. Answers on channels you
+  already use (WhatsApp, Telegram, Discord, Slack, Signal, iMessage, etc.).
+  Full system access with Peekaboo for desktop automation.
+
+Architecture:
+  - Local-first gateway: single control plane for sessions, channels, tools
+  - Multi-channel inbox: 29+ messaging platforms
+  - Multi-agent routing: route channels to isolated agents
+  - Peekaboo v3: macOS desktop automation (screenshots, UI element detection,
+    clicking, typing, scrolling, window management)
+  - Agent-driven computer use via computer.act node command
+  - Codex Computer Use integration
+  - Voice Wake + Talk Mode (macOS/iOS/Android)
+  - Live Canvas with A2UI
+  - Workspace skills system with SOUL.md persona
+  - Node.js runtime (Node 24+)
+
+Key Benefits:
+  + True local-first -- state stays on your machine
+  + 29+ messaging platform integration
+  + Peekaboo v3 for full desktop automation
+  + Voice interaction with wake words
+  + Multi-agent routing for different use cases
+  + Windows native support via Microsoft Execution Containers
+  + Active development with frequent updates
+  + Skills system for extensibility
+
+Key Disadvantages:
+  - Complex setup (Node.js, multiple components)
+  - Peekaboo currently macOS-focused
+  - Relatively new project
+  - Large dependency footprint
+  - Documentation still evolving
+  - Some features require paid services (ElevenLabs for TTS)
+
+Open Source: Yes
+Platforms:   macOS, Linux, Windows (WSL2 + native Windows Hub)
+
+
+================================================================================
+18. E2B
+================================================================================
+Creator:    E2B (e2b.dev)
+Year:       2023-present
+GitHub:     github.com/e2b-dev/e2b (13K stars)
+Website:    e2b.dev
+
+What it does:
+  Open-source infrastructure for running AI-generated code in secure isolated
+  cloud sandboxes. Provides full Linux environments with terminal, filesystem,
+  and git access for coding agents.
+
+Architecture:
+  - Firecracker microVMs for isolation
+  - Sandbox API for creating/controlling environments
+  - Code Interpreter SDK (Python + JavaScript kernels)
+  - Custom Sandbox templates with pre-installed tools
+  - Desktop Sandbox for virtual computer environments
+  - Templates for Claude Code, Codex, Amp, and other agents
+  - MCP server support within sandboxes
+  - SDK in JavaScript/TypeScript and Python
+  - Cloud-native with <200ms startup time
+
+Key Benefits:
+  + 200ms sandbox startup time
+  + Firecracker-powered isolation (secure by design)
+  + Works with any LLM (model-agnostic)
+  + Pre-built templates for popular coding agents
+  + Up to 24-hour session duration
+  + BYOC, on-prem, or self-hosted options
+  + Production-proven (used by Cursor, Vercel, and others)
+  + Parallel sandbox execution
+
+Key Disadvantages:
+  - Cloud-dependent (requires internet)
+  - Cost per sandbox execution
+  - Limited to code execution (not full desktop automation)
+  - Sandbox has resource limits
+  - Not a complete agent framework -- infrastructure layer
+  - Complex pricing model
+
+Open Source: Yes -- Apache 2.0 License
+Platforms:   Cloud (any client)
+
+
+================================================================================
+19. MULTION
+================================================================================
+Creator:    MultiOn AI
+Year:       2023-present
+Website:    multion.ai
+Docs:       docs.multion.ai
+
+What it does:
+  The "Motor Cortex layer for AI" -- enables autonomous web browsing and
+  actions using natural language. Provides API for web browsing agents,
+  Chrome extension for local control, and structured data scraping.
+
+Architecture:
+  - Cloud-based browsing agent with session management
+  - Chrome extension for local browser control
+  - Browse API: natural language commands -> web actions
+  - Session persistence across multi-step workflows
+  - Structured LLM data scraping (full-page)
+  - Proxy support for bot protection bypass
+  - Fast and Standard modes
+  - Integration with LangChain as Toolkit
+  - JavaScript/TypeScript and Python SDKs
+
+Key Benefits:
+  + Millions of concurrent agents ready to run
+  + Both cloud and local (Chrome extension) modes
+  + Native proxy support for bot protection
+  + Structured data scraping from any webpage
+  + Session persistence for multi-step workflows
+  + LangChain integration
+  + Simple API (3 lines of code to start)
+
+Key Disadvantages:
+  - Web-focused (not general computer-use)
+  - API key required (paid service)
+  - Limited to browser-based tasks
+  - No desktop application automation
+  - Dependent on MultiOn's infrastructure
+  - Less mature than some alternatives
+
+Open Source: No -- Proprietary API
+Platforms:   Web browser (cloud + Chrome extension)
+
+
+================================================================================
+20. UFO² (Microsoft)
+================================================================================
+Creator:    Microsoft Research
+Year:       2025
+GitHub:     github.com/microsoft/UFO (9.3K stars)
+Paper:      arxiv.org/abs/2504.14603
+
+What it does:
+  Windows AgentOS that reimagines desktop automation as a first-class OS
+  abstraction. Deeply integrates with Windows through UIA, application
+  introspection, and hybrid GUI-API execution across 20+ applications.
+
+Architecture:
+  - Two-tier hierarchy: HostAgent (desktop orchestrator) + AppAgents (per-app)
+  - Deep Windows integration: UIA, Win32, WinCOM APIs
+  - Hybrid GUI-API actions: native APIs preferred, GUI fallback
+  - Knowledge Substrate: RAG-enhanced learning from docs & execution history
+  - Speculative Multi-Action: batch predictions reduce LLM calls by 51%
+  - Visual + UIA Detection: hybrid control detection
+  - Picture-in-Picture desktop via Windows Remote Desktop loopback
+  - MCP servers for application-specific APIs
+  - Application-specific automation (Excel via xlwings, Outlook via win32com)
+
+Key Benefits:
+  + Deep OS integration -- not just screenshots
+  + 51% fewer LLM calls via speculative multi-action
+  + 10%+ better than Claude/Operator on WindowsAgentArena
+  + Picture-in-Picture for non-disruptive automation
+  + Continuous learning via RAG without retraining
+  + Mature and battle-tested (LTS status)
+  + Can serve as device agent in UFO³ Galaxy
+
+Key Disadvantages:
+  - Windows-only
+  - Requires Windows-specific dependencies
+  - Cannot run on macOS or Linux
+  - Complex setup for full features
+  - Dependent on Windows API stability
+  - Limited to applications with UIA/COM support
+
+Open Source: Yes -- MIT License
+Platforms:   Windows only
+
+
+================================================================================
+CROSS-CUTTING ANALYSIS
+================================================================================
+
+COMMON PATTERNS ACROSS ALL AGENTS:
+------------------------------------
+1. LLM-as-Brain: Every agent uses an LLM for reasoning/planning
+2. Tool Use: All agents extend LLM capabilities with external tools
+3. Perception-Action Loop: Screenshot/parse -> reason -> act -> observe
+4. Memory Systems: Most implement some form of persistent memory
+5. Sandboxing: Nearly all use isolation for safe code execution
+6. Multi-Model Support: Trend toward model-agnostic architectures
+7. MCP Protocol: Emerging standard for tool integration (Hermes, UFO, OpenClaw)
+8. Self-Improvement: Several agents learn from experience (Hermes, OS-Copilot)
+9. Multi-Agent: Trend toward agent orchestration (UFO³, Devin, AIOS)
+
+WHAT WORKS WELL:
+-----------------
+1. Hybrid GUI+API approaches (UFO²: 51% fewer LLM calls)
+2. Screenshot-based perception (generalizable across applications)
+3. Accessibility tree integration (structured UI understanding)
+4. Demonstration-conditioned learning (OpenAdapt: 100% accuracy)
+5. Sandboxed execution (E2B: 200ms startup, Firecracker isolation)
+6. Custom ACIs for specific domains (SWE-agent: 64% improvement)
+7. Speculative multi-action prediction (batch actions, reduce LLM calls)
+8. Cross-session memory with knowledge graphs (Hindsight, Hermes)
+9. RAG-enhanced learning from execution history (UFO² knowledge substrate)
+10. Multi-channel delivery (Hermes, OpenClaw: reach users where they are)
+
+WHAT DOESN'T WORK:
+-------------------
+1. Pure screenshot-only agents (14.9% on OSWorld vs 72.4% human)
+2. Fully autonomous loops without guardrails (Auto-GPT original)
+3. Single-round conversation (OS-Copilot FRIDAY limitation)
+4. Platform-specific agents (UFO² Windows-only, no cross-platform)
+5. Black-box models without explainability (most cloud agents)
+6. Ignoring DOM/accessibility when available (pure vision is weaker)
+7. Large context windows without compression (expensive, slow)
+8. One-size-fits-all agents (specialization beats generalization currently)
+9. No human-in-the-loop (unpredictable autonomous behavior)
+10. Ignoring privacy/PII concerns (most agents lack scrubbing)
+
+KEY ARCHITECTURAL DECISIONS:
+------------------------------
+1. LOCAL vs CLOUD: Local-first (Hermes, OpenClaw) vs cloud (Anthropic, E2B)
+   -> Local-first wins for privacy, latency, cost; cloud wins for power
+2. SCREENSHOT vs API vs DOM: Screenshot (CogAgent, OmniParser) vs DOM (UFO²)
+   -> Hybrid approaches win (screenshot for unknown, API when available)
+3. SINGLE vs MULTI-AGENT: Single (most) vs multi-agent (UFO³, Devin fleet)
+   -> Multi-agent for complex tasks; single for simple ones
+4. LEARNING APPROACH: Prompt engineering vs fine-tuning vs demonstration
+   -> Demonstration-conditioned (OpenAdapt) shows strongest results
+5. EXECUTION ENVIRONMENT: Direct (risky) vs sandboxed (safe) vs VM (isolated)
+   -> Sandboxed with escape hatches is the pragmatic choice
+6. MEMORY ARCHITECTURE: Stateless vs file-based vs vector DB vs knowledge graph
+   -> Knowledge graph + vector DB hybrid provides best recall
+7. ACTION PREDICTION: Single-action vs speculative multi-action
+   -> Speculative multi-action (UFO²) reduces LLM calls by 51%
+
+
+================================================================================
+FEATURES TO STEAL FOR JARVIS
+================================================================================
+
+1. SKILL CREATION FROM EXPERIENCE (Hermes Agent)
+   WHY: Agents that create and improve skills autonomously become more
+   capable over time without retraining. Hermes' closed learning loop with
+   skill self-improvement is the gold standard for agent evolution.
+
+2. SPECULATIVE MULTI-ACTION PREDICTION (UFO²)
+   WHY: Predicting multiple actions in a single LLM call reduces API costs
+   by 51% and latency dramatically. JARVIS should batch action predictions
+   rather than making one LLM call per action.
+
+3. DEMONSTRATION-CONDITIONED INFERENCE (OpenAdapt)
+   WHY: OpenAdapt proved that conditioning on human demos improves accuracy
+   from 46.7% to 100% on macOS tasks. JARVIS should record user
+   demonstrations and use them as runtime context for better action selection.
+
+4. PICTURE-IN-PICTURE DESKTOP (UFO²)
+   WHY: Running automation in a sandboxed virtual desktop prevents
+   interference with user workflow. JARVIS should use PiP for background
+   automation tasks while the user continues working.
+
+5. PLUGGABLE MEMORY PROVIDERS (Hermes Agent)
+   WHY: 8 different memory backends (Honcho, Hindsight, Mem0, etc.) let
+   users choose the right memory for their use case. JARVIS should support
+   swappable memory backends with a unified interface.
+
+6. KNOWLEDGE SUBSTRATE / RAG FROM EXECUTION HISTORY (UFO²)
+   WHY: Learning from past execution traces without model retraining is
+   powerful. JARVIS should build a RAG index of past actions, docs, and
+   demos to improve over time.
+
+7. AGENT-COMPUTER INTERFACE DESIGN (SWE-agent)
+   WHY: Custom interfaces designed for LLMs (not humans) improved
+   performance 64% over generic shell access. JARVIS should design
+   purpose-built interfaces for each tool/domain.
+
+8. MULTI-CHANNEL GATEWAY (Hermes Agent / OpenClaw)
+   WHY: Reaching users on Telegram, Discord, Slack, WhatsApp, etc. from a
+   single gateway is essential for a personal assistant. JARVIS should
+   support all major messaging platforms.
+
+9. PII/PHI SCRUBBING (OpenAdapt)
+   WHY: Privacy is non-negotiable for a personal assistant. OpenAdapt's
+   Presidio-based scrubbing with before/after review is the right pattern.
+   JARVIS should scrub sensitive data before any external API calls.
+
+10. SANDBOXED CODE EXECUTION (E2B)
+    WHY: E2B's Firecracker microVMs start in 200ms and provide complete
+    isolation. JARVIS should use lightweight sandboxed environments for
+    any code execution rather than running on the host.
+
+11. CROSS-SESSION MEMORY WITH FTS5 SEARCH (Hermes Agent)
+    WHY: Full-text search with LLM summarization enables recalling specific
+    past conversations. JARVIS should index all sessions for search and
+    provide LLM-summarized recaps of past interactions.
+
+12. CURRICULUM-BASED SELF-DIRECTED LEARNING (OS-Copilot/FRIDAY)
+    WHY: FRIDAY's approach of generating tasks from easy to hard and
+    accumulating skills through trial-and-error is elegant. JARVIS should
+    autonomously practice and improve on weak areas.
+
+13. DAG-BASED TASK ORCHESTRATION (UFO³ Galaxy)
+    WHY: Complex multi-step workflows need parallel execution with
+    dependencies. UFO³'s TaskConstellation model with dynamic DAG updates
+    enables adaptive, resilient workflow execution.
+
+14. ACCESSIBILITY TREE + VISION HYBRID (UFO² / OmniParser)
+    WHY: Using accessibility trees when available and falling back to
+    vision (OmniParser) provides the best of both worlds. JARVIS should
+    always prefer structured data but degrade gracefully to vision.
+
+15. FTS5 + KNOWLEDGE GRAPH HYBRID MEMORY (Hermes + Hindsight)
+    WHY: Combining full-text search (fast keyword lookup) with knowledge
+    graphs (entity relationships + synthesis) provides comprehensive
+    recall. JARVIS should use both for different query types.
+
+================================================================================
+                          END OF REPORT
+================================================================================

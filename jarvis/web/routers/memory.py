@@ -260,3 +260,62 @@ async def delete_project(name: str):
     if not deleted:
         raise HTTPException(status_code=404, detail="Project not found")
     return {"ok": True}
+
+
+# ===== SKILLS (from Hermes Agent pattern) =====
+
+@router.get("/skills")
+async def list_skills():
+    """List all learned skills."""
+    from jarvis.brain.skills import skill_manager
+    return await skill_manager.get_all_skills()
+
+
+@router.get("/skills/top")
+async def top_skills(n: int = 10):
+    """Get top N most successful skills."""
+    from jarvis.brain.skills import skill_manager
+    return await skill_manager.get_top_skills(n)
+
+
+@router.get("/skills/search")
+async def search_skills(q: str):
+    """Find skills matching a query."""
+    from jarvis.brain.skills import skill_manager
+    return await skill_manager.find_similar(q)
+
+
+class SkillCreate(BaseModel):
+    name: str
+    description: str
+    steps: list = []
+
+
+@router.post("/skills")
+async def create_skill(req: SkillCreate):
+    """Record a new learned skill."""
+    from jarvis.brain.skills import skill_manager
+    return await skill_manager.record_skill(req.name, req.description, req.steps)
+
+
+@router.post("/skills/{name}/outcome")
+async def skill_outcome(name: str, success: bool = True):
+    """Update skill success/failure count."""
+    from jarvis.brain.skills import skill_manager
+    return await skill_manager.update_outcome(name, success)
+
+
+# ===== FTS5 MEMORY SEARCH =====
+
+@router.get("/search")
+async def search_memory(q: str, limit: int = 10):
+    """Full-text search across conversations and task history."""
+    db = await get_db()
+    convos = await db.search_conversations(q, limit=limit)
+    tasks = await db.search_task_history(q, limit=limit)
+    return {
+        "query": q,
+        "conversations": convos,
+        "task_history": tasks,
+        "total": len(convos) + len(tasks),
+    }

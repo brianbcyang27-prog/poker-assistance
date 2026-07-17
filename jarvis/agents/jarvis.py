@@ -71,6 +71,7 @@ class JarvisAgent(BaseAgent):
         
         # Analyze intent and determine which King(s) to delegate to
         delegation_plan = await self._analyze_intent(user_message)
+        self._last_intent = delegation_plan
         
         # Safety: if tasks exist, ALWAYS delegate — never fabricate a response
         tasks = delegation_plan.get("tasks", [])

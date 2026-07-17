@@ -47,6 +47,21 @@ async def chat(req: ChatRequest):
     # Save assistant response
     await db.save_conversation(session_id, "assistant", response)
     
+    # Record as a learned skill if task was delegated (from Hermes pattern)
+    try:
+        from jarvis.brain.skills import skill_manager
+        intent = getattr(web_main.jarvis, '_last_intent', None)
+        if intent and intent.get('tasks'):
+            task = intent['tasks'][0]
+            await skill_manager.record_skill(
+                name=task.get('name', req.message[:30]),
+                description=task.get('description', req.message),
+                steps=[{"action": task.get('king', '?'), "input": req.message, "output": response[:200]}],
+            )
+            await skill_manager.update_outcome(task.get('name', req.message[:30]), success=True)
+    except Exception:
+        pass
+    
     # Save LLM conversation context for next turn
     if hasattr(web_main.jarvis, '_llm') and web_main.jarvis._llm:
         await web_main.jarvis._llm.save_session_context(session_id)

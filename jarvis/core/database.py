@@ -150,6 +150,9 @@ class Database:
         """)
         await self._db.commit()
         
+        # FTS5 full-text search tables
+        await self._init_fts_tables()
+        
         # Upgrade projects table — add columns if missing (idempotent)
         for col, default in [
             ("active", "1"),
@@ -169,6 +172,85 @@ class Database:
             except Exception:
                 pass  # Column already exists
         await self._db.commit()
+    
+    async def _init_fts_tables(self):
+        """Create FTS5 virtual tables for full-text search."""
+        await self._db.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS conversations_fts USING fts5(
+                session_id, role, content,
+                content=conversations,
+                content_rowid=id
+            )
+        """)
+        await self._db.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(
+                name, description, content
+            )
+        """)
+        await self._db.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS task_history_fts USING fts5(
+                plan_id, user_request, summary, tasks_json,
+                content=task_history,
+                content_rowid=id
+            )
+        """)
+        await self._db.commit()
+    
+    async def ensure_fts_tables(self):
+        """Ensure FTS5 tables exist. Safe to call multiple times."""
+        await self._init_fts_tables()
+    
+    async def search_conversations(self, query: str, limit: int = 10) -> list[dict]:
+        """Search conversations using FTS5 with snippet highlighting."""
+        cursor = await self._db.execute(
+            """SELECT c.session_id, c.role, c.content,
+                      snippet(conversations_fts, 2, '<b>', '</b>', '...', 32) as snippet,
+                      rank
+               FROM conversations_fts f
+               JOIN conversations c ON c.id = f.rowid
+               WHERE conversations_fts MATCH ?
+               ORDER BY rank
+               LIMIT ?""",
+            (query, limit)
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
+    
+    async def index_conversation(self, session_id: str, role: str, content: str):
+        """Insert into both conversations table and conversations_fts."""
+        cursor = await self._db.execute(
+            "INSERT INTO conversations (session_id, role, content) VALUES (?, ?, ?)",
+            (session_id, role, content)
+        )
+        rowid = cursor.lastrowid
+        await self._db.execute(
+            "INSERT INTO conversations_fts (rowid, session_id, role, content) VALUES (?, ?, ?, ?)",
+            (rowid, session_id, role, content)
+        )
+        await self._db.commit()
+    
+    async def search_task_history(self, query: str, limit: int = 10) -> list[dict]:
+        """Search past task history using FTS5."""
+        cursor = await self._db.execute(
+            """SELECT t.plan_id, t.user_request, t.summary, t.tasks_json,
+                      t.workspace_id, t.owner, t.duration_ms, t.created_at,
+                      snippet(task_history_fts, 2, '<b>', '</b>', '...', 32) as snippet,
+                      rank
+               FROM task_history_fts f
+               JOIN task_history t ON t.id = f.rowid
+               WHERE task_history_fts MATCH ?
+               ORDER BY rank
+               LIMIT ?""",
+            (query, limit)
+        )
+        rows = await cursor.fetchall()
+        result = []
+        for row in rows:
+            d = dict(row)
+            d["tasks"] = json.loads(d.get("tasks_json", "[]"))
+            del d["tasks_json"]
+            result.append(d)
+        return result
     
     # Preferences
     async def set_preference(self, key: str, value: str):
