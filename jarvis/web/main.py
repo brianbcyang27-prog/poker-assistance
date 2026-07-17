@@ -197,7 +197,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
     
     # Include routers
-    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system
+    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system, engineering
     app.include_router(chat.router)
     app.include_router(agents.router)
     app.include_router(workspace.router)
@@ -209,6 +209,7 @@ def create_app() -> FastAPI:
     app.include_router(computer.router)
     app.include_router(iot.router)
     app.include_router(system.router)
+    app.include_router(engineering.router)
     
     return app
 

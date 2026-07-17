@@ -1,0 +1,49 @@
+{
+  "test": {
+    "skill_name": "test",
+    "variants": [
+      {
+        "name": "v1",
+        "steps": [
+          {
+            "action": "do"
+          }
+        ],
+        "success_count": 1,
+        "failure_count": 0,
+        "created_at": 1784270218.054549,
+        "success_rate": 1.0
+      }
+    ],
+    "current_variant": "default",
+    "generations": 0,
+    "best_score": 1.0,
+    "total_attempts": 1,
+    "composed_from": []
+  },
+  "web_research": {
+    "skill_name": "web_research",
+    "variants": [
+      {
+        "name": "deep_search",
+        "steps": [
+          {
+            "action": "search"
+          },
+          {
+            "action": "summarize"
+          }
+        ],
+        "success_count": 1,
+        "failure_count": 0,
+        "created_at": 1784270249.080647,
+        "success_rate": 1.0
+      }
+    ],
+    "current_variant": "default",
+    "generations": 0,
+    "best_score": 1.0,
+    "total_attempts": 1,
+    "composed_from": []
+  }
+}

@@ -13,5 +13,21 @@
     "created_at": 1784252517.877464,
     "last_used": 1784252517.877465,
     "success_rate": 0.0
+  },
+  "System status": {
+    "name": "System status",
+    "description": "Check the system status and report back",
+    "steps": [
+      {
+        "action": "\u2663K",
+        "input": "What is the status of the system?",
+        "output": "I've checked the system status for you, sir. Unfortunately, our agents have completed the task with some concerns. It appears that the system is not functioning within optimal parameters.\n\nI've flagge"
+      }
+    ],
+    "success_count": 1,
+    "failure_count": 0,
+    "created_at": 1784298698.1107452,
+    "last_used": 1784298698.111813,
+    "success_rate": 1.0
   }
 }

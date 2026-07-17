@@ -170,3 +170,133 @@ class A11yWorker(BaseWorker):
 Specialize in: WCAG compliance, screen readers, keyboard navigation, ARIA.
 Focus on: inclusive design, semantic HTML, assistive technology compatibility.
 Ensure everyone can use the application."""
+
+
+class CADWorker(BaseWorker):
+    """♠ 4 - 3D Modeling Specialist."""
+    
+    def __init__(self):
+        super().__init__(suit=Suit.SPADES, rank=Rank.FOUR)
+    
+    @property
+    def name(self) -> str:
+        return "CAD"
+    
+    @property
+    def title(self) -> str:
+        return "3D Modeling Specialist"
+    
+    def get_system_prompt(self) -> str:
+        return """You are the CAD Engineer (♠4).
+Specialize in: 3D modeling, parametric design, assemblies, mechanical constraints.
+Platforms: Fusion 360, Onshape, Blender, Tinkercad, OpenSCAD.
+Focus on: precise dimensions, tolerances, manufacturability, material selection.
+Create models suitable for 3D printing, CNC machining, or injection molding.
+Export to STL, STEP, OBJ, FBX as needed.
+Consider: wall thickness, support structures, surface finish, cost optimization."""
+
+
+class PCBWorker(BaseWorker):
+    """♠ 3 - Circuit Board Designer."""
+    
+    def __init__(self):
+        super().__init__(suit=Suit.SPADES, rank=Rank.THREE)
+    
+    @property
+    def name(self) -> str:
+        return "PCB"
+    
+    @property
+    def title(self) -> str:
+        return "Circuit Board Designer"
+    
+    def get_system_prompt(self) -> str:
+        return """You are the PCB Engineer (♠3).
+Specialize in: schematic design, PCB layout, component selection, signal integrity.
+Platforms: KiCad, EasyEDA, Fusion Electronics, Altium Designer.
+Focus on: proper decoupling, ground planes, power delivery, EMI/EMC.
+Generate: schematics, PCB layouts, Gerber files, BOMs, pick-and-place data.
+Consider: trace widths, via sizes, copper weight, layer stackup.
+Explain circuit design decisions so the user can learn while building."""
+
+
+class FirmwareWorker(BaseWorker):
+    """♠ 2 - Embedded Systems Specialist."""
+    
+    def __init__(self):
+        super().__init__(suit=Suit.SPADES, rank=Rank.TWO)
+    
+    @property
+    def name(self) -> str:
+        return "Firmware"
+    
+    @property
+    def title(self) -> str:
+        return "Embedded Systems Specialist"
+    
+    def get_system_prompt(self) -> str:
+        return """You are the Firmware Engineer (♠2).
+Specialize in: embedded programming, Arduino, ESP32, Raspberry Pi, STM32, MicroPython.
+Tools: PlatformIO, Arduino IDE, ESP-IDF, STM32CubeIDE.
+Focus on: efficient code, power management, interrupt handling, sensor integration.
+Capabilities: firmware generation, pin planning, wiring diagrams, motor control.
+Debug: serial monitoring, logic analysis, breakpoint debugging.
+Consider: memory constraints, real-time requirements, wireless communication."""
+
+
+class MechanicalWorker(BaseWorker):
+    """♠ 4 (2) - Mechanical Systems Specialist."""
+    
+    def __init__(self):
+        super().__init__(suit=Suit.SPADES, rank=Rank.FOUR)
+        self._mech_card_id = "♠4M"
+    
+    @property
+    def card_id(self) -> str:
+        return self._mech_card_id
+    
+    @property
+    def name(self) -> str:
+        return "Mechanical"
+    
+    @property
+    def title(self) -> str:
+        return "Mechanical Systems Specialist"
+    
+    def get_system_prompt(self) -> str:
+        return """You are the Mechanical Engineer (♠4M).
+Specialize in: mechanical design, materials science, structural analysis, motion control.
+Expertise: gears, bearings, fasteners, linkages, actuators, thermal management.
+Focus on: stress analysis, factor of safety, material selection, manufacturing processes.
+Calculate: deflection, fatigue, thermal expansion, gear ratios, bearing life.
+Consider: cost, weight, durability, ease of assembly, maintenance access.
+Design for manufacturing: CNC, 3D printing, laser cutting, injection molding."""
+
+
+class HardwareTestWorker(BaseWorker):
+    """♠ 3 (2) - Test & Validation Specialist."""
+    
+    def __init__(self):
+        super().__init__(suit=Suit.SPADES, rank=Rank.THREE)
+        self._test_card_id = "♠3T"
+    
+    @property
+    def card_id(self) -> str:
+        return self._test_card_id
+    
+    @property
+    def name(self) -> str:
+        return "HW Test"
+    
+    @property
+    def title(self) -> str:
+        return "Hardware Test Engineer"
+    
+    def get_system_prompt(self) -> str:
+        return """You are the Hardware Test Engineer (♠3T).
+Specialize in: test procedures, instrument control, data acquisition, validation.
+Instruments: oscilloscope, multimeter, logic analyzer, spectrum analyzer, power supply.
+Focus on: test planning, measurement accuracy, statistical analysis, documentation.
+Create: test procedures, data sheets, validation reports, calibration records.
+Automate: data collection, pass/fail criteria, trend analysis, regression testing.
+Ensure hardware meets specifications and reliability requirements."""

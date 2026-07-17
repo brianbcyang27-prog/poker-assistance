@@ -336,6 +336,132 @@ class ToolExecutor:
             status = self.arduino.get_status(params["device_id"])
             return {"success": True, "status": status}
         
+        # --- Engineering ---
+        elif action == "engineering_cad_create":
+            from ..engineering.cad.base import CADProvider
+            cad = CADProvider()
+            model_id = await cad.create_model(
+                name=params["name"],
+                model_type=params.get("type", "part"),
+                dimensions=params.get("dimensions", {}),
+                material=params.get("material"),
+            )
+            return {"success": True, "model_id": model_id}
+        
+        elif action == "engineering_cad_export":
+            from ..engineering.cad.base import CADProvider
+            cad = CADProvider()
+            path = await cad.export_model(
+                model_id=params["model_id"],
+                format=params["format"],
+                path=params.get("path"),
+            )
+            return {"success": True, "path": path}
+        
+        elif action == "engineering_pcb_create":
+            from ..engineering.pcb.base import PCBProvider
+            pcb = PCBProvider()
+            board_id = await pcb.create_board(
+                name=params["name"],
+                layers=params.get("layers", 2),
+                dimensions=params.get("dimensions", {}),
+            )
+            return {"success": True, "board_id": board_id}
+        
+        elif action == "engineering_pcb_drc":
+            from ..engineering.pcb.base import PCBProvider
+            pcb = PCBProvider()
+            results = await pcb.run_drc(board_id=params["board_id"])
+            return {"success": True, "results": results}
+        
+        elif action == "engineering_pcb_export":
+            from ..engineering.pcb.base import PCBProvider
+            pcb = PCBProvider()
+            path = await pcb.export_gerbers(
+                board_id=params["board_id"],
+                path=params.get("path"),
+            )
+            return {"success": True, "path": path}
+        
+        elif action == "engineering_firmware_create":
+            from ..engineering.embedded.base import EmbeddedProvider
+            embedded = EmbeddedProvider()
+            project_id = await embedded.create_project(
+                name=params["name"],
+                platform=params["platform"],
+                board=params.get("board"),
+            )
+            return {"success": True, "project_id": project_id}
+        
+        elif action == "engineering_firmware_compile":
+            from ..engineering.embedded.base import EmbeddedProvider
+            embedded = EmbeddedProvider()
+            result = await embedded.compile(
+                project_id=params["project_id"],
+                config=params.get("config", "release"),
+            )
+            return {"success": True, "result": result}
+        
+        elif action == "engineering_firmware_upload":
+            from ..engineering.embedded.base import EmbeddedProvider
+            embedded = EmbeddedProvider()
+            result = await embedded.upload(
+                project_id=params["project_id"],
+                port=params.get("port"),
+            )
+            return {"success": True, "result": result}
+        
+        elif action == "engineering_firmware_devices":
+            from ..engineering.embedded.base import EmbeddedProvider
+            embedded = EmbeddedProvider()
+            devices = await embedded.list_devices()
+            return {"success": True, "devices": devices}
+        
+        elif action == "engineering_mechanical_material":
+            from ..engineering.mechanical.base import MechanicalProvider
+            mech = MechanicalProvider()
+            material = mech.get_material(params["material"])
+            return {"success": True, "material": material}
+        
+        elif action == "engineering_mechanical_stress":
+            from ..engineering.mechanical.base import MechanicalProvider
+            mech = MechanicalProvider()
+            result = mech.calculate_beam_stress(
+                force=params["force"],
+                distance=params["distance"],
+                width=params["width"],
+                height=params["height"],
+            )
+            return {"success": True, "result": result}
+        
+        elif action == "engineering_mechanical_bearing":
+            from ..engineering.mechanical.base import MechanicalProvider
+            mech = MechanicalProvider()
+            bearing = mech.select_bearing(
+                load=params["load"],
+                speed_rpm=params["speed_rpm"],
+                life_hours=params.get("life_hours", 1000),
+            )
+            return {"success": True, "bearing": bearing}
+        
+        elif action == "engineering_mechanical_gear":
+            from ..engineering.mechanical.base import MechanicalProvider
+            mech = MechanicalProvider()
+            gear = mech.calculate_gear_ratio(
+                driver_teeth=params["driver_teeth"],
+                driven_teeth=params["driven_teeth"],
+                input_rpm=params["input_rpm"],
+            )
+            return {"success": True, "gear": gear}
+        
+        elif action == "engineering_knowledge":
+            from ..engineering.knowledge import engineering_knowledge
+            result = engineering_knowledge.query(
+                query=params["query"],
+                category=params.get("category"),
+            )
+            return {"success": True, "result": result}
+        
         # --- System ---
         elif action == "shell_execute":
             proc = await asyncio.create_subprocess_shell(
@@ -375,6 +501,18 @@ class ToolExecutor:
             "web_search", "web_fetch",
             # IoT
             "arduino_list_devices", "arduino_send", "arduino_read", "arduino_status",
+            # Engineering - CAD
+            "engineering_cad_create", "engineering_cad_export",
+            # Engineering - PCB
+            "engineering_pcb_create", "engineering_pcb_drc", "engineering_pcb_export",
+            # Engineering - Embedded
+            "engineering_firmware_create", "engineering_firmware_compile",
+            "engineering_firmware_upload", "engineering_firmware_devices",
+            # Engineering - Mechanical
+            "engineering_mechanical_material", "engineering_mechanical_stress",
+            "engineering_mechanical_bearing", "engineering_mechanical_gear",
+            # Engineering - Knowledge
+            "engineering_knowledge",
             # System
             "shell_execute", "task_complete",
         ]
