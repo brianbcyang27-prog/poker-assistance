@@ -101,6 +101,15 @@ class ComputerManager:
         self.register("app.open", self._app_open, RiskLevel.LOW, "Open an application")
         self.register("app.close", self._app_close, RiskLevel.MEDIUM, "Close an application")
 
+        # Accessibility actions (v4.4.0 — semantic UI control)
+        self.register("accessibility.tree", self._accessibility_tree, RiskLevel.SAFE, "Get UI element tree")
+        self.register("accessibility.find", self._accessibility_find, RiskLevel.SAFE, "Find UI element by name")
+        self.register("accessibility.click", self._accessibility_click, RiskLevel.LOW, "Click UI element by name")
+        self.register("accessibility.type_into", self._accessibility_type_into, RiskLevel.LOW, "Type into UI element")
+        self.register("accessibility.activate", self._accessibility_activate, RiskLevel.LOW, "Activate/bring app to front")
+        self.register("accessibility.apps", self._accessibility_apps, RiskLevel.SAFE, "List running applications")
+        self.register("accessibility.summary", self._accessibility_summary, RiskLevel.SAFE, "Get LLM-ready UI summary")
+
     def register(self, name: str, handler: Callable, risk_level: str = RiskLevel.LOW, description: str = ""):
         """Register an action handler."""
         self._handlers[name] = ActionHandler(
@@ -484,6 +493,65 @@ class ComputerManager:
             return self._provider
         except Exception:
             return None
+
+    def _get_accessibility(self):
+        """Get the accessibility manager, initializing if needed."""
+        if not hasattr(self, '_accessibility'):
+            from .accessibility import accessibility_manager
+            self._accessibility = accessibility_manager
+        return self._accessibility
+
+    # ── Accessibility Handlers (v4.4.0) ───────────────────────
+
+    async def _accessibility_tree(self, window_title: str = "", **kw) -> dict:
+        """Get the UI element tree for a window."""
+        am = self._get_accessibility()
+        await am.initialize()
+        tree = await am.get_tree(window_title)
+        return {"ok": True, **tree.to_dict()}
+
+    async def _accessibility_find(self, query: str = "", **kw) -> dict:
+        """Find a UI element by natural language query."""
+        am = self._get_accessibility()
+        await am.initialize()
+        element = await am.find(query)
+        if element:
+            return {"ok": True, "element": element.to_dict()}
+        return {"ok": False, "error": f"No element found matching '{query}'"}
+
+    async def _accessibility_click(self, query: str = "", **kw) -> dict:
+        """Click a UI element by natural language query."""
+        am = self._get_accessibility()
+        await am.initialize()
+        result = await am.click(query)
+        return result
+
+    async def _accessibility_type_into(self, query: str = "", text: str = "", **kw) -> dict:
+        """Type text into a UI element found by natural language query."""
+        am = self._get_accessibility()
+        await am.initialize()
+        result = await am.type_into(query, text)
+        return result
+
+    async def _accessibility_activate(self, app_name: str = "", **kw) -> dict:
+        """Bring an application to the foreground."""
+        am = self._get_accessibility()
+        await am.initialize()
+        return await am.activate(app_name)
+
+    async def _accessibility_apps(self, **kw) -> dict:
+        """List running applications."""
+        am = self._get_accessibility()
+        await am.initialize()
+        apps = await am.list_apps()
+        return {"ok": True, "applications": apps}
+
+    async def _accessibility_summary(self, window_title: str = "", **kw) -> dict:
+        """Get an LLM-ready summary of the current UI state."""
+        am = self._get_accessibility()
+        await am.initialize()
+        summary = await am.get_summary(window_title)
+        return {"ok": True, "summary": summary}
 
     def get_actions(self) -> list[dict]:
         """List all registered actions."""
