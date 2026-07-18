@@ -49,6 +49,7 @@ class ActionType(str, Enum):
     SYSTEM = "system"
     VISION = "vision"           # v4.5.0 — vision analysis actions
     ACCESSIBILITY = "accessibility"  # v4.4.0 — accessibility actions
+    OS = "os"                   # v5.0.0 — OS integration actions
 
 
 @dataclass

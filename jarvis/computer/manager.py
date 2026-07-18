@@ -124,6 +124,19 @@ class ComputerManager:
         self.register("smart.click", self._smart_click, RiskLevel.LOW, "Click using best perception method")
         self.register("smart.type", self._smart_type, RiskLevel.LOW, "Type using best perception method")
 
+        # OS integration actions (v5.0.0)
+        self.register("os.notify", self._os_notify, RiskLevel.SAFE, "Send system notification")
+        self.register("os.alert", self._os_alert, RiskLevel.LOW, "Show alert dialog")
+        self.register("os.confirm", self._os_confirm, RiskLevel.LOW, "Show confirmation dialog")
+        self.register("os.clipboard_read", self._os_clipboard_read, RiskLevel.SAFE, "Read clipboard")
+        self.register("os.clipboard_write", self._os_clipboard_write, RiskLevel.LOW, "Write to clipboard")
+        self.register("os.clipboard_clear", self._os_clipboard_clear, RiskLevel.LOW, "Clear clipboard")
+        self.register("os.hotkey_register", self._os_hotkey_register, RiskLevel.MEDIUM, "Register global hotkey")
+        self.register("os.hotkey_simulate", self._os_hotkey_simulate, RiskLevel.LOW, "Simulate keyboard shortcut")
+        self.register("os.watch_directory", self._os_watch_directory, RiskLevel.LOW, "Watch directory for changes")
+        self.register("os.system_info", self._os_system_info, RiskLevel.SAFE, "Get system information")
+        self.register("os.status", self._os_status, RiskLevel.SAFE, "Get OS integration status")
+
     def register(self, name: str, handler: Callable, risk_level: str = RiskLevel.LOW, description: str = ""):
         """Register an action handler."""
         self._handlers[name] = ActionHandler(
@@ -321,6 +334,8 @@ class ComputerManager:
             return ActionType.VISION
         if action.startswith("accessibility") or action.startswith("smart"):
             return ActionType.ACCESSIBILITY
+        if action.startswith("os"):
+            return ActionType.OS
         return ActionType.TERMINAL
 
     # ── Action Handlers ──────────────────────────────────────
@@ -710,6 +725,92 @@ class ComputerManager:
             pass
 
         return {"ok": False, "error": f"Could not find field '{query}' via any perception method"}
+
+    # ── OS Integration Handlers (v5.0.0) ─────────────────────
+
+    def _get_os(self):
+        """Get the OS manager, initializing if needed."""
+        if not hasattr(self, '_os'):
+            from ..os import get_os_manager
+            self._os = get_os_manager()
+        return self._os
+
+    async def _os_notify(self, title: str = "", message: str = "", subtitle: str = None, sound: bool = True, **kw) -> dict:
+        """Send a system notification."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        ok = await os_mgr.notify(title, message, subtitle, sound)
+        return {"ok": ok, "title": title, "message": message[:200]}
+
+    async def _os_alert(self, title: str = "", message: str = "", **kw) -> dict:
+        """Show an alert dialog."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        ok = await os_mgr.alert(title, message)
+        return {"ok": ok, "title": title}
+
+    async def _os_confirm(self, title: str = "", message: str = "", **kw) -> dict:
+        """Show a confirmation dialog."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        confirmed = await os_mgr.confirm(title, message)
+        return {"ok": True, "confirmed": confirmed, "title": title}
+
+    async def _os_clipboard_read(self, **kw) -> dict:
+        """Read the clipboard content."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        content = await os_mgr.clipboard_read()
+        return {"ok": True, "content": content, "has_content": content is not None and len(content) > 0}
+
+    async def _os_clipboard_write(self, text: str = "", **kw) -> dict:
+        """Write text to the clipboard."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        ok = await os_mgr.clipboard_write(text)
+        return {"ok": ok, "length": len(text)}
+
+    async def _os_clipboard_clear(self, **kw) -> dict:
+        """Clear the clipboard."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        ok = await os_mgr.clipboard_clear()
+        return {"ok": ok}
+
+    async def _os_hotkey_register(self, shortcut: str = "", action: str = "", description: str = "", **kw) -> dict:
+        """Register a global hotkey."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        ok = os_mgr.hotkey_register(shortcut, action, description)
+        return {"ok": ok, "shortcut": shortcut, "action": action}
+
+    async def _os_hotkey_simulate(self, shortcut: str = "", **kw) -> dict:
+        """Simulate a keyboard shortcut."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        ok = os_mgr.hotkey_simulate(shortcut)
+        return {"ok": ok, "shortcut": shortcut}
+
+    async def _os_watch_directory(self, path: str = "", key: str = None, recursive: bool = True, **kw) -> dict:
+        """Watch a directory for changes."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        ok = await os_mgr.watch_directory(path, key, recursive)
+        return {"ok": ok, "path": path, "key": key or path}
+
+    async def _os_system_info(self, **kw) -> dict:
+        """Get system information."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        info = await os_mgr.get_system_info()
+        return {"ok": True, **info}
+
+    async def _os_status(self, **kw) -> dict:
+        """Get OS integration status."""
+        os_mgr = self._get_os()
+        await os_mgr.initialize()
+        status = os_mgr.get_status()
+        return {"ok": True, **status}
 
     def get_actions(self) -> list[dict]:
         """List all registered actions."""

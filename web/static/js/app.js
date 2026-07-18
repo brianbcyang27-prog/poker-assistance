@@ -19,6 +19,10 @@ const JARVIS = {
         this.keyboard.init();
         this.command.init();
         this.intel.init();
+        
+        // v5.0.0 — Initialize OS and Agent modules
+        if (this.os) this.os.init();
+        if (this.agents) this.agents.init();
     },
 
     // ============================================

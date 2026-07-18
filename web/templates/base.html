@@ -389,10 +389,14 @@
                     </div>
                 </div>
 
-                <!-- System Metrics -->
+                <!-- OS Integration -->
                 <div class="intel-section">
                     <div class="intel-section-title">System</div>
                     <div class="intel-card">
+                        <div class="intel-metric">
+                            <span class="intel-metric-label">OS</span>
+                            <span class="intel-metric-value" id="os-status" style="color:var(--text-tertiary);">Offline</span>
+                        </div>
                         <div class="intel-metric">
                             <span class="intel-metric-label">CPU</span>
                             <span class="intel-metric-value" id="intel-cpu">-</span>
@@ -484,5 +488,7 @@
     <script src="/static/js/state-machine.js"></script>
     <script src="/static/js/sounds.js"></script>
     <script src="/static/js/app.js"></script>
+    <script src="/static/js/os.js"></script>
+    <script src="/static/js/agents.js"></script>
 </body>
 </html>
