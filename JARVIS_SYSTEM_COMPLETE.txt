@@ -1,0 +1,911 @@
+================================================================================
+                    JARVIS — COMPLETE SYSTEM DOCUMENTATION
+                           Multi-Agent AI Operating System
+                           Version 3.3.1 | July 17, 2026
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+  1. Project Overview
+  2. System Architecture
+  3. Agent Hierarchy (23 Workers)
+  4. Brain & Memory System
+  5. Engineering Suite
+  6. Web Interface
+  7. API Routes (150 Endpoints)
+  8. Database Schema (14 Tables)
+  9. Frontend JavaScript (14 Files)
+  10. CLI & TUI
+  11. IoT Integration
+  12. Voice System
+  13. Configuration
+  14. Security
+  15. Git History
+  16. File Inventory
+  17. Known Issues & Future Work
+
+================================================================================
+1. PROJECT OVERVIEW
+================================================================================
+
+JARVIS is a multi-agent AI operating system with a poker-card hierarchy.
+It controls the computer, solves tasks autonomously, controls ESP32/Arduino
+over WiFi, and remembers all projects/context.
+
+Author:     Brian Yang
+Repository: https://github.com/brianbcyang27-prog/poker-assistance
+Version:    3.3.1
+Python:     3.12.13
+LLM:        NVIDIA API (meta/llama-3.1-8b-instruct)
+
+Tech Stack:
+  Backend:   FastAPI, aiosqlite, uvicorn, httpx
+  Frontend:  HTML5, CSS3, JavaScript (vanilla), Three.js
+  Database:  SQLite with FTS5 full-text search
+  TTS:       macOS 'say' command, Kokoro (lazy-loaded)
+  CLI:       Rich (TUI mode)
+
+================================================================================
+2. SYSTEM ARCHITECTURE
+================================================================================
+
+JARVIS (J) — Top-level orchestrator
+├── Engineering King (♠K) — 13 workers
+├── Personal King (♥K) — 4 workers
+├── Research King (♦K) — 3 workers
+└── System King (♣K) — 3 workers
+
+Each King:
+  - Plans work using LLM
+  - Assembles team of workers
+  - Delegates subtasks
+  - Reviews results
+  - Reports to JARVIS
+
+Each Worker:
+  - Receives task from King
+  - Calls LLM for reasoning
+  - Executes tools (screen, mouse, keyboard, shell, browser, IoT, engineering)
+  - Self-assesses confidence
+  - Returns results to King
+
+Data Flow:
+  User → JARVIS → Intent Analysis → King → Worker → LLM + Tools → Results
+                                     ↓
+                              Event Bus → WebSocket → UI
+                                     ↓
+                              Memory Store → RAG → Future Context
+
+================================================================================
+3. AGENT HIERARCHY — 23 Workers Across 4 Kings
+================================================================================
+
+JARVIS (J)
+│
+├── Engineering King (♠K) — Engineering Division Director
+│   ├── ♠Q  ArchitectWorker    — Senior Software Architect
+│   ├── ♠J  BackendWorker      — Backend Engineer
+│   ├── ♠10 FrontendWorker     — Frontend Engineer
+│   ├── ♠9  ReactWorker        — React Specialist
+│   ├── ♠8  PythonWorker       — Python Expert
+│   ├── ♠7  TestingWorker      — Test Engineer
+│   ├── ♠6  DocsWorker         — Documentation Specialist
+│   ├── ♠5  A11yWorker         — Accessibility Specialist
+│   ├── ♠4  CADWorker          — 3D Modeling Specialist
+│   ├── ♠3  PCBWorker          — Circuit Board Designer
+│   ├── ♠2  FirmwareWorker     — Embedded Systems Specialist
+│   ├── ♠4M MechanicalWorker   — Mechanical Systems Specialist
+│   └── ♠3T HardwareTestWorker — Hardware Test Engineer
+│
+├── Personal King (♥K) — Personal Division Director
+│   ├── ♥Q  CalendarWorker     — Calendar Management
+│   ├── ♥J  EmailWorker        — Email Handling
+│   ├── ♥10 TasksWorker        — Task Management
+│   └── ♥9  SchedulingWorker   — Schedule Optimization
+│
+├── Research King (♦K) — Research Division Director
+│   ├── ♦Q  WebResearchWorker  — Web Research
+│   ├── ♦J  DocumentationWorker— Documentation Research
+│   └── ♦10 FactCheckWorker    — Fact Checking
+│
+└── System King (♣K) — System Operations Director
+    ├── ♣Q  FilesWorker        — File Management
+    ├── ♣J  TerminalWorker     — Terminal Operations
+    └── ♣10 ApplicationsWorker — Application Management
+
+Card Notation:
+  Suit: ♠ Spades (Engineering), ♥ Hearts (Personal),
+        ♦ Diamonds (Research), ♣ Clubs (System)
+  Rank: K King, Q Queen, J Jack, 10-2 numbered cards
+  Custom: ♠4M Mechanical, ♠3T HW Test (avoid conflicts)
+
+================================================================================
+4. BRAIN & MEMORY SYSTEM
+================================================================================
+
+4.1 LLM (jarvis/brain/llm.py)
+    - NVIDIA API (OpenAI-compatible) with Ollama fallback
+    - httpx-based HTTP client
+    - Conversation history (20 messages max)
+    - Session context persistence via SQLite
+    - PII scrubbing on outbound messages
+    - JSON response parsing with markdown fence stripping
+
+4.2 RAG Memory (jarvis/brain/rag.py)
+    - Retrieves from 5 sources:
+      1. Conversations (FTS5)
+      2. Knowledge Graph
+      3. Skills
+      4. Task History
+      5. Memory Store
+    - Keyword-based scoring (TF × source_weight)
+    - Time decay factor
+    - Token-budget-aware context assembly (3000 tokens max)
+
+4.3 Knowledge Graph (jarvis/brain/memory/graph.py)
+    - SQLite-backed graph database
+    - Node types: concept, entity, note, conversation, decision, code
+    - Edge types: related_to, contains, depends_on, created_from, references
+    - Bidirectional traversal
+    - [[wiki-link]] extraction
+    - PageRank importance scoring
+
+4.4 Knowledge Extractor (jarvis/brain/memory/extractor.py)
+    - Extracts concepts (CamelCase, domain terms)
+    - Extracts [[wiki-links]]
+    - Extracts decisions
+    - Auto-links co-occurring items
+    - Creates graph nodes and edges
+
+4.5 Note Manager (jarvis/brain/memory/note.py)
+    - Obsidian-style markdown notes
+    - Bidirectional [[links]]
+    - Stored as .md files in memory_store/notes/
+    - Creates graph nodes/edges for links
+
+4.6 Memory Provider (jarvis/brain/memory_provider.py)
+    - SQLite-backed with FTS5 full-text search
+    - Memory types: CONVERSATION, MISSION, TASK, TERMINAL, CODE,
+      DEMO, DOCUMENT, SKILL, DECISION, EXECUTION, NOTE
+    - Tag-based filtering
+    - Time-range queries
+
+4.7 Model Router (jarvis/brain/model_router.py)
+    - Keyword-based task classification
+    - Multi-factor scoring:
+      affinity (40%) + success_rate (30%) + latency (15%) + cost (15%)
+    - EWMA performance tracking
+    - Auto-registers NVIDIA + Ollama on import
+
+4.8 Speculative Planner (jarvis/brain/speculative.py)
+    - Pattern-based prediction
+    - Pre-delegation of likely tasks
+    - 5-minute TTL expiry
+    - Accuracy tracking
+
+4.9 Review Pipeline (jarvis/brain/review.py)
+    - 5-check quality gate:
+      1. Completeness
+      2. Error signal detection
+      3. Tool use verification
+      4. Confidence check
+      5. Issue identification
+    - Score range: 0-1
+
+4.10 DAG Planner (jarvis/brain/dag_planner.py)
+     - Mission creation with task dependencies
+     - Topological sort (Kahn's algorithm)
+     - Cycle detection
+     - Critical path calculation
+     - Task state machine: PENDING → READY → RUNNING → COMPLETED/FAILED
+
+4.11 Skill Evolution (jarvis/brain/skill_evolution.py)
+     - A/B testing of strategy variants
+     - Outcome tracking
+     - Skill composition
+     - Performance pruning
+
+4.12 Agent Communication Interface (jarvis/brain/aci.py)
+     - Priority message queue per agent
+     - TTL-based message expiry
+     - Broadcast support
+     - Subscription system
+
+4.13 Demo Learning (jarvis/brain/demo_learning.py)
+     - Record user demonstrations
+     - Abstract reusable patterns
+     - Replay with variations
+     - Outcome tracking
+
+4.14 Observability (jarvis/brain/observability.py)
+     - Metrics (counters, gauges)
+     - Distributed tracing
+     - Health checks
+
+4.15 Developer Mode (jarvis/brain/developer.py)
+     - Feature flags
+     - Debug data storage
+     - Environment inspection
+
+4.16 Privacy Scrubber (jarvis/brain/privacy.py)
+     - PII detection patterns:
+       - Email addresses
+       - Phone numbers (US)
+       - SSN (may match dates)
+       - Credit cards (may match long numbers)
+       - IP addresses
+       - API keys
+       - File paths
+       - Names ("my name is X")
+     - Redaction with [REDACTED] markers
+     - Allowlist support
+
+4.17 Project Memory (jarvis/brain/project_memory.py)
+     - Project registry with activity tracking
+     - Resume commands generation
+     - AppleScript-based resume script
+     - Dynamic schema migration
+
+================================================================================
+5. ENGINEERING SUITE
+================================================================================
+
+5.1 CAD Provider (jarvis/engineering/cad/base.py)
+    - ABC for 3D modeling
+    - Methods: create_model, edit_model, export_model, list_models,
+      get_model, add_feature, measure_distance
+    - Model types: part, assembly, drawing
+
+5.2 PCB Provider (jarvis/engineering/pcb/base.py)
+    - ABC for circuit board design
+    - Methods: create_board, add_component, connect, route_board,
+      run_drc, export_gerbers, generate_bom
+    - IPC-2221 trace width calculator
+
+5.3 Embedded Provider (jarvis/engineering/embedded/base.py)
+    - ABC for firmware development
+    - Platforms: ARDUINO, ESP32, STM32, RASPBERRY_PI, MICROPYTHON, ESPIDF
+    - Methods: create_project, add_file, compile, upload, list_devices, monitor
+
+5.4 Mechanical Provider (jarvis/engineering/mechanical/base.py)
+    - Material database (10 materials)
+    - Bearing catalog (18 bearings)
+    - Fastener database (metric + imperial)
+    - Methods: get_material, select_bearing, calculate_gear_ratio,
+      calculate_beam_stress
+
+5.5 Simulation Provider (jarvis/engineering/simulation/base.py)
+    - Architecture placeholder
+    - Future: thermal, structural, kinematic, circuit simulation
+
+5.6 Engineering Knowledge Base (jarvis/engineering/knowledge.py)
+    Materials:
+      - aluminum_6061 (276 MPa, $3.50/kg)
+      - aluminum_7075 (503 MPa, $12.00/kg)
+      - steel_1018 (370 MPa, $0.80/kg)
+      - steel_304_stainless (215 MPa, $4.00/kg)
+      - pla (60 MPa, $25.00/kg)
+      - abs (40 MPa, $22.00/kg)
+      - petg (53 MPa, $30.00/kg)
+      - carbon_fiber_nylon (80 MPa, $80.00/kg)
+      - copper (70 MPa, $10.00/kg)
+      - brass (125 MPa, $8.00/kg)
+
+    Bearings:
+      608-2RS, 625-2RS, 6001-2RS through 6304-2RS,
+      685-2RS, 693-2RS, MR105-2RS, F695-2RS, F623-2RS
+
+    Formulas:
+      - beam_stress: σ = M*y/I
+      - deflection: δ = F*L³/(3*E*I)
+      - gear_ratio: GR = N_driven / N_driver
+      - torque: τ = F × r
+      - power: P = τ × ω
+      - bearing_life: L10 = (C/P)³ × 10⁶ rev
+      - trace_width: W = I / (k × ΔT^b)
+      - thermal_resistance: θ = L/(k*A)
+
+================================================================================
+6. WEB INTERFACE
+================================================================================
+
+6.1 Pages
+    - /           — Main JARVIS page (Neural Core + Living Interface)
+    - /command-map— Agent hierarchy SVG visualization
+    - /settings   — System configuration
+    - /history    — Task history browser
+
+6.2 Design System
+    Colors:
+      - Background: #050b14 (deep obsidian)
+      - Primary: #00f0ff (electric cyan)
+      - Warning: #ffaa00 (amber)
+      - Error: #ff3366 (red)
+      - Success: #00ff88 (green)
+
+    Typography:
+      - Monospace font throughout
+      - Glass panels with backdrop-filter
+
+6.3 Three.js Visualizations
+    - Arc Reactor core (jarvis-core.js)
+    - 3D Knowledge Graph (graph-3d.js)
+    - Memory Galaxy (memory-galaxy.js)
+    - Agent Command Map (command-map.js)
+
+6.4 Living Interface
+    - Neural Thought Stream (living-interface.js)
+    - Response Bubble
+    - Mission State Display
+    - Department Badges (department-identity.js)
+    - Explainability Overlay (explainability.js)
+    - Mission DAG (mission-dag.js)
+
+================================================================================
+7. API ROUTES — 150 Endpoints
+================================================================================
+
+CHAT (4 routes)
+  POST /api/chat                    — Send message, get response
+  GET  /api/chat/stream             — SSE streaming response
+  GET  /api/chat/history/{id}       — Get session history
+  GET  /api/chat/sessions           — List all sessions
+
+AGENTS (3 routes)
+  GET  /api/agents                  — Get all agents + status
+  GET  /api/agents/hierarchy        — Get hierarchy for visualization
+  GET  /api/agents/{card_id}        — Get specific agent
+
+WORKSPACE (7 routes)
+  GET  /api/workspace/history       — Past completed workspaces
+  POST /api/workspace               — Create workspace
+  GET  /api/workspace               — List active workspaces
+  GET  /api/workspace/{id}          — Get workspace details
+  GET  /api/workspace/{id}/status   — Get workspace status
+  GET  /api/workspace/{id}/tasks    — Get workspace tasks
+  GET  /api/workspace/{id}/replay   — Get recorded results
+
+MEMORY (30 routes)
+  GET  /api/memory                  — Get all memory data
+  GET  /api/memory/preferences      — Get preferences
+  POST /api/memory/preferences      — Set preference
+  GET  /api/memory/projects         — Get projects
+  GET  /api/memory/decisions        — Get decisions
+  POST /api/memory/notes            — Create note
+  GET  /api/memory/notes            — List notes
+  GET  /api/memory/notes/{id}       — Get note
+  PUT  /api/memory/notes/{id}       — Update note
+  DEL  /api/memory/notes/{id}       — Delete note
+  GET  /api/memory/notes/search/{q} — Search notes
+  GET  /api/memory/backlinks/{id}   — Get backlinks
+  GET  /api/memory/graph            — Get graph data
+  GET  /api/memory/graph/stats      — Get graph stats
+  GET  /api/memory/graph/node/{id}  — Get node + neighbors
+  POST /api/memory/graph/node       — Add node
+  POST /api/memory/graph/edge       — Add edge
+  GET  /api/memory/graph/search/{q} — Search nodes
+  POST /api/memory/extract          — Extract knowledge
+  GET  /api/memory/projects/all     — List all projects
+  GET  /api/memory/projects/active  — Get active project
+  POST /api/memory/projects/register— Register project
+  POST /api/memory/projects/{n}/touch — Touch timestamp
+  POST /api/memory/projects/{n}/resume — Resume project
+  DEL  /api/memory/projects/{n}     — Delete project
+  GET  /api/memory/skills           — List skills
+  GET  /api/memory/skills/top       — Top skills
+  GET  /api/memory/skills/search    — Search skills
+  POST /api/memory/skills           — Record skill
+  POST /api/memory/skills/{n}/outcome — Update outcome
+  GET  /api/memory/search           — Full-text search
+
+VOICE (5 routes)
+  POST /api/voice/sample            — Upload voice sample
+  GET  /api/voice/samples           — Get samples
+  DEL  /api/voice/sample/{id}       — Delete sample
+  GET  /api/voice/models            — Get TTS providers
+  GET  /api/voice/audio/{file}      — Serve audio files
+
+SETTINGS (2 routes)
+  GET  /api/settings                — Get settings
+  POST /api/settings                — Update settings
+
+COMPUTER (3 routes)
+  POST /api/computer/action         — Execute action
+  GET  /api/computer/actions        — List actions
+  POST /api/computer/shutdown       — Shutdown controller
+
+IOT (7 routes)
+  GET  /api/iot/devices             — List devices
+  POST /api/iot/register            — Register device
+  DEL  /api/iot/{id}                — Remove device
+  GET  /api/iot/{id}                — Get device
+  POST /api/iot/{id}/command        — Send command
+  GET  /api/iot/{id}/sensor/{name}  — Read sensor
+  POST /api/iot/broadcast           — Broadcast to all
+
+ENGINEERING (20 routes)
+  POST /api/engineering/cad/create  — Create 3D model
+  POST /api/engineering/cad/export  — Export model
+  GET  /api/engineering/cad/models  — List models
+  POST /api/engineering/pcb/create  — Create PCB
+  POST /api/engineering/pcb/drc     — Run DRC
+  POST /api/engineering/pcb/export  — Export Gerbers
+  POST /api/engineering/firmware/create — Create firmware project
+  POST /api/engineering/firmware/compile — Compile
+  POST /api/engineering/firmware/upload — Upload
+  GET  /api/engineering/firmware/devices — List devices
+  GET  /api/engineering/mechanical/materials — List materials
+  GET  /api/engineering/mechanical/material/{n} — Get material
+  POST /api/engineering/mechanical/material/recommend — Recommend
+  POST /api/engineering/mechanical/bearing — Select bearing
+  POST /api/engineering/mechanical/gear — Gear ratio
+  POST /api/engineering/mechanical/beam — Beam stress
+  POST /api/engineering/knowledge/query — Query knowledge
+  GET  /api/engineering/knowledge/formulas — List formulas
+  GET  /api/engineering/knowledge/formula/{n} — Get formula
+  GET  /api/engineering/summary     — Engineering summary
+
+SYSTEM (97 routes)
+  Events:          GET /events, /events/stats
+  Capabilities:    GET /capabilities, /stats, /best; POST /capabilities
+  Memory:          GET /memory/stats; POST /memory/store; GET /memory/search
+  Models:          GET /models, /models/route; POST /models/classify
+  Speculative:     GET /speculative/predictions, /stats
+  Reviews:         GET /reviews/stats; POST /reviews/review
+  RAG:             GET /rag/stats; POST /rag/retrieve
+  Knowledge Graph: GET /graph/stats, /ego, /path, /pagerank, /data;
+                   POST /graph/extract, /graph/node, /graph/edge
+  Skill Evolution: GET /evolution/stats, /all, /{name};
+                   POST /evolution/variant, /outcome, /compose, /prune
+  ACI:             GET /aci/stats, /history, /queue/{id};
+                   POST /aci/send, /receive/{id}, /broadcast
+  Demo Learning:   GET /demos, /stats, /{id};
+                   POST /start, /action, /stop, /abstract, /replay, /outcome
+  DAG Planner:     GET /dag/missions, /stats, /mission/{id}, /next, /visualize;
+                   POST /dag/mission, /start/{nid}, /complete/{nid}
+  Teams:           GET /teams/stats, /{id};
+                   POST /teams/form, /disband
+  Timeline:        GET /timeline/{id}, /visualize, /milestones, /activity;
+                   POST /timeline/{id}/event
+  Observability:   GET /health, /metrics, /counters, /gauges, /traces, /{id};
+                   POST /metrics/record, /traces/start, /traces/{id}/end
+  Dev Mode:        GET /dev/stats, /flags, /state, /env, /debug;
+                   POST /flags/{name}/toggle, /flags/{name}, /debug
+  Graphify:        GET /graphify/stats, /query, /node/{id}, /path,
+                         /community/{id}, /threejs
+
+TOTAL: 150 API routes + 4 HTML pages + 1 WebSocket = 155 endpoints
+
+================================================================================
+8. DATABASE SCHEMA — 14 Tables + 4 FTS5
+================================================================================
+
+Main Tables:
+
+preferences
+  key         TEXT PRIMARY KEY
+  value       TEXT
+  updated_at  TIMESTAMP
+
+projects
+  id              INTEGER PRIMARY KEY
+  name            TEXT UNIQUE
+  path            TEXT
+  description     TEXT
+  language        TEXT
+  created_at      TIMESTAMP
+  updated_at      TIMESTAMP
+  active          BOOLEAN DEFAULT 1
+  last_worked_on  TIMESTAMP
+  server_command  TEXT
+  server_port     INTEGER
+  url             TEXT
+  ai_tool_command TEXT
+  ai_tool_name    TEXT
+  context         TEXT
+  status          TEXT DEFAULT 'active'
+
+conversations
+  id         INTEGER PRIMARY KEY
+  session_id TEXT
+  role       TEXT CHECK(role IN ('user', 'assistant'))
+  content    TEXT
+  timestamp  TIMESTAMP
+
+agent_messages
+  id         INTEGER PRIMARY KEY
+  sender     TEXT
+  receiver   TEXT
+  task_id    TEXT
+  content    TEXT
+  status     TEXT
+  confidence REAL
+  issues     TEXT
+  result     TEXT
+  timestamp  TIMESTAMP
+
+workspaces
+  id            INTEGER PRIMARY KEY
+  goal          TEXT
+  owner         TEXT
+  status        TEXT
+  progress      REAL
+  created_at    TIMESTAMP
+  completed_at  TIMESTAMP
+
+tasks
+  id            INTEGER PRIMARY KEY
+  workspace_id  INTEGER REFERENCES workspaces(id)
+  name          TEXT
+  description   TEXT
+  assigned_to   TEXT
+  status        TEXT
+  priority      INTEGER
+  dependencies  TEXT
+  result        TEXT
+  confidence    REAL
+  issues        TEXT
+  created_at    TIMESTAMP
+  completed_at  TIMESTAMP
+
+task_history
+  id          INTEGER PRIMARY KEY
+  plan_id     TEXT
+  user_request TEXT
+  summary     TEXT
+  tasks_json  TEXT
+  workspace_id TEXT
+  owner       TEXT
+  duration_ms INTEGER
+  created_at  TIMESTAMP
+
+voice_samples
+  id         INTEGER PRIMARY KEY
+  name       TEXT
+  file_path  TEXT
+  created_at TIMESTAMP
+
+decisions
+  id         INTEGER PRIMARY KEY
+  topic      TEXT
+  decision   TEXT
+  reason     TEXT
+  context    TEXT
+  created_at TIMESTAMP
+
+agent_states
+  card_id    TEXT PRIMARY KEY
+  state      TEXT
+  updated_at TIMESTAMP
+
+llm_context
+  session_id    TEXT PRIMARY KEY
+  context_json  TEXT
+  updated_at    TIMESTAMP
+
+memories
+  id        TEXT PRIMARY KEY
+  type      TEXT
+  content   TEXT
+  metadata  TEXT
+  source    TEXT
+  tags      TEXT
+  timestamp TIMESTAMP
+
+capabilities
+  name               TEXT PRIMARY KEY
+  owner              TEXT
+  type               TEXT
+  description        TEXT
+  version            TEXT
+  latency_ms         REAL
+  cost               REAL
+  success_rate       REAL
+  total_calls        INTEGER
+  total_failures     INTEGER
+  required_permissions TEXT
+  tags               TEXT
+  enabled            BOOLEAN
+  registered_at      TIMESTAMP
+  last_used          TIMESTAMP
+
+event_log
+  id         INTEGER PRIMARY KEY
+  event_id   TEXT UNIQUE
+  event_type TEXT
+  source     TEXT
+  data       TEXT
+  timestamp  TIMESTAMP
+
+FTS5 Virtual Tables:
+  conversations_fts (session_id, role, content)
+  skills_fts (name, description, content)
+  task_history_fts (plan_id, user_request, summary, tasks_json)
+  memories_fts (type, content, source, tags)
+
+Indexes:
+  idx_conversations_session_id ON conversations(session_id)
+  idx_tasks_workspace_id ON tasks(workspace_id)
+  idx_agent_messages_task_id ON agent_messages(task_id)
+  idx_memories_type ON memories(type)
+  idx_memories_timestamp ON memories(timestamp)
+
+================================================================================
+9. FRONTEND JAVASCRIPT — 14 Files, 7,452 LOC
+================================================================================
+
+jarvis-core.js (381 LOC)
+  SVG arc reactor visualization
+  Concentric rings, pulsing core, waveform
+  States: idle, thinking, working, speaking, error
+
+state-machine.js (61 LOC)
+  State management: idle/listening/thinking/speaking/working
+  Observer pattern for state changes
+
+audio-analyzer.js
+  Audio input analysis for voice features
+
+living-interface.js (352 LOC)
+  WebSocket client for Event Bus
+  Neural Thought Stream
+  Response bubble
+  Mission state display
+  Fallback thoughts when disconnected
+
+knowledge-graph.js (390 LOC)
+  2D knowledge graph visualization
+  Node/edge rendering
+  Interaction handling
+
+graph-3d.js (908 LOC)
+  Three.js 3D graph view
+  Force-directed layout
+  Node clustering
+  Camera controls
+
+department-identity.js (153 LOC)
+  Department badges (Engineering, Research, Personal, System)
+  Card rendering with suit colors
+  King → department mapping
+
+explainability.js (206 LOC)
+  Click-to-inspect overlay
+  Reasoning, confidence, model, capabilities, memories
+
+mission-dag.js (265 LOC)
+  SVG DAG visualization
+  Status-colored nodes
+  Animated edges
+
+memory-galaxy.js (304 LOC)
+  3D spatial memory visualization
+  Three.js particle system
+  Graphify knowledge graph rendering
+
+voice.js (77 LOC)
+  Web Speech API integration
+  Mic toggle
+  Speech recognition
+
+command-map.js (932 LOC)
+  Full agent hierarchy visualization
+  Pan/zoom/click-to-inspect
+  WebSocket real-time updates
+  Agent detail panel
+
+card-visualization.js
+  Card visual effects
+
+app.js (370 LOC)
+  Main entry point
+  Chat logic (sendMessage, addChatMessage)
+  Mode switching (popup/chat)
+  Settings management
+  Keyboard shortcuts
+  Initializes all components
+
+================================================================================
+10. CLI & TUI
+================================================================================
+
+Commands:
+  python3 -m jarvis.cli            — Launch full-screen TUI
+  python3 -m jarvis.cli doctor     — System health diagnostics
+  python3 -m jarvis.cli status     — Quick status check
+  python3 -m jarvis.cli agents     — List all workers by division
+  python3 -m jarvis.cli knowledge  — Engineering knowledge stats
+
+TUI Views (Rich Live):
+  F1: Dashboard  — System status, quick actions
+  F2: Workers    — 23 workers with hierarchy tree
+  F3: Knowledge  — Materials & bearings tables
+  F4: Engineering— Tools tree & API endpoints
+  F5: Logs       — Timestamped system logs
+  Q:  Quit
+
+Doctor Checks:
+  ✓ Database FTS5
+  ✓ Agent Hierarchy (23 workers, 4 kings)
+  ✓ LLM Connection
+  ✓ Knowledge Graph
+  ✓ Engineering Knowledge
+  ✓ RAG Memory
+  ✓ Event Bus
+  ✓ Capability Registry
+  ✓ Memory Provider
+
+================================================================================
+11. IOT INTEGRATION
+================================================================================
+
+Device Manager (jarvis/iot/manager.py)
+  - Register ESP32/Arduino devices
+  - Send commands via HTTP
+  - Read sensor values
+  - Device status tracking
+  - Broadcast to all devices
+
+Protocols (jarvis/iot/protocol.py)
+  - HTTP/REST for ESP32
+  - Serial for Arduino
+  - WebSocket support (planned)
+
+API:
+  GET  /api/iot/devices             — List devices
+  POST /api/iot/register            — Register device
+  POST /api/iot/{id}/command        — Send command
+  GET  /api/iot/{id}/sensor/{name}  — Read sensor
+  POST /api/iot/broadcast           — Broadcast
+
+================================================================================
+12. VOICE SYSTEM
+================================================================================
+
+TTS Providers:
+  - macOS: 'say' command → .aiff → ffmpeg → WAV
+  - Kokoro: Lazy-loaded (torch dependency, may hang on Python 3.9)
+  - OpenAI: Cloud TTS API
+  - Piper: Local neural TTS
+
+STT:
+  - Web Speech API (browser-based)
+  - Whisper (local, configurable model)
+
+Voice Samples:
+  - Upload and store reference voices
+  - Provider-specific voice selection
+
+================================================================================
+13. CONFIGURATION
+================================================================================
+
+.env File:
+  NVIDIA_API_KEY=nvapi-...
+  NVIDIA_MODEL=meta/llama-3.1-8b-instruct
+  NVIDIA_API_BASE=https://integrate.api.nvidia.com/v1
+  WORKSPACE_PATH=/Users/brianyang
+  HOST=127.0.0.1
+  PORT=8000
+  VIEW_MODE=graph
+  CHAT_MODE=popup
+  TTS_PROVIDER=macos
+  TTS_ENABLED=true
+  STT_ENABLED=true
+  DB_PATH=jarvis.db
+  REQUIRE_CONFIRMATION=true
+  CONFIDENCE_THRESHOLD=0.9
+
+Config Class (jarvis/core/config.py):
+  - Pydantic BaseSettings
+  - Auto-loads from .env
+  - Type validation
+
+================================================================================
+14. SECURITY
+================================================================================
+
+Implemented:
+  ✓ PII scrubbing on outbound LLM calls
+  ✓ HTML sanitization in markdown renderer
+  ✓ Dangerous command blocklist
+  ✓ Confirmation required for shell commands
+
+Known Risks (by design — local use):
+  ⚠ No authentication on API endpoints
+  ⚠ /api/system/dev/env exposes environment variables
+  ⚠ API keys stored in plaintext .env
+  ⚠ No rate limiting
+
+================================================================================
+15. GIT HISTORY — 16 Commits
+================================================================================
+
+57c17f0 fix: v3.3.1 Self-audit and system optimization
+e9f0e9e feat: Full-screen TUI with Rich Live layout
+a4ffd66 feat: v3.3.0 Engineering Suite - CAD/PCB/Embedded/Mechanical
+12a5fe8 chore: bump version to 3.2.0
+22f518c feat: Graphify knowledge graph integration
+e02885f feat(v3.2.0): Living Intelligence Interface
+133c3e8 v3.1.0 Phase 5: Observability Dashboard + Developer Mode
+8ba5fe0 v3.1.0 Phase 4: DAG Planner, Dynamic Teams, Mission Timeline
+308833d v3.1.0 Phase 3: ACI (Agent Communication) + Demo Learning
+677def2 v3.1.0 Phase 2: RAG Memory, Knowledge Graph, Skill Evolution
+d343123 v3.1.0 Phase 1: Model Router, Speculative Planning, Review Pipeline
+3ef4913 v3.1.0 Phase 0: Event Bus, Capability Registry, Pluggable Memory
+cd57c90 Add features inspired by leading computer agents
+db8dd11 Fix intent analysis: delegate system tasks to Kings
+6ae0cd0 feat: persistent memory, voice synthesis, task history & replay
+31221c0 Initial commit: JARVIS multi-agent AI system
+
+================================================================================
+16. FILE INVENTORY
+================================================================================
+
+Python Files: 120
+Total Python LOC: 17,171
+
+Largest Python Files:
+  jarvis/web/routers/system.py      933 LOC
+  jarvis/core/database.py           617 LOC
+  jarvis/cli.py                     574 LOC
+  jarvis/agents/tools.py            522 LOC
+  run.py                            447 LOC
+  jarvis/engineering/knowledge.py   409 LOC
+  jarvis/brain/memory_provider.py   352 LOC
+  jarvis/agents/jarvis.py           332 LOC
+  jarvis/web/routers/memory.py      321 LOC
+  jarvis/brain/dag_planner.py       320 LOC
+
+JavaScript Files: 34
+Total JS LOC: 7,452
+
+Largest JS Files:
+  command-map.js      932 LOC
+  graph-3d.js         908 LOC
+  knowledge-graph.js  390 LOC
+  jarvis-core.js      381 LOC
+  app.js              370 LOC
+  living-interface.js 352 LOC
+  memory-galaxy.js    304 LOC
+  mission-dag.js      265 LOC
+  explainability.js   206 LOC
+  department-identity.js 153 LOC
+
+HTML Templates: 7
+  base.html, command-map.html, history.html, settings.html,
+  plus engineering/chat templates
+
+CSS Files: 3
+  style.css, command-map.css, plus TUI styles
+
+================================================================================
+17. KNOWN ISSUES & FUTURE WORK
+================================================================================
+
+High Priority:
+  1. Parallel subtask execution in kings (currently sequential)
+  2. LLM response caching
+  3. PII scrubbing on stored data (currently only outbound)
+  4. Deterministic node IDs in knowledge graph (hash() is random)
+  5. Chat Mode (second interface as traditional chat app)
+
+Medium Priority:
+  6. Connection pooling for SQLite
+  7. WebSocket chat support
+  8. Conversation rename/delete/pin
+  9. Tool call batching
+  10. Capability persistence to DB
+
+Low Priority:
+  11. Thread-safe counters in EventBus
+  12. International phone number PII patterns
+  13. FTS5 batch rebuild optimization
+  14. once() handler TTL in EventBus
+  15. Wildcard handler cleanup on WebSocket reconnect
+
+================================================================================
+                          END OF DOCUMENTATION
+                    Generated by JARVIS Self-Audit System
+                           Version 3.3.1 | July 17, 2026
+================================================================================
