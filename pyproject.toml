@@ -4,7 +4,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "jarvis"
-version = "4.0.0"
+version = "4.3.0"
 description = "JARVIS - Multi-Agent AI Operating System"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -42,8 +42,6 @@ dev = [
 
 [project.scripts]
 jarvis = "jarvis.cli:main"
-
-[project.scripts]
 jarvis-cli = "jarvis.cli:main"
 
 [tool.setuptools.packages.find]

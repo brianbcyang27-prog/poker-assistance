@@ -6,6 +6,7 @@
 let currentSessionId = null;
 let selectedVoiceId = null;
 let graph3d = null;
+let commandMap = null;
 let currentViewMode = 'core';
 let currentChatMode = 'popup';
 let _startTime = Date.now();
@@ -299,24 +300,17 @@ async function setViewMode(mode) {
         coreCanvas.style.display = 'none';
         graphContainer.style.display = 'block';
 
-        if (!graph3d) {
-            graph3d = new Graph3D(graphContainer);
-            graph3d.init();
-            await graph3d.loadData();
-            if (window.jarvisState) {
-                graph3d.setState(window.jarvisState.state || 'idle');
+        // Initialize Command Map (agent hierarchy) instead of 3D graph
+        if (!commandMap) {
+            try {
+                commandMap = new CommandMap();
+            } catch (e) {
+                console.warn('CommandMap init:', e);
             }
         }
-        graph3d.start();
     } else {
         coreCanvas.style.display = 'block';
         graphContainer.style.display = 'none';
-
-        if (graph3d) {
-            graph3d.stop();
-            graph3d.destroy();
-            graph3d = null;
-        }
     }
 }
 

@@ -77,15 +77,33 @@ def initialize_agents() -> JarvisAgent:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-    # Startup
+    import time
+    startup_start = time.time()
     config = get_config()
-    
-    # Initialize database
+
+    # === STARTUP SELF-DEBUG ===
+    from jarvis.core.diagnostics import run_diagnostics
+    diag_results = await run_diagnostics()
+
+    failed = [r for r in diag_results if not r.ok]
+    recovered = [r for r in diag_results if r.recovered]
+
+    for r in diag_results:
+        tag = "✓" if r.ok else "✗"
+        rec = " [RECOVERED]" if r.recovered else ""
+        print(f"  {tag} {r.name}: {r.message}{rec}")
+
+    if failed:
+        unrecovered = [r for r in failed if not r.recovered]
+        if unrecovered:
+            print(f"\n  ⚠ {len(unrecovered)} subsystem(s) unhealthy — JARVIS will run with degraded capabilities\n")
+
+    # === DATABASE ===
     db = await get_db()
-    
-    # Initialize agents
+
+    # === AGENTS ===
     initialize_agents()
-    
+
     # Restore agent states from database
     try:
         from jarvis.core.models import AgentState
@@ -97,16 +115,19 @@ async def lifespan(app: FastAPI):
                 except ValueError:
                     pass
     except Exception:
-        pass  # Don't fail startup on state restoration errors
-    
-    # Load voice engine
-    from jarvis.web.services.tts import voice_engine
-    voice_engine.load()
-    
-    # Initialize workspace manager
+        pass
+
+    # === VOICE ENGINE ===
+    try:
+        from jarvis.web.services.tts import voice_engine
+        voice_engine.load()
+    except Exception as e:
+        print(f"  ⚠ Voice engine: {e}")
+
+    # === WORKSPACE MANAGER ===
     global workspace_manager
     workspace_manager = WorkspaceManager()
-    
+
     # Auto-register JARVIS itself as a known project
     try:
         from jarvis.brain.project_memory import project_memory
@@ -124,15 +145,9 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
-    # v3.1: Register capabilities for existing tools
+    # === CAPABILITIES ===
     try:
         from jarvis.core.capabilities import registry, Capability, CapType
-        from jarvis.computer.controller import ComputerController
-        ctrl = ComputerController.__new__(ComputerController)
-        for action in ComputerController.ACTIONS if hasattr(ComputerController, 'ACTIONS') else []:
-            pass  # Actions registered lazily on first use
-
-        # Register known tool capabilities
         tool_caps = [
             ("browser_navigate", "♣K", "Navigate to a URL", ["web"]),
             ("browser_screenshot", "♣K", "Screenshot current page", ["web"]),
@@ -151,8 +166,6 @@ async def lifespan(app: FastAPI):
                 name=name, owner=owner, type=CapType.TOOL,
                 description=desc, tags=tags,
             ))
-
-        # Register worker capabilities
         for king in jarvis.get_all_kings():
             for worker in king.get_all_workers():
                 await registry.register(Capability(
@@ -165,20 +178,23 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass
 
-    # v3.1: Emit startup event
+    # === EMIT STARTUP EVENT ===
     try:
         from jarvis.core.events import event_bus, Event
         await event_bus.emit(Event(
             type="system.started",
-            data={"version": "3.1.0", "host": config.host, "port": config.port},
+            data={"version": "4.2.0", "host": config.host, "port": config.port},
             source="system",
         ))
     except Exception:
         pass
-    
+
+    elapsed = time.time() - startup_start
+    print(f"  ✓ JARVIS v4.2.0 ready ({elapsed:.1f}s)\n")
+
     yield
-    
-    # Shutdown
+
+    # === SHUTDOWN ===
     await db.close()
 
 

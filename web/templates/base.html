@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JARVIS</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/design-system.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
 
     <!-- Three.js (local) -->
     <script src="/static/vendor/three.min.js"></script>
@@ -14,146 +15,464 @@
     <script src="/static/vendor/RenderPass.js"></script>
     <script src="/static/vendor/ShaderPass.js"></script>
     <script src="/static/vendor/UnrealBloomPass.js"></script>
-
-    <!-- HTMX -->
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 <body>
     <div id="app">
-        <!-- Three.js Canvas Container -->
+        <!-- Three.js Canvas (behind everything) -->
         <div id="jarvis-canvas"></div>
 
-        <!-- UI Overlay -->
-        <div id="ui-overlay">
-            <!-- Top Bar -->
-            <div class="top-bar">
-                <div class="logo">
-                    <div class="logo-dot"></div>
-                    <span class="logo-text">JARVIS</span>
-                </div>
-                <div class="status-badge">
-                    <div class="status-dot"></div>
-                    <span class="status-text">ONLINE</span>
-                </div>
+        <!-- ========== LEFT NAVIGATION ========== -->
+        <nav class="nav-panel" id="nav-panel">
+            <!-- Logo -->
+            <div class="nav-logo">
+                <div class="logo-orb"></div>
             </div>
 
-            <!-- Center Status -->
-            <div class="center-status">
-                <div class="status-label">NEURAL CORE</div>
-                <div class="status-state" id="core-state">INITIALIZING</div>
-            </div>
-        </div>
-
-        <!-- Navigation Buttons -->
-        <div class="nav-buttons">
-            <button class="nav-btn" onclick="togglePanel('memory')" title="Memory">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                    <path d="M2 17l10 5 10-5"/>
-                    <path d="M2 12l10 5 10-5"/>
-                </svg>
-            </button>
-            <button class="nav-btn" onclick="togglePanel('voice')" title="Voice Samples">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                    <line x1="12" y1="19" x2="12" y2="23"/>
-                    <line x1="8" y1="23" x2="16" y2="23"/>
-                </svg>
-            </button>
-            <button class="nav-btn" onclick="togglePanel('sessions')" title="Sessions">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-            </button>
-        </div>
-
-        <!-- Memory Panel -->
-        <div class="side-panel left" id="memory-panel">
-            <div class="panel-header">
-                <h3>Memory</h3>
-                <button class="panel-close" onclick="togglePanel('memory')">&times;</button>
-            </div>
-            <div class="panel-content">
-                <div id="memory-content" hx-get="/api/memory" hx-trigger="load" hx-swap="innerHTML">
-                    <p style="color: var(--text-secondary); font-size: 12px;">Loading...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Voice Panel -->
-        <div class="side-panel right" id="voice-panel">
-            <div class="panel-header">
-                <h3>Voice Samples</h3>
-                <button class="panel-close" onclick="togglePanel('voice')">&times;</button>
-            </div>
-            <div class="panel-content">
-                <div id="voice-content" hx-get="/api/voice/samples" hx-trigger="load" hx-swap="innerHTML">
-                    <p style="color: var(--text-secondary); font-size: 12px;">Loading...</p>
-                </div>
-                <button class="btn" style="width: 100%; margin-top: 12px;" onclick="document.getElementById('upload-modal').showModal()">
-                    + Add Voice Sample
+            <!-- Primary Navigation -->
+            <div class="nav-section">
+                <button class="nav-item active" data-workspace="chat" data-tooltip="Chat" onclick="JARVIS.workspace.switch('chat')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                </button>
+                <button class="nav-item" data-workspace="work" data-tooltip="Work" onclick="JARVIS.workspace.switch('work')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                    </svg>
+                </button>
+                <button class="nav-item" data-workspace="think" data-tooltip="Think" onclick="JARVIS.workspace.switch('think')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </button>
+                <button class="nav-item" data-workspace="build" data-tooltip="Build" onclick="JARVIS.workspace.switch('build')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                </button>
+                <button class="nav-item" data-workspace="control" data-tooltip="Control" onclick="JARVIS.workspace.switch('control')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="4" y="4" width="16" height="16" rx="2" ry="2"/>
+                        <rect x="9" y="9" width="6" height="6"/>
+                        <line x1="9" y1="1" x2="9" y2="4"/>
+                        <line x1="15" y1="1" x2="15" y2="4"/>
+                        <line x1="9" y1="20" x2="9" y2="23"/>
+                        <line x1="15" y1="20" x2="15" y2="23"/>
+                        <line x1="20" y1="9" x2="23" y2="9"/>
+                        <line x1="20" y1="14" x2="23" y2="14"/>
+                        <line x1="1" y1="9" x2="4" y2="9"/>
+                        <line x1="1" y1="14" x2="4" y2="14"/>
+                    </svg>
                 </button>
             </div>
+
+            <div class="nav-divider"></div>
+
+            <!-- Secondary Navigation -->
+            <div class="nav-section">
+                <button class="nav-item" data-workspace="observe" data-tooltip="Observe" onclick="JARVIS.workspace.switch('observe')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+                <button class="nav-item" data-workspace="missions" data-tooltip="Missions" onclick="JARVIS.workspace.switch('missions')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                        <path d="M2 17l10 5 10-5"/>
+                        <path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="nav-spacer"></div>
+
+            <!-- Bottom Navigation -->
+            <div class="nav-bottom">
+                <button class="nav-item" data-tooltip="Voice Mode" onclick="JARVIS.toggleVoiceMode()" id="voice-mode-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                    </svg>
+                </button>
+                <button class="nav-item" data-tooltip="Settings" onclick="JARVIS.workspace.switch('settings')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+            </div>
+        </nav>
+
+        <!-- ========== CENTER WORKSPACE ========== -->
+        <main class="workspace" id="workspace">
+            <!-- Workspace views are injected here by workspace.js -->
+
+            <!-- Chat View (default) -->
+            <div class="workspace-view active" id="view-chat">
+                <div class="workspace-header">
+                    <span class="workspace-title">Communication</span>
+                    <div class="flex items-center gap-2">
+                        <button class="btn-icon" onclick="JARVIS.workspace.switch('missions')" data-tooltip="Missions">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="workspace-content" style="padding:0; display:flex; flex-direction:column;">
+                    <!-- Messages area -->
+                    <div class="chat-messages" id="chat-messages" style="flex:1; padding: var(--space-4) var(--space-5);">
+                        <!-- Welcome message -->
+                        <div class="chat-message assistant">
+                            <div style="margin-bottom:var(--space-2); color:var(--gold); font-size:var(--text-xs); letter-spacing:var(--tracking-widest); text-transform:uppercase;">JARVIS</div>
+                            <div>Good to see you. All systems are online. How can I help?</div>
+                        </div>
+                    </div>
+                    <!-- Input area -->
+                    <div class="workspace-chat">
+                        <div class="chat-input-row">
+                            <button class="btn-icon" onclick="JARVIS.voice.toggle()" id="chat-mic-btn" title="Voice input">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                                </svg>
+                            </button>
+                            <textarea
+                                id="chat-input"
+                                class="chat-input"
+                                placeholder="Speak to JARVIS..."
+                                rows="1"
+                                onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();JARVIS.chat.send()}"
+                            ></textarea>
+                            <button class="chat-send-btn" onclick="JARVIS.chat.send()" title="Send">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Work View -->
+            <div class="workspace-view" id="view-work">
+                <div class="workspace-header">
+                    <span class="workspace-title">Work</span>
+                </div>
+                <div class="workspace-content">
+                    <div class="text-label" style="margin-bottom:var(--space-4);">Workspaces</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:var(--space-3);">
+                        <div class="card" style="cursor:pointer;" onclick="JARVIS.workspace.openSub('work','coding')">
+                            <div style="font-size:20px; margin-bottom:var(--space-2);">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--accent)" stroke-width="1.5"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            </div>
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Coding</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">IDE, Terminal, Files</div>
+                        </div>
+                        <div class="card" style="cursor:pointer;">
+                            <div style="font-size:20px; margin-bottom:var(--space-2);">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--gold)" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                            </div>
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Projects</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Active repositories</div>
+                        </div>
+                        <div class="card" style="cursor:pointer;">
+                            <div style="font-size:20px; margin-bottom:var(--space-2);">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--success)" stroke-width="1.5"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></svg>
+                            </div>
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Git</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Version control</div>
+                        </div>
+                        <div class="card" style="cursor:pointer;">
+                            <div style="font-size:20px; margin-bottom:var(--space-2);">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--warning)" stroke-width="1.5"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                            </div>
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Terminal</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Shell access</div>
+                        </div>
+                        <div class="card" style="cursor:pointer;">
+                            <div style="font-size:20px; margin-bottom:var(--space-2);">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--danger)" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                            </div>
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Engineering</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">CAD, PCB, Firmware</div>
+                        </div>
+                        <div class="card" style="cursor:pointer;">
+                            <div style="font-size:20px; margin-bottom:var(--space-2);">
+                                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--text-secondary)" stroke-width="1.5"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                            </div>
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Files</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">File browser</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Think View -->
+            <div class="workspace-view" id="view-think">
+                <div class="workspace-header">
+                    <span class="workspace-title">Think</span>
+                </div>
+                <div class="workspace-content">
+                    <div class="text-label" style="margin-bottom:var(--space-4);">Knowledge</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:var(--space-3);">
+                        <div class="card" style="cursor:pointer;">
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Conversations</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Chat history & threads</div>
+                        </div>
+                        <div class="card" style="cursor:pointer;">
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Research</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Active research tasks</div>
+                        </div>
+                        <div class="card" style="cursor:pointer;">
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Knowledge</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Knowledge graph</div>
+                        </div>
+                        <div class="card" style="cursor:pointer;">
+                            <div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:2px;">Memory</div>
+                            <div style="font-size:var(--text-xs); color:var(--text-tertiary);">Preferences & context</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Build View -->
+            <div class="workspace-view" id="view-build">
+                <div class="workspace-header">
+                    <span class="workspace-title">Build</span>
+                </div>
+                <div class="workspace-content">
+                    <div class="text-label" style="margin-bottom:var(--space-4);">Hardware & Firmware</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:var(--space-3);">
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">CAD</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">3D modeling</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">PCB</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">Circuit design</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Firmware</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">Embedded systems</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Simulation</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">Testing & validation</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Control View -->
+            <div class="workspace-view" id="view-control">
+                <div class="workspace-header">
+                    <span class="workspace-title">Control</span>
+                </div>
+                <div class="workspace-content">
+                    <div class="text-label" style="margin-bottom:var(--space-4);">Systems</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:var(--space-3);">
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Computer</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">System control</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Automation</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">Workflows & scripts</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">IoT</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">Connected devices</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Applications</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">App management</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observe View -->
+            <div class="workspace-view" id="view-observe">
+                <div class="workspace-header">
+                    <span class="workspace-title">Observe</span>
+                </div>
+                <div class="workspace-content" id="observe-content">
+                    <div class="text-label" style="margin-bottom:var(--space-4);">System Intelligence</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:var(--space-3);">
+                        <div class="card"><div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:var(--space-3);">Mission Control</div><div id="observe-missions" style="font-size:var(--text-sm); color:var(--text-tertiary);">No active missions</div></div>
+                        <div class="card"><div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:var(--space-3);">Agent Activity</div><div id="observe-agents" style="font-size:var(--text-sm); color:var(--text-tertiary);">All agents idle</div></div>
+                        <div class="card"><div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:var(--space-3);">System Health</div><div id="observe-health">
+                            <div class="intel-metric"><span class="intel-metric-label">API</span><span class="intel-metric-value" style="color:var(--success);">Online</span></div>
+                            <div class="intel-metric"><span class="intel-metric-label">Database</span><span class="intel-metric-value" style="color:var(--success);">Connected</span></div>
+                        </div></div>
+                        <div class="card"><div style="font-size:var(--text-md); font-weight:var(--weight-medium); margin-bottom:var(--space-3);">Analytics</div><div id="observe-analytics" style="font-size:var(--text-sm); color:var(--text-tertiary);">Loading...</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Missions View -->
+            <div class="workspace-view" id="view-missions">
+                <div class="workspace-header">
+                    <span class="workspace-title">Missions</span>
+                    <button class="btn btn-ghost" onclick="JARVIS.missions.createNew()" style="font-size:var(--text-xs); padding: var(--space-1) var(--space-3);">+ New Mission</button>
+                </div>
+                <div class="workspace-content" id="missions-list">
+                    <div style="text-align:center; padding:var(--space-16) 0; color:var(--text-tertiary);">
+                        <div style="font-size:32px; margin-bottom:var(--space-3); opacity:0.3;">
+                            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                        </div>
+                        <div style="font-size:var(--text-md); margin-bottom:var(--space-2);">No active missions</div>
+                        <div style="font-size:var(--text-sm);">Start a conversation to begin a mission</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings View -->
+            <div class="workspace-view" id="view-settings">
+                <div class="workspace-header">
+                    <span class="workspace-title">Settings</span>
+                </div>
+                <div class="workspace-content">
+                    <div class="text-label" style="margin-bottom:var(--space-4);">Configuration</div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:var(--space-3);">
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Models</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">AI model selection</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Voice</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">TTS & STT configuration</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Appearance</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">Theme & display</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Security</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">API keys & access</div></div>
+                        <div class="card" style="cursor:pointer;"><div style="font-size:var(--text-md); font-weight:var(--weight-medium);">Plugins</div><div style="font-size:var(--text-xs); color:var(--text-tertiary);">Extensions & MCP</div></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ========== RIGHT INTELLIGENCE PANEL ========== -->
+        <aside class="intel-panel" id="intel-panel">
+            <div class="intel-header">
+                <span class="intel-title">Intelligence</span>
+                <button class="btn-icon" onclick="JARVIS.togglePanel()" style="width:24px; height:24px;">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="intel-content" id="intel-content">
+                <!-- Core State -->
+                <div class="intel-section">
+                    <div class="intel-section-title">Core State</div>
+                    <div class="intel-card">
+                        <div class="intel-metric">
+                            <span class="intel-metric-label">Status</span>
+                            <span class="intel-metric-value" id="intel-status" style="color:var(--success);">Ready</span>
+                        </div>
+                        <div class="intel-metric">
+                            <span class="intel-metric-label">Model</span>
+                            <span class="intel-metric-value" id="intel-model" style="font-size:10px;">big-pickle</span>
+                        </div>
+                        <div class="intel-metric">
+                            <span class="intel-metric-label">Uptime</span>
+                            <span class="intel-metric-value" id="intel-uptime">0m</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Mission -->
+                <div class="intel-section" id="intel-mission-section" style="display:none;">
+                    <div class="intel-section-title">Current Mission</div>
+                    <div class="intel-card" id="intel-mission-card">
+                        <div style="font-size:var(--text-sm); font-weight:var(--weight-medium); margin-bottom:var(--space-2);" id="intel-mission-title">-</div>
+                        <div class="progress-bar" style="margin-bottom:var(--space-2);">
+                            <div class="progress-fill" id="intel-mission-progress" style="width:0%;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <span class="intel-metric-label" id="intel-mission-pct">0%</span>
+                            <span class="intel-metric-label" id="intel-mission-eta">ETA: --</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Thinking -->
+                <div class="intel-section">
+                    <div class="intel-section-title">Live Thinking</div>
+                    <div class="thinking-stream" id="thinking-stream">
+                        <div class="thinking-line" style="color:var(--text-tertiary);">Waiting for activity...</div>
+                    </div>
+                </div>
+
+                <!-- Active Kings & Workers -->
+                <div class="intel-section">
+                    <div class="intel-section-title">Active Agents</div>
+                    <div id="intel-agents">
+                        <div class="intel-card" style="text-align:center; color:var(--text-tertiary); font-size:var(--text-xs); padding:var(--space-4);">
+                            No active agents
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Metrics -->
+                <div class="intel-section">
+                    <div class="intel-section-title">System</div>
+                    <div class="intel-card">
+                        <div class="intel-metric">
+                            <span class="intel-metric-label">CPU</span>
+                            <span class="intel-metric-value" id="intel-cpu">-</span>
+                        </div>
+                        <div class="intel-metric">
+                            <span class="intel-metric-label">API Calls</span>
+                            <span class="intel-metric-value" id="intel-api-calls">0</span>
+                        </div>
+                        <div class="intel-metric">
+                            <span class="intel-metric-label">Tokens</span>
+                            <span class="intel-metric-value" id="intel-tokens">0</span>
+                        </div>
+                        <div class="intel-metric">
+                            <span class="intel-metric-label">Cost</span>
+                            <span class="intel-metric-value" id="intel-cost" style="color:var(--gold);">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Events -->
+                <div class="intel-section">
+                    <div class="intel-section-title">Recent Events</div>
+                    <div id="intel-events" style="font-size:var(--text-xs); color:var(--text-tertiary);">
+                        <div style="padding:var(--space-2) 0; border-bottom:1px solid var(--border-subtle);">System initialized</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ========== BOTTOM COMMAND DOCK ========== -->
+        <footer class="command-dock" id="command-dock">
+            <div class="dock-search">
+                <svg class="dock-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" class="dock-search-input" id="dock-search" placeholder="Search or command..." onkeydown="if(event.key==='Enter')JARVIS.command.execute(this.value)">
+                <span class="dock-search-shortcut">⌘K</span>
+            </div>
+            <div class="dock-actions">
+                <button class="btn-icon" onclick="JARVIS.toggleVoiceMode()" id="dock-voice-btn" data-tooltip="Voice Mode">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+                </button>
+            </div>
+            <div class="dock-status">
+                <div class="dock-status-dot" id="dock-status-dot"></div>
+                <span class="dock-status-text" id="dock-status-text">ONLINE</span>
+            </div>
+            <div class="dock-cost">
+                <span class="cost-value" id="dock-cost">$0.00</span>
+            </div>
+        </footer>
+
+        <!-- ========== VOICE MODE OVERLAY ========== -->
+        <div class="voice-overlay" id="voice-overlay">
+            <div class="voice-status">
+                <div class="voice-status-label">JARVIS</div>
+                <div class="voice-status-state" id="voice-state">READY</div>
+            </div>
+            <div class="voice-transcript" id="voice-transcript"></div>
+            <button class="btn btn-ghost" onclick="JARVIS.toggleVoiceMode()" style="position:absolute; top:var(--space-5); right:var(--space-5);">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                Exit Voice
+            </button>
         </div>
 
-        <!-- Sessions Panel -->
-        <div class="side-panel left" id="sessions-panel">
-            <div class="panel-header">
-                <h3>Sessions</h3>
-                <button class="panel-close" onclick="togglePanel('sessions')">&times;</button>
-            </div>
-            <div class="panel-content">
-                <div id="sessions-content" hx-get="/api/sessions" hx-trigger="load" hx-swap="innerHTML">
-                    <p style="color: var(--text-secondary); font-size: 12px;">Loading...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chat Panel -->
-        <div class="chat-panel" id="chat-panel">
-            <div class="chat-header" onclick="toggleChat()">
-                <div class="chat-header-left">
-                    <h3>Communication</h3>
-                    <span class="message-count" id="message-count">0</span>
-                </div>
-                <button class="toggle-chat-btn">&#9660;</button>
-            </div>
-
-            <div class="messages-container" id="messages"></div>
-
-            <div class="chat-input-area">
-                <div class="input-row">
-                    <button id="mic-btn" onclick="toggleVoice()" class="btn-icon" title="Toggle voice input">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                        </svg>
-                    </button>
-                    <textarea
-                        id="message-input"
-                        placeholder="Speak to JARVIS..."
-                        rows="1"
-                        onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendMessage()}"
-                    ></textarea>
-                    <button onclick="sendMessage()" class="btn-send" title="Send">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                        </svg>
-                    </button>
-                </div>
+        <!-- ========== COMMAND PALETTE ========== -->
+        <div class="command-palette-overlay" id="command-palette">
+            <div class="command-palette">
+                <input type="text" class="command-palette-input" id="palette-input" placeholder="Type a command..." oninput="JARVIS.command.filter(this.value)">
+                <div class="command-palette-results" id="palette-results"></div>
             </div>
         </div>
 
         <!-- Upload Dialog -->
-        <dialog id="upload-modal">
+        <dialog id="upload-modal" style="background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-xl); color:var(--text-primary); padding:var(--space-6); min-width:360px; backdrop-filter:blur(20px);">
             <form method="dialog" id="upload-form">
-                <h3>Add Voice Sample</h3>
-                <input type="text" name="name" placeholder="Voice name" required>
-                <input type="file" name="audio" accept="audio/*" required>
-                <div class="modal-actions">
-                    <button type="button" onclick="uploadVoice()" class="btn-primary">Upload</button>
-                    <button type="button" onclick="this.closest('dialog').close()" class="btn">Cancel</button>
+                <h3 style="font-size:var(--text-md); letter-spacing:var(--tracking-wider); text-transform:uppercase; color:var(--accent); margin-bottom:var(--space-4);">Add Voice Sample</h3>
+                <input type="text" name="name" placeholder="Voice name" required class="input" style="margin-bottom:var(--space-3);">
+                <input type="file" name="audio" accept="audio/*" required class="input" style="margin-bottom:var(--space-4);">
+                <div style="display:flex; gap:var(--space-2); justify-content:flex-end;">
+                    <button type="button" onclick="JARVIS.voice.upload()" class="btn btn-primary">Upload</button>
+                    <button type="button" onclick="this.closest('dialog').close()" class="btn btn-ghost">Cancel</button>
                 </div>
             </form>
         </dialog>
@@ -163,7 +482,7 @@
     <script src="/static/js/jarvis-core.js"></script>
     <script src="/static/js/audio-analyzer.js"></script>
     <script src="/static/js/state-machine.js"></script>
+    <script src="/static/js/sounds.js"></script>
     <script src="/static/js/app.js"></script>
-    <script src="/static/js/voice.js"></script>
 </body>
 </html>

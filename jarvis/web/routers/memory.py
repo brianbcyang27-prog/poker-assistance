@@ -1,321 +1,263 @@
-"""Memory router - Preferences, data, knowledge graph, and notes."""
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional, List
+"""Memory API endpoints.
 
-from jarvis.core.database import get_db
+Provides REST API for the human-like memory system:
+- Working memory operations
+- Episode CRUD
+- Personal memory CRUD
+- Journal entries
+- Consolidation trigger
+- Memory retrieval with context assembly
+"""
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+from typing import Optional
 
 router = APIRouter(prefix="/api/memory", tags=["memory"])
 
 
-class PreferenceRequest(BaseModel):
+# ── Request/Response Models ──────────────────────────────────
+
+class WorkingMemoryUpdate(BaseModel):
+    slot: str = Field(..., description="working|conversation|mission|project|agents|files|decisions|user_context")
+    content: str
+    importance: float = Field(0.5, ge=0, le=1)
+    ttl_seconds: Optional[int] = Field(None, ge=0)
+    metadata: dict = Field(default_factory=dict)
+
+class EpisodeCreate(BaseModel):
+    title: str
+    summary: str = ""
+    episode_type: str = Field("conversation", pattern="^(conversation|decision|milestone|learning|bug|meeting|mission)$")
+    participants: list[str] = Field(default_factory=list)
+    decisions: list[str] = Field(default_factory=list)
+    importance_score: int = Field(50, ge=0, le=100)
+    tags: list[str] = Field(default_factory=list)
+
+class PersonalMemoryCreate(BaseModel):
+    category: str = Field(..., pattern="^(preference|rule|goal|habit|fact|relationship|project_context|tool_usage|learning)$")
     key: str
     value: str
+    confidence: float = Field(0.6, ge=0, le=1)
+    remember_mode: str = Field("always_remember", pattern="^(always_remember|ask_before|never_remember)$")
+
+class JournalUpdate(BaseModel):
+    summary: Optional[str] = None
+    highlights: Optional[list[str]] = None
+    decisions: Optional[list[str]] = None
+    tomorrow: Optional[list[str]] = None
+    mood: Optional[str] = Field(None, pattern="^(neutral|focused|productive|stuck)$")
+    tags: Optional[list[str]] = None
+
+class RetrievalQuery(BaseModel):
+    query: str
+    max_results: int = Field(10, ge=1, le=50)
+    memory_types: Optional[list[str]] = None
+
+class ConsolidateRequest(BaseModel):
+    force: bool = False
 
 
-class NoteCreate(BaseModel):
-    title: str
-    content: str
-    tags: Optional[List[str]] = []
+# ── Working Memory ───────────────────────────────────────────
 
-
-class NoteUpdate(BaseModel):
-    content: str
-
-
-class ExtractRequest(BaseModel):
-    text: str
-    agent_id: str = "jarvis"
-
-
-class GraphNodeRequest(BaseModel):
-    id: str
-    label: str
-    type: str = "concept"
-    content: str = ""
-
-
-class GraphEdgeRequest(BaseModel):
-    source: str
-    target: str
-    relation: str = "related_to"
-    weight: float = 1.0
-
-
-# Original endpoints
-
-@router.get("")
-async def get_memory():
-    """Get all memory data."""
-    db = await get_db()
-    preferences = await db.get_all_preferences()
-    projects = await db.get_all_projects()
-    decisions = await db.get_decisions()
+@router.get("/working")
+async def get_working_memory():
+    from ...brain.memory.working import get_working_memory
+    wm = get_working_memory()
+    entries = await wm.get_all()
+    context = await wm.get_context()
     return {
-        "preferences": preferences,
-        "projects": projects,
-        "decisions": decisions,
+        "slots": {k: {
+            "content": v.get("content", "")[:200],
+            "importance": v.get("importance", 0),
+            "created_at": v.get("created_at"),
+        } for k, v in entries.items()},
+        "context_summary": context[:500],
     }
 
 
-@router.get("/preferences")
-async def get_preferences():
-    """Get all preferences."""
-    db = await get_db()
-    return await db.get_all_preferences()
+@router.post("/working")
+async def update_working_memory(req: WorkingMemoryUpdate):
+    from ...brain.memory.working import get_working_memory
+    wm = get_working_memory()
+    await wm.update(
+        req.slot, req.content,
+        importance=req.importance,
+        ttl_seconds=req.ttl_seconds,
+        metadata=req.metadata,
+    )
+    return {"status": "updated", "slot": req.slot}
 
 
-@router.post("/preferences")
-async def set_preference(req: PreferenceRequest):
-    """Set a preference."""
-    db = await get_db()
-    await db.set_preference(req.key, req.value)
-    return {"status": "ok"}
+# ── Episodes ─────────────────────────────────────────────────
+
+@router.get("/episodes")
+async def list_episodes(limit: int = 20, episode_type: Optional[str] = None):
+    from ...brain.memory.episodic import get_episodic_memory
+    em = get_episodic_memory()
+    if episode_type:
+        # Filter by type via search
+        episodes = await em.search(episode_type, limit=limit)
+        episodes = [ep for ep in episodes if ep.episode_type == episode_type]
+    else:
+        episodes = await em.get_recent(limit=limit)
+    return {"episodes": [ep.to_dict() for ep in episodes]}
 
 
-@router.get("/projects")
-async def get_projects():
-    """Get all projects."""
-    db = await get_db()
-    return await db.get_all_projects()
-
-
-@router.get("/decisions")
-async def get_decisions():
-    """Get important decisions."""
-    db = await get_db()
-    return await db.get_decisions()
-
-
-# Notes endpoints (Obsidian-style)
-
-@router.post("/notes")
-async def create_note(req: NoteCreate):
-    from jarvis.brain.memory.note import notes
-    return await notes.create_note(req.title, req.content, req.tags)
-
-
-@router.get("/notes")
-async def list_notes(limit: int = 50):
-    from jarvis.brain.memory.note import notes
-    return await notes.list_notes(limit)
-
-
-@router.get("/notes/{note_id}")
-async def get_note(note_id: str):
-    from jarvis.brain.memory.note import notes
-    result = await notes.get_note(note_id)
-    if not result.get("ok"):
-        raise HTTPException(status_code=404, detail="Note not found")
+@router.post("/episodes")
+async def create_episode(req: EpisodeCreate):
+    from ...brain.memory.episodic import get_episodic_memory
+    em = get_episodic_memory()
+    result = await em.create_episode(
+        title=req.title,
+        summary=req.summary,
+        episode_type=req.episode_type,
+        participants=req.participants,
+        decisions=req.decisions,
+        importance_score=req.importance_score,
+        tags=req.tags,
+    )
     return result
 
 
-@router.put("/notes/{note_id}")
-async def update_note(note_id: str, req: NoteUpdate):
-    from jarvis.brain.memory.note import notes
-    return await notes.update_note(note_id, req.content)
+@router.get("/episodes/{episode_id}")
+async def get_episode(episode_id: int):
+    from ...brain.memory.episodic import get_episodic_memory
+    em = get_episodic_memory()
+    ep = await em.get_episode(episode_id)
+    if not ep:
+        raise HTTPException(status_code=404, detail="Episode not found")
+    return ep.to_dict()
 
 
-@router.delete("/notes/{note_id}")
-async def delete_note(note_id: str):
-    from jarvis.brain.memory.note import notes
-    return await notes.delete_note(note_id)
+@router.get("/episodes/timeline")
+async def episode_timeline(days: int = 30):
+    from ...brain.memory.episodic import get_episodic_memory
+    em = get_episodic_memory()
+    timeline = await em.get_timeline(days=days)
+    return {"timeline": timeline}
 
 
-@router.get("/notes/search/{query}")
-async def search_notes(query: str, limit: int = 20):
-    from jarvis.brain.memory.note import notes
-    return await notes.search_notes(query, limit)
+# ── Personal Memory ──────────────────────────────────────────
+
+@router.get("/personal")
+async def list_personal_memory(category: Optional[str] = None):
+    from ...brain.memory.personal import get_personal_memory
+    pm = get_personal_memory()
+    if category:
+        memories = await pm.get_by_category(category)
+    else:
+        categories = ["preference", "rule", "goal", "habit", "fact", "project_context", "tool_usage"]
+        memories = []
+        for cat in categories:
+            memories.extend(await pm.get_by_category(cat))
+    return {"memories": [m.to_dict() for m in memories]}
 
 
-@router.get("/backlinks/{note_id}")
-async def get_backlinks(note_id: str):
-    from jarvis.brain.memory.note import notes
-    backlinks = await notes._get_backlinks(note_id)
-    return {"ok": True, "backlinks": backlinks}
-
-
-# Knowledge graph endpoints
-
-@router.get("/graph")
-async def get_graph(limit: int = 200):
-    from jarvis.brain.memory.graph import graph
-    return await graph.get_graph_data(limit)
-
-
-@router.get("/graph/stats")
-async def get_graph_stats():
-    from jarvis.brain.memory.graph import graph
-    return await graph.get_stats()
-
-
-@router.get("/graph/node/{node_id}")
-async def get_node(node_id: str):
-    from jarvis.brain.memory.graph import graph
-    node = await graph.get_node(node_id)
-    if not node:
-        raise HTTPException(status_code=404, detail="Node not found")
-    neighbors = await graph.get_neighbors(node_id)
-    return {"ok": True, "node": node, "neighbors": neighbors}
-
-
-@router.post("/graph/node")
-async def add_node(req: GraphNodeRequest):
-    from jarvis.brain.memory.graph import graph, Node
-    node = Node(id=req.id, label=req.label, type=req.type, content=req.content)
-    return await graph.add_node(node)
-
-
-@router.post("/graph/edge")
-async def add_edge(req: GraphEdgeRequest):
-    from jarvis.brain.memory.graph import graph, Edge
-    edge = Edge(source=req.source, target=req.target, relation=req.relation, weight=req.weight)
-    return await graph.add_edge(edge)
-
-
-@router.get("/graph/search/{query}")
-async def search_graph(query: str, type: Optional[str] = None, limit: int = 20):
-    from jarvis.brain.memory.graph import graph
-    return await graph.search_nodes(query, type, limit)
-
-
-# Knowledge extraction
-
-@router.post("/extract")
-async def extract_knowledge(req: ExtractRequest):
-    from jarvis.brain.memory.extractor import knowledge_extractor
-    return await knowledge_extractor.process_message("user", req.text, req.agent_id)
-
-
-# ── Project Memory Endpoints ────────────────────────────────────────
-
-class ProjectRegisterRequest(BaseModel):
-    name: str
-    path: str
-    description: str = ""
-    language: str = ""
-    server_command: str = ""
-    server_port: int = 0
-    url: str = ""
-    ai_tool_command: str = ""
-    ai_tool_name: str = ""
-    context: dict = {}
-
-
-@router.get("/projects/all")
-async def list_all_projects(status: Optional[str] = None):
-    """List all registered projects with full metadata."""
-    from jarvis.brain.project_memory import project_memory
-    return await project_memory.list_projects(status=status)
-
-
-@router.get("/projects/active")
-async def get_active_project():
-    """Get the most recently active project."""
-    from jarvis.brain.project_memory import project_memory
-    project = await project_memory.get_active_project()
-    if not project:
-        return {"error": "No active project"}
-    return project
-
-
-@router.post("/projects/register")
-async def register_project(req: ProjectRegisterRequest):
-    """Register a new project."""
-    from jarvis.brain.project_memory import project_memory
-    return await project_memory.register_project(
-        name=req.name,
-        path=req.path,
-        description=req.description,
-        language=req.language,
-        server_command=req.server_command,
-        server_port=req.server_port,
-        url=req.url,
-        ai_tool_command=req.ai_tool_command,
-        ai_tool_name=req.ai_tool_name,
-        context=req.context,
+@router.post("/personal")
+async def create_personal_memory(req: PersonalMemoryCreate):
+    from ...brain.memory.personal import get_personal_memory
+    pm = get_personal_memory()
+    result = await pm.remember(
+        req.category, req.key, req.value,
+        confidence=req.confidence,
+        remember_mode=req.remember_mode,
     )
+    return result
 
 
-@router.post("/projects/{name}/touch")
-async def touch_project(name: str):
-    """Update last_worked_on timestamp for a project."""
-    from jarvis.brain.project_memory import project_memory
-    await project_memory.record_activity(name)
-    return {"ok": True}
+@router.get("/personal/profile")
+async def get_profile():
+    from ...brain.memory.personal import get_personal_memory
+    pm = get_personal_memory()
+    profile = await pm.get_profile()
+    return {"profile": profile}
 
 
-@router.post("/projects/{name}/resume")
-async def resume_project(name: str):
-    """Resume a project — launch server, browser, AI tool."""
-    from jarvis.computer.controller import controller
-    return await controller.execute("resume_project", name=name)
+@router.delete("/personal/{category}/{key}")
+async def forget_personal_memory(category: str, key: str):
+    from ...brain.memory.personal import get_personal_memory
+    pm = get_personal_memory()
+    success = await pm.forget(category, key)
+    if not success:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    return {"status": "forgotten", "category": category, "key": key}
 
 
-@router.delete("/projects/{name}")
-async def delete_project(name: str):
-    """Delete a project."""
-    from jarvis.brain.project_memory import project_memory
-    deleted = await project_memory.delete_project(name)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return {"ok": True}
+# ── Journal ──────────────────────────────────────────────────
+
+@router.get("/journal")
+async def get_journal_entries(days: int = 7):
+    from ...brain.memory.journal import get_journal
+    j = get_journal()
+    entries = await j.get_recent(days)
+    return {"entries": [e.__dict__ for e in entries]}
 
 
-# ===== SKILLS (from Hermes Agent pattern) =====
-
-@router.get("/skills")
-async def list_skills():
-    """List all learned skills."""
-    from jarvis.brain.skills import skill_manager
-    return await skill_manager.get_all_skills()
-
-
-@router.get("/skills/top")
-async def top_skills(n: int = 10):
-    """Get top N most successful skills."""
-    from jarvis.brain.skills import skill_manager
-    return await skill_manager.get_top_skills(n)
+@router.get("/journal/today")
+async def get_today_journal():
+    from ...brain.memory.journal import get_journal
+    j = get_journal()
+    entry = await j.get_today()
+    return entry.__dict__ if entry else {"date": j._today(), "empty": True}
 
 
-@router.get("/skills/search")
-async def search_skills(q: str):
-    """Find skills matching a query."""
-    from jarvis.brain.skills import skill_manager
-    return await skill_manager.find_similar(q)
+@router.put("/journal")
+async def update_journal(req: JournalUpdate):
+    from ...brain.memory.journal import get_journal
+    j = get_journal()
+    if req.summary:
+        await j.set_summary(req.summary)
+    if req.highlights:
+        for h in req.highlights:
+            await j.add_highlight(h)
+    if req.decisions:
+        for d in req.decisions:
+            await j.add_decision(d)
+    if req.tomorrow:
+        await j.set_tomorrow(req.tomorrow)
+    if req.mood:
+        await j.set_mood(req.mood)
+    return {"status": "updated"}
 
 
-class SkillCreate(BaseModel):
-    name: str
-    description: str
-    steps: list = []
+# ── Retrieval ────────────────────────────────────────────────
 
-
-@router.post("/skills")
-async def create_skill(req: SkillCreate):
-    """Record a new learned skill."""
-    from jarvis.brain.skills import skill_manager
-    return await skill_manager.record_skill(req.name, req.description, req.steps)
-
-
-@router.post("/skills/{name}/outcome")
-async def skill_outcome(name: str, success: bool = True):
-    """Update skill success/failure count."""
-    from jarvis.brain.skills import skill_manager
-    return await skill_manager.update_outcome(name, success)
-
-
-# ===== FTS5 MEMORY SEARCH =====
-
-@router.get("/search")
-async def search_memory(q: str, limit: int = 10):
-    """Full-text search across conversations and task history."""
-    db = await get_db()
-    convos = await db.search_conversations(q, limit=limit)
-    tasks = await db.search_task_history(q, limit=limit)
+@router.post("/retrieve")
+async def retrieve_memories(req: RetrievalQuery):
+    from ...brain.memory.retrieval import get_retrieval_engine
+    engine = get_retrieval_engine()
+    results = await engine.retrieve(
+        req.query,
+        max_results=req.max_results,
+        memory_types=req.memory_types,
+    )
+    context = engine.assemble_context(results)
     return {
-        "query": q,
-        "conversations": convos,
-        "task_history": tasks,
-        "total": len(convos) + len(tasks),
+        "results": [r.to_dict() for r in results],
+        "context": context,
+        "stats": engine.get_stats(),
     }
+
+
+# ── Consolidation ────────────────────────────────────────────
+
+@router.post("/consolidate")
+async def trigger_consolidation(req: ConsolidateRequest):
+    from ...brain.memory.consolidation import get_consolidator
+    c = get_consolidator()
+    result = await c.consolidate(force=req.force)
+    return result
+
+
+# ── Importance Scoring ───────────────────────────────────────
+
+@router.post("/score")
+async def score_importance(body: dict):
+    from ...brain.memory.importance import importance_scorer
+    score = importance_scorer.score(
+        body.get("content", ""),
+        context=body.get("context", {}),
+    )
+    signals = importance_scorer.extract_signals(body.get("content", ""))
+    return {"score": score, "signals": signals}

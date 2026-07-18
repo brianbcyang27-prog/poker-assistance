@@ -45,5 +45,37 @@
     "created_at": 1784303609.5981,
     "last_used": 1784303609.599058,
     "success_rate": 1.0
+  },
+  "List desktop": {
+    "name": "List desktop",
+    "description": "List all files and folders on the Desktop",
+    "steps": [
+      {
+        "action": "\u2663K",
+        "input": "what files are on my desktop",
+        "output": "{\n    \"intent\": \"file inquiry\",\n    \"tasks\": [\n        {\n            \"king\": \"\u2663K\",\n            \"name\": \"List desktop\",\n            \"description\": \"List all files and folders on the Desktop\",\n         "
+      }
+    ],
+    "success_count": 6,
+    "failure_count": 0,
+    "created_at": 1784347289.3225238,
+    "last_used": 1784363996.24909,
+    "success_rate": 1.0
+  },
+  "Web search": {
+    "name": "Web search",
+    "description": "Search for Python tutorials",
+    "steps": [
+      {
+        "action": "\u2666K",
+        "input": "search the web for python tutorials",
+        "output": "{\n    \"intent\": \"web search\",\n    \"tasks\": [\n        {\n            \"king\": \"\u2666K\",\n            \"name\": \"Web search\",\n            \"description\": \"Search for Python tutorials\",\n            \"priority\": 5\n "
+      }
+    ],
+    "success_count": 1,
+    "failure_count": 0,
+    "created_at": 1784347294.093985,
+    "last_used": 1784347294.0980659,
+    "success_rate": 1.0
   }
 }

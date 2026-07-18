@@ -2,8 +2,8 @@
 
 {% block content %}
 <script>
-    // Initialize JARVIS Core on load
     document.addEventListener('DOMContentLoaded', () => {
+        // Initialize JARVIS Core visualization
         const container = document.getElementById('jarvis-canvas');
         window.jarvisCore = new JarvisCore(container);
         window.jarvisState = new JarvisState();
@@ -12,14 +12,38 @@
         // Connect state machine to visualization
         window.jarvisState.onStateChange((state) => {
             window.jarvisCore.setState(state);
-            document.getElementById('core-state').textContent = state.toUpperCase();
+            // Update intelligence panel status
+            const statusEl = document.getElementById('intel-status');
+            if (statusEl) {
+                const labels = { idle: 'Ready', listening: 'Listening', thinking: 'Thinking', speaking: 'Speaking', working: 'Working' };
+                statusEl.textContent = labels[state] || state;
+                statusEl.style.color = state === 'idle' ? 'var(--success)' : 'var(--gold)';
+            }
+            // Update dock status
+            const dockText = document.getElementById('dock-status-text');
+            if (dockText) {
+                const labels = { idle: 'ONLINE', listening: 'LISTENING', thinking: 'THINKING', speaking: 'SPEAKING', working: 'WORKING' };
+                dockText.textContent = labels[state] || state.toUpperCase();
+            }
         });
 
-        // Set initial state
+        // Set initial state after brief delay for dramatic effect
         setTimeout(() => {
             window.jarvisState.set('idle');
-            document.getElementById('core-state').textContent = 'READY';
         }, 1500);
+
+        // Track uptime
+        window.jarvisStartTime = Date.now();
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - window.jarvisStartTime) / 60000);
+            const el = document.getElementById('intel-uptime');
+            if (el) el.textContent = elapsed < 60 ? `${elapsed}m` : `${Math.floor(elapsed/60)}h ${elapsed%60}m`;
+        }, 30000);
+
+        // Add initial thinking line
+        setTimeout(() => {
+            JARVIS.intel.addThinking('System', 'Neural core initialized');
+        }, 2000);
     });
 </script>
 {% endblock %}

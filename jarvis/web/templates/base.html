@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JARVIS</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/command-map.css">
     <script src="/static/vendor/three.min.js"></script>
     <script src="/static/vendor/CopyShader.js"></script>
     <script src="/static/vendor/LuminosityHighPassShader.js"></script>
@@ -71,7 +72,78 @@
             <main id="center-panel">
                 <div id="center-core">
                     <div id="jarvis-canvas"></div>
-                    <div id="graph-container" style="display:none;"></div>
+                    <div id="graph-container" style="display:none;">
+                        <!-- Agent Command Map (embedded) -->
+                        <div id="command-map" style="width:100%;height:100%;position:relative;">
+                            <canvas id="bg-canvas"></canvas>
+                            <svg id="hierarchy-svg" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
+                                <defs>
+                                    <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+                                        <feGaussianBlur stdDeviation="4" result="blur"/>
+                                        <feFlood flood-color="#00d4ff" flood-opacity="0.6" result="color"/>
+                                        <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                                        <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                    </filter>
+                                    <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
+                                        <feGaussianBlur stdDeviation="4" result="blur"/>
+                                        <feFlood flood-color="#00ff88" flood-opacity="0.6" result="color"/>
+                                        <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                                        <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                    </filter>
+                                    <filter id="glow-red" x="-50%" y="-50%" width="200%" height="200%">
+                                        <feGaussianBlur stdDeviation="4" result="blur"/>
+                                        <feFlood flood-color="#ff4466" flood-opacity="0.6" result="color"/>
+                                        <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                                        <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                    </filter>
+                                    <filter id="glow-yellow" x="-50%" y="-50%" width="200%" height="200%">
+                                        <feGaussianBlur stdDeviation="4" result="blur"/>
+                                        <feFlood flood-color="#ffaa00" flood-opacity="0.6" result="color"/>
+                                        <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                                        <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                    </filter>
+                                    <filter id="glow-white" x="-50%" y="-50%" width="200%" height="200%">
+                                        <feGaussianBlur stdDeviation="6" result="blur"/>
+                                        <feFlood flood-color="#ffffff" flood-opacity="0.8" result="color"/>
+                                        <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                                        <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+                                    </filter>
+                                    <linearGradient id="energy-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#00d4ff" stop-opacity="0"/>
+                                        <stop offset="50%" stop-color="#00d4ff" stop-opacity="1"/>
+                                        <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+                                    </linearGradient>
+                                </defs>
+                                <g id="energy-lines"></g>
+                                <g id="flow-particles"></g>
+                                <g id="nodes"></g>
+                            </svg>
+                            <div id="agent-tooltip" class="tooltip hidden">
+                                <div class="tooltip-header">
+                                    <span class="tooltip-card-id"></span>
+                                    <span class="tooltip-name"></span>
+                                </div>
+                                <div class="tooltip-body">
+                                    <div class="tooltip-row"><span class="tooltip-label">Status</span><span class="tooltip-value tooltip-state"></span></div>
+                                    <div class="tooltip-row"><span class="tooltip-label">Role</span><span class="tooltip-value tooltip-role"></span></div>
+                                    <div class="tooltip-row"><span class="tooltip-label">Personality</span><span class="tooltip-value tooltip-personality"></span></div>
+                                </div>
+                            </div>
+                            <div id="detail-panel" class="hidden">
+                                <div class="detail-header">
+                                    <div class="detail-card-badge" id="detail-card-id"></div>
+                                    <div class="detail-title"><h2 id="detail-name">-</h2><span id="detail-role" class="detail-subtitle">-</span></div>
+                                    <button class="detail-close" onclick="closeDetailPanel()">&times;</button>
+                                </div>
+                                <div class="detail-body">
+                                    <div class="detail-section"><div class="detail-label">STATUS</div><div id="detail-state" class="detail-state-badge">IDLE</div></div>
+                                    <div class="detail-section"><div class="detail-label">CURRENT TASK</div><div id="detail-task" class="detail-task">No task assigned</div></div>
+                                    <div class="detail-section"><div class="detail-label">ABILITIES</div><div id="detail-abilities" class="detail-abilities"></div></div>
+                                    <div class="detail-section"><div class="detail-label">PERSONALITY</div><div id="detail-personality" class="detail-personality">-</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div id="core-label">
                         <div id="core-state">IDLE</div>
@@ -356,6 +428,7 @@
     <script src="/static/js/living-interface.js"></script>
     <script src="/static/js/knowledge-graph.js"></script>
     <script src="/static/js/graph-3d.js"></script>
+    <script src="/static/js/command-map.js"></script>
     <script src="/static/js/department-identity.js"></script>
     <script src="/static/js/explainability.js"></script>
     <script src="/static/js/mission-dag.js"></script>

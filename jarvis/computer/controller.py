@@ -21,6 +21,21 @@ class ComputerController:
         self.search = web_search
         self._initialized = False
 
+    def list_actions(self) -> list[str]:
+        """Return list of available action names."""
+        return [
+            "register_project", "list_projects", "get_active_project",
+            "record_activity", "resume_project", "open_terminal",
+            "browser_navigate", "browser_click", "browser_type",
+            "browser_screenshot", "browser_get_text", "browser_scroll",
+            "browser_press_key", "browser_evaluate",
+            "screen_capture", "screen_capture_region", "screen_get_active_window",
+            "mouse_move", "mouse_click", "mouse_drag", "mouse_scroll",
+            "keyboard_type", "keyboard_press", "keyboard_hotkey",
+            "shell_execute", "web_search", "web_fetch",
+            "arduino_send", "arduino_list",
+        ]
+
     async def initialize(self):
         if not self._initialized:
             await self.browser.start(headless=True)
@@ -75,6 +90,9 @@ class ComputerController:
             # App
             "open_app": self._open_app,
             "open_url": self._open_url,
+
+            # Shell
+            "shell_execute": self._shell_execute,
 
             # Search
             "web_search": self._web_search,
@@ -284,6 +302,28 @@ class ComputerController:
 
     async def _open_url(self, url: str = "", **kw):
         return await self.screen.open_url(url)
+
+    # ── Shell ──────────────────────────────────────────────────────
+
+    async def _shell_execute(self, command: str = "", **kw):
+        """Execute a shell command and return output."""
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+            return {
+                "ok": proc.returncode == 0,
+                "stdout": stdout.decode("utf-8", errors="replace")[:4000],
+                "stderr": stderr.decode("utf-8", errors="replace")[:2000],
+                "returncode": proc.returncode,
+            }
+        except asyncio.TimeoutError:
+            return {"ok": False, "error": "Command timed out (30s)"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     # ── Search ─────────────────────────────────────────────────────
 

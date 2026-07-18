@@ -135,8 +135,11 @@ Your personality: {self.personality}
 
 Plan how to accomplish this task. Break it down into subtasks.
 
-Available workers:
+Available workers (use ONLY the card_id, nothing else):
 {self._format_workers()}
+
+CRITICAL: The "assigned_worker" field MUST be exactly the card_id (e.g. "{self.suit.symbol}Q" or "{self.suit.symbol}J").
+Do NOT include worker names, titles, or descriptions in the assigned_worker field. Just the card_id.
 
 Respond with JSON:
 {{
@@ -144,7 +147,7 @@ Respond with JSON:
         {{
             "name": "subtask name",
             "description": "what needs to be done",
-            "assigned_worker": "worker card_id (e.g., {self.suit.symbol}Q)",
+            "assigned_worker": "{self.suit.symbol}Q",
             "priority": 5
         }}
     ],
@@ -157,14 +160,53 @@ Respond with JSON:
             system_prompt=system_prompt,
         )
         
+        # Fallback: if LLM returned unparseable JSON, auto-assign first worker
+        if response.get("parse_error") or "subtasks" not in response:
+            workers = self.get_all_workers()
+            if workers:
+                response = {
+                    "subtasks": [{
+                        "name": task.name,
+                        "description": task.description,
+                        "assigned_worker": workers[0].card_id,
+                        "priority": 5,
+                    }],
+                    "estimated_time": "unknown",
+                    "notes": f"Auto-assigned (LLM parse failed: {response.get('raw_response', '')[:100]})",
+                }
+        
         return response
+    
+    def _resolve_worker(self, worker_id: str) -> Optional[CardAgent]:
+        """Resolve a worker by card_id, with fuzzy matching fallback."""
+        # Exact match first
+        worker = self._workers.get(worker_id)
+        if worker:
+            return worker
+        
+        # Try to extract card_id from strings like "♣J: Terminal - Terminal Specialist"
+        import re
+        match = re.match(r'([♠♥♦♣][0-9JQKA]+)', worker_id)
+        if match:
+            extracted_id = match.group(1)
+            worker = self._workers.get(extracted_id)
+            if worker:
+                return worker
+        
+        # Try matching by name (case-insensitive partial)
+        worker_id_lower = worker_id.lower()
+        for wid, w in self._workers.items():
+            if w.name.lower() in worker_id_lower or w.title.lower() in worker_id_lower:
+                return w
+        
+        return None
     
     def _assemble_team(self, plan: dict) -> list[CardAgent]:
         """Assemble a team of workers based on the plan."""
         team = []
         for subtask in plan.get("subtasks", []):
             worker_id = subtask.get("assigned_worker", "")
-            worker = self._workers.get(worker_id)
+            worker = self._resolve_worker(worker_id)
             if worker and worker not in team:
                 team.append(worker)
         return team
@@ -177,7 +219,7 @@ Respond with JSON:
         
         for subtask in plan.get("subtasks", []):
             worker_id = subtask.get("assigned_worker", "")
-            worker = self._workers.get(worker_id)
+            worker = self._resolve_worker(worker_id)
             
             if worker is None:
                 results.append(AgentMessage(
@@ -257,10 +299,10 @@ Respond with JSON:
         return "\n".join(parts)
     
     def _format_workers(self) -> str:
-        """Format worker list for prompts."""
+        """Format worker list for prompts — card_id only, no names."""
         lines = []
         for worker in self._workers.values():
-            lines.append(f"- {worker.card_id}: {worker.name} - {worker.title}")
+            lines.append(f"- {worker.card_id}")
         return "\n".join(lines) if lines else "No workers registered"
     
     def process_message(self, message: AgentMessage) -> Optional[AgentMessage]:

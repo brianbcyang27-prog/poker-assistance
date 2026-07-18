@@ -738,6 +738,23 @@ async def timeline_record_event(mission_id: str, body: dict):
     return {"ok": True}
 
 
+# ===== DIAGNOSTICS =====
+
+@router.get("/diagnostics")
+async def run_diagnostics_endpoint():
+    """Run self-diagnostics and return results."""
+    from jarvis.core.diagnostics import run_diagnostics
+    results = await run_diagnostics()
+    return {
+        "results": [
+            {"name": r.name, "ok": r.ok, "message": r.message, "recovered": r.recovered}
+            for r in results
+        ],
+        "all_healthy": all(r.ok for r in results),
+        "recovered": [r.name for r in results if r.recovered],
+    }
+
+
 # ===== OBSERVABILITY =====
 
 @router.get("/health")

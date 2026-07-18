@@ -186,17 +186,64 @@ class LLM:
             max_tokens=max_tokens,
         )
         
+        import re
+        
+        # Try markdown code blocks first
         try:
             if "```json" in response:
                 json_str = response.split("```json")[1].split("```")[0].strip()
+                return json.loads(json_str)
             elif "```" in response:
                 json_str = response.split("```")[1].split("```")[0].strip()
-            else:
-                json_str = response.strip()
-            
-            return json.loads(json_str)
-        except json.JSONDecodeError:
-            return {"raw_response": response, "parse_error": True}
+                return json.loads(json_str)
+        except (json.JSONDecodeError, IndexError):
+            pass
+        
+        # Try to find JSON object in the response using regex
+        try:
+            # Find the outermost { ... } block
+            depth = 0
+            start = -1
+            for i, ch in enumerate(response):
+                if ch == '{':
+                    if depth == 0:
+                        start = i
+                    depth += 1
+                elif ch == '}':
+                    depth -= 1
+                    if depth == 0 and start >= 0:
+                        candidate = response[start:i+1]
+                        return json.loads(candidate)
+        except (json.JSONDecodeError, ValueError):
+            pass
+        
+        # Try to find JSON array
+        try:
+            depth = 0
+            start = -1
+            for i, ch in enumerate(response):
+                if ch == '[':
+                    if depth == 0:
+                        start = i
+                    depth += 1
+                elif ch == ']':
+                    depth -= 1
+                    if depth == 0 and start >= 0:
+                        candidate = response[start:i+1]
+                        return json.loads(candidate)
+        except (json.JSONDecodeError, ValueError):
+            pass
+        
+        # Last resort: strip everything before first { and after last }
+        try:
+            first_brace = response.find('{')
+            last_brace = response.rfind('}')
+            if first_brace >= 0 and last_brace > first_brace:
+                return json.loads(response[first_brace:last_brace+1])
+        except (json.JSONDecodeError, ValueError):
+            pass
+        
+        return {"raw_response": response, "parse_error": True}
     
     def _build_messages(
         self,

@@ -189,6 +189,25 @@ class JarvisAgent(BaseAgent):
             "Configure `NVIDIA_API_KEY` or install Ollama for full AI responses."
         )
     
+    _KING_ALIASES = {
+        "spadek": "♠K", "spadesk": "♠K", "spade_k": "♠K", "spades_k": "♠K",
+        "heartk": "♥K", "heartsk": "♥K", "heart_k": "♥K", "hearts_k": "♥K",
+        "diamondk": "♦K", "diamondsk": "♦K", "diamond_k": "♦K", "diamonds_k": "♦K",
+        "clubk": "♣K", "clubsk": "♣K", "club_k": "♣K", "clubs_k": "♣K",
+        "engineering": "♠K", "personal": "♥K", "research": "♦K", "system": "♣K",
+    }
+
+    @staticmethod
+    def _normalize_king(card_id: str) -> str:
+        """Normalize a king card_id — LLM may write 'clubK' instead of '♣K'."""
+        clean = card_id.strip().lower().replace(" ", "")
+        if clean in JarvisAgent._KING_ALIASES:
+            return JarvisAgent._KING_ALIASES[clean]
+        # Already a unicode suit? pass through
+        if clean and clean[0] in "♠♥♦♣":
+            return card_id.strip()
+        return card_id.strip()
+
     async def _analyze_intent(self, message: str) -> dict:
         """Use LLM to analyze user intent and create delegation plan."""
         
@@ -233,18 +252,20 @@ YOU CANNOT DO ANYTHING YOURSELF. You have NO hands. You can ONLY delegate.
 NEVER set a "response" field with fabricated content when direct_response is false.
 NEVER claim to have done work. You have done NOTHING until a King reports back.
 
-Available Kings:
+Available Kings (use EXACTLY these card_ids):
 - ♠K (Engineering King): Software development, coding, architecture, testing
 - ♥K (Personal King): Calendar, email, tasks, scheduling, personal organization
 - ♦K (Research King): Web research, documentation, fact-checking, analysis
 - ♣K (System King): File management, terminal commands, system administration, opening apps, resuming projects, scanning system
+
+The "king" field MUST use the exact card_id: ♠K, ♥K, ♦K, or ♣K. Do NOT write "spadeK" or "engineering".
 
 {project_context}
 
 RESPOND WITH ONLY VALID JSON:
 {{
     "intent": "<brief description>",
-    "tasks": [{{"king": "<king>", "name": "<task name>", "description": "<what to do>", "priority": 5}}],
+    "tasks": [{{"king": "<king_card_id>", "name": "<task name>", "description": "<what to do>", "priority": 5}}],
     "direct_response": false,
     "response": ""
 }}
@@ -261,6 +282,11 @@ EXAMPLES (study these carefully):
             message=f"User request: {message}",
             system_prompt=system_prompt,
         )
+        
+        # Normalize king card_ids (LLM may write 'clubK' instead of '♣K')
+        for task in response.get("tasks", []):
+            if "king" in task:
+                task["king"] = self._normalize_king(task["king"])
         
         return response
     

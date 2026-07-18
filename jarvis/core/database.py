@@ -187,9 +187,91 @@ class Database:
                 data TEXT DEFAULT '{}',
                 timestamp REAL DEFAULT 0
             );
+
+            -- v4.1: Working Memory (short-term context)
+            CREATE TABLE IF NOT EXISTS working_memory (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slot TEXT NOT NULL UNIQUE,
+                content TEXT NOT NULL,
+                priority INTEGER DEFAULT 5,
+                importance REAL DEFAULT 0.0,
+                created_at REAL DEFAULT 0,
+                expires_at REAL DEFAULT 0,
+                access_count INTEGER DEFAULT 0,
+                last_accessed REAL DEFAULT 0
+            );
+
+            -- v4.1: Episodic Memory (experiences, decisions, outcomes)
+            CREATE TABLE IF NOT EXISTS episodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                episode_type TEXT NOT NULL DEFAULT 'conversation',
+                project TEXT DEFAULT '',
+                participants TEXT DEFAULT '[]',
+                goals TEXT DEFAULT '[]',
+                decisions TEXT DEFAULT '[]',
+                outcome TEXT DEFAULT '',
+                importance_score REAL DEFAULT 0.0,
+                tags TEXT DEFAULT '[]',
+                source_conversation_ids TEXT DEFAULT '[]',
+                source_task_ids TEXT DEFAULT '[]',
+                created_at REAL DEFAULT 0,
+                consolidated_at REAL DEFAULT 0
+            );
+
+            -- v4.1: Personal Memory (user profile, preferences, rules)
+            CREATE TABLE IF NOT EXISTS personal_memory (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                category TEXT NOT NULL,
+                key TEXT NOT NULL,
+                value TEXT NOT NULL,
+                confidence REAL DEFAULT 0.8,
+                source TEXT DEFAULT '',
+                remember_mode TEXT DEFAULT 'always',
+                created_at REAL DEFAULT 0,
+                updated_at REAL DEFAULT 0,
+                UNIQUE(category, key)
+            );
+
+            -- v4.1: Memory access log (for consolidation and importance learning)
+            CREATE TABLE IF NOT EXISTS memory_access_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                memory_type TEXT NOT NULL,
+                memory_id TEXT NOT NULL,
+                query TEXT DEFAULT '',
+                relevance REAL DEFAULT 0.0,
+                accessed_at REAL DEFAULT 0
+            );
+
+            -- v4.3: Browser sessions (persistent profiles)
+            CREATE TABLE IF NOT EXISTS browser_sessions (
+                name TEXT PRIMARY KEY,
+                profile_dir TEXT NOT NULL,
+                cookies TEXT DEFAULT '[]',
+                local_storage TEXT DEFAULT '{}',
+                created_at REAL DEFAULT 0,
+                last_used REAL DEFAULT 0
+            );
+
+            -- v4.2: Computer action log (audit trail)
+            CREATE TABLE IF NOT EXISTS action_log (
+                id TEXT PRIMARY KEY,
+                agent TEXT DEFAULT '',
+                task_id TEXT DEFAULT '',
+                action_type TEXT NOT NULL,
+                command TEXT DEFAULT '',
+                risk_level TEXT DEFAULT 'safe',
+                status TEXT DEFAULT 'pending',
+                output TEXT DEFAULT '',
+                error TEXT DEFAULT '',
+                duration_ms REAL DEFAULT 0,
+                approved_by TEXT DEFAULT '',
+                timestamp REAL DEFAULT 0
+            );
         """)
         await self._db.commit()
-        
+
         # Performance indexes for frequently queried columns
         for idx_sql in [
             "CREATE INDEX IF NOT EXISTS idx_conversations_session_id ON conversations(session_id)",
@@ -197,6 +279,15 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_agent_messages_task_id ON agent_messages(task_id)",
             "CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(type)",
             "CREATE INDEX IF NOT EXISTS idx_memories_timestamp ON memories(timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_episodes_created_at ON episodes(created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_episodes_importance ON episodes(importance_score)",
+            "CREATE INDEX IF NOT EXISTS idx_episodes_project ON episodes(project)",
+            "CREATE INDEX IF NOT EXISTS idx_personal_memory_category ON personal_memory(category)",
+            "CREATE INDEX IF NOT EXISTS idx_working_memory_slot ON working_memory(slot)",
+            "CREATE INDEX IF NOT EXISTS idx_action_log_agent ON action_log(agent)",
+            "CREATE INDEX IF NOT EXISTS idx_action_log_timestamp ON action_log(timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_action_log_status ON action_log(status)",
+            "CREATE INDEX IF NOT EXISTS idx_browser_sessions_last_used ON browser_sessions(last_used)",
         ]:
             await self._db.execute(idx_sql)
         await self._db.commit()
