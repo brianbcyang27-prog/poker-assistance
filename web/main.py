@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
-app = FastAPI(title="JARVIS", version="5.1.0", lifespan=lifespan)
+app = FastAPI(title="JARVIS", version="5.2.0", lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 

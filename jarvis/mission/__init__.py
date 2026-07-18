@@ -19,9 +19,11 @@ from .mission import (
     ResearchFinding, ToolCandidate, ArchitecturePlan,
     VerificationResult, ReviewItem,
 )
+from .manager import MissionManager
 
 __all__ = [
     "MissionPipeline",
+    "MissionManager",
     "Mission",
     "MissionStage",
     "MissionStatus",
