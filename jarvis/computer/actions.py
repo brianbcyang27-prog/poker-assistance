@@ -47,6 +47,8 @@ class ActionType(str, Enum):
     APP_CLOSE = "app_close"
     PROCESS = "process"
     SYSTEM = "system"
+    VISION = "vision"           # v4.5.0 — vision analysis actions
+    ACCESSIBILITY = "accessibility"  # v4.4.0 — accessibility actions
 
 
 @dataclass

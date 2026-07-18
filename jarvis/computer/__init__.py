@@ -2,17 +2,14 @@
 
 v4.2.0: Safe computer interaction through a permission-gated manager.
 v4.4.0: Accessibility intelligence — semantic UI control via element inspection.
+v4.5.0: Vision Core — multimodal perception with accessibility-first fallback.
 
 Architecture:
     Agent → ComputerManager → Permission Check → Execution → Logging → Memory
 
-Every computer action goes through the manager.
-Workers NEVER directly control the OS.
-
-Semantic actions (v4.4.0):
-    computer.find("Save")        → find UI element by name
-    computer.click("Export")     → click element by semantic name
-    computer.type_into("search", "query") → type into field by name
+Multi-perception (v4.5.0):
+    smart.click("Export")  → tries accessibility first, falls back to vision
+    smart.type("search", "query") → accessibility first, vision fallback
 """
 
 from .actions import RiskLevel, ActionStatus, ActionType, ActionResult, ActionRecord

@@ -19,6 +19,7 @@ Usage:
     )
 """
 
+import asyncio
 import time
 import logging
 from typing import Optional, Callable, Any
@@ -109,6 +110,19 @@ class ComputerManager:
         self.register("accessibility.activate", self._accessibility_activate, RiskLevel.LOW, "Activate/bring app to front")
         self.register("accessibility.apps", self._accessibility_apps, RiskLevel.SAFE, "List running applications")
         self.register("accessibility.summary", self._accessibility_summary, RiskLevel.SAFE, "Get LLM-ready UI summary")
+
+        # Vision actions (v4.5.0 — multimodal perception)
+        self.register("vision.capture", self._vision_capture, RiskLevel.SAFE, "Capture screenshot")
+        self.register("vision.analyze", self._vision_analyze, RiskLevel.SAFE, "Analyze screen with vision model")
+        self.register("vision.find", self._vision_find, RiskLevel.SAFE, "Find object in screenshot")
+        self.register("vision.describe", self._vision_describe, RiskLevel.SAFE, "Describe screen contents")
+        self.register("vision.locate", self._vision_locate, RiskLevel.LOW, "Locate element for action")
+        self.register("vision.click", self._vision_click, RiskLevel.LOW, "Click via vision grounding")
+        self.register("vision.health", self._vision_health, RiskLevel.SAFE, "Check vision provider health")
+
+        # Multi-perception smart actions (v4.5.0)
+        self.register("smart.click", self._smart_click, RiskLevel.LOW, "Click using best perception method")
+        self.register("smart.type", self._smart_type, RiskLevel.LOW, "Type using best perception method")
 
     def register(self, name: str, handler: Callable, risk_level: str = RiskLevel.LOW, description: str = ""):
         """Register an action handler."""
@@ -303,6 +317,10 @@ class ComputerManager:
             return ActionType.KEYBOARD
         if action.startswith("app"):
             return ActionType.APP_LAUNCH
+        if action.startswith("vision"):
+            return ActionType.VISION
+        if action.startswith("accessibility") or action.startswith("smart"):
+            return ActionType.ACCESSIBILITY
         return ActionType.TERMINAL
 
     # ── Action Handlers ──────────────────────────────────────
@@ -552,6 +570,146 @@ class ComputerManager:
         await am.initialize()
         summary = await am.get_summary(window_title)
         return {"ok": True, "summary": summary}
+
+    # ── Vision Handlers (v4.5.0) ──────────────────────────────
+
+    def _get_vision(self):
+        """Get the vision manager, initializing if needed."""
+        if not hasattr(self, '_vision'):
+            from ..vision import vision_manager
+            self._vision = vision_manager
+        return self._vision
+
+    async def _vision_capture(self, mode: str = "full", **kw) -> dict:
+        """Capture a screenshot."""
+        vm = self._get_vision()
+        await vm.initialize()
+        screenshot = await vm.capture(mode)
+        if screenshot:
+            return {"ok": True, **screenshot.to_dict()}
+        return {"ok": False, "error": "Screenshot capture failed"}
+
+    async def _vision_analyze(self, mode: str = "full", **kw) -> dict:
+        """Capture and analyze the screen with vision model."""
+        vm = self._get_vision()
+        await vm.initialize()
+        analysis = await vm.capture_and_analyze(mode)
+        return {"ok": True, **analysis.to_dict()}
+
+    async def _vision_find(self, query: str = "", **kw) -> dict:
+        """Find an object in the current screen."""
+        vm = self._get_vision()
+        await vm.initialize()
+        obj = await vm.find_object(query)
+        if obj:
+            return {"ok": True, "object": obj}
+        return {"ok": False, "error": f"No object found matching '{query}'"}
+
+    async def _vision_describe(self, **kw) -> dict:
+        """Describe what's on screen."""
+        vm = self._get_vision()
+        await vm.initialize()
+        description = await vm.quick_describe()
+        return {"ok": True, "description": description}
+
+    async def _vision_locate(self, query: str = "", **kw) -> dict:
+        """Locate an element for action using best method."""
+        vm = self._get_vision()
+        await vm.initialize()
+        action = await vm.locate_element(query)
+        return {"ok": action.method != "unknown", **action.to_dict()}
+
+    async def _vision_click(self, query: str = "", **kw) -> dict:
+        """Click an element found by vision."""
+        vm = self._get_vision()
+        await vm.initialize()
+        action = await vm.locate_element(query)
+        if action.method == "unknown":
+            return {"ok": False, "error": action.reasoning}
+        # Execute the click
+        click_result = await self._mouse_click(x=action.x, y=action.y)
+        click_result["element"] = action.element_name
+        click_result["method"] = action.method
+        return click_result
+
+    async def _vision_health(self, **kw) -> dict:
+        """Check vision provider health."""
+        vm = self._get_vision()
+        await vm.initialize()
+        return await vm.health_check()
+
+    # ── Multi-Perception Smart Actions (v4.5.0) ──────────────
+
+    async def _smart_click(self, query: str = "", **kw) -> dict:
+        """Click using the best available perception method.
+
+        Priority:
+          1. Accessibility (fast, structured)
+          2. Vision (multimodal fallback)
+        """
+        # Try accessibility first
+        am = self._get_accessibility()
+        try:
+            await am.initialize()
+            element = await am.find(query)
+            if element:
+                result = await am.click(query)
+                result["method"] = "accessibility"
+                return result
+        except Exception:
+            pass
+
+        # Fall back to vision
+        vm = self._get_vision()
+        try:
+            await vm.initialize()
+            action = await vm.locate_element(query)
+            if action.method != "unknown":
+                click_result = await self._mouse_click(x=action.x, y=action.y)
+                click_result["method"] = "vision"
+                click_result["element"] = action.element_name
+                return click_result
+        except Exception:
+            pass
+
+        return {"ok": False, "error": f"Could not find '{query}' via any perception method"}
+
+    async def _smart_type(self, query: str = "", text: str = "", **kw) -> dict:
+        """Type into a field using the best available perception method.
+
+        Priority:
+          1. Accessibility type_into
+          2. Vision locate + type
+        """
+        # Try accessibility first
+        am = self._get_accessibility()
+        try:
+            await am.initialize()
+            element = await am.find(query)
+            if element and element.is_typeable():
+                result = await am.type_into(query, text)
+                result["method"] = "accessibility"
+                return result
+        except Exception:
+            pass
+
+        # Fall back to vision
+        vm = self._get_vision()
+        try:
+            await vm.initialize()
+            action = await vm.locate_for_type(query, text)
+            if action.method != "unknown":
+                # Click the field first, then type
+                await self._mouse_click(x=action.x, y=action.y)
+                await asyncio.sleep(0.1)
+                type_result = await self._keyboard_type(text=text)
+                type_result["method"] = "vision"
+                type_result["element"] = action.element_name
+                return type_result
+        except Exception:
+            pass
+
+        return {"ok": False, "error": f"Could not find field '{query}' via any perception method"}
 
     def get_actions(self) -> list[dict]:
         """List all registered actions."""
