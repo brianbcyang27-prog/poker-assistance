@@ -1,140 +1,171 @@
-/**
- * Neural Thought Stream — v3.2.0
- *
- * Live reasoning timeline that shows JARVIS thinking in real time.
- * Receives events from the Event Bus via WebSocket and displays
- * them as a flowing reasoning chain.
- *
- * Replaces the old static thought bubble system.
- */
+/* JARVIS Living Interface v4.0.0 — Real-time Intelligence Display */
 
 class LivingInterface {
     constructor() {
         this.thoughtStream = document.getElementById('thought-stream');
         this.responseDisplay = document.getElementById('response-display');
         this.missionState = document.getElementById('mission-state');
-        this.coreStateEl = document.getElementById('core-state');
-        this.coreLabelEl = document.getElementById('core-label');
+        this.coreState = document.getElementById('core-state');
+        this.coreLabel = document.getElementById('core-label');
 
-        this.responseTimeout = null;
-        this.currentResponse = null;
-        this.missionPollId = null;
-
-        // Thought stream state
         this._thoughts = [];
-        this._maxThoughts = 12;
+        this._maxThoughts = 15;
         this._ws = null;
-        this._eventQueue = [];
-        this._processingEvents = false;
+        this._reconnectTimer = null;
+        this._fallbackInterval = null;
+        this._agentConversations = [];
+        this._maxConversations = 20;
 
-        // State-specific thought templates (fallback when no real events)
-        this._fallbackThoughts = {
-            idle: ['Systems nominal', 'Neural networks at rest', 'All agents standing by'],
-            listening: ['Audio stream active', 'Processing speech input'],
-            thinking: ['Analyzing intent', 'Decomposing request', 'Consulting knowledge base'],
-            working: ['Delegating to agents', 'Coordinating workers', 'Monitoring progress'],
-            speaking: ['Composing response', 'Generating output'],
-            retrieving: ['Searching memory stores', 'Retrieving related context', 'Loading knowledge graph'],
-            planning: ['Building execution plan', 'Analyzing dependencies', 'Optimizing task order'],
-            delegating: ['Assigning workers', 'Distributing tasks', 'Activating specialist agents'],
-            reviewing: ['Evaluating results', 'Checking quality', 'Verifying completeness'],
-            complete: ['Mission accomplished', 'Results compiled', 'Returning response'],
+        this._stateThoughts = {
+            idle: [
+                { icon: '◉', text: 'Systems nominal' },
+                { icon: '◎', text: 'Monitoring environment' },
+                { icon: '◇', text: 'Memory consolidation active' },
+                { icon: '○', text: 'Awaiting instructions' },
+            ],
+            listening: [
+                { icon: '◉', text: 'Audio input active' },
+                { icon: '◎', text: 'Processing speech' },
+                { icon: '◇', text: 'Voice recognized' },
+            ],
+            thinking: [
+                { icon: '◉', text: 'Analyzing intent...' },
+                { icon: '◎', text: 'Searching memories...' },
+                { icon: '◇', text: 'Reviewing context...' },
+                { icon: '◈', text: 'Building understanding...' },
+                { icon: '◆', text: 'Processing request...' },
+            ],
+            planning: [
+                { icon: '◉', text: 'Decomposing task...' },
+                { icon: '◎', text: 'Creating mission plan...' },
+                { icon: '◇', text: 'Assigning workers...' },
+                { icon: '◈', text: 'Building DAG...' },
+            ],
+            delegating: [
+                { icon: '◉', text: 'Dispatching to kings...' },
+                { icon: '◎', text: 'Forming team...' },
+                { icon: '◇', text: 'Activating workers...' },
+            ],
+            working: [
+                { icon: '◉', text: 'Executing tasks...' },
+                { icon: '◎', text: 'Workers collaborating...' },
+                { icon: '◇', text: 'Processing data...' },
+                { icon: '◈', text: 'Building solution...' },
+            ],
+            reviewing: [
+                { icon: '◉', text: 'Quality review...' },
+                { icon: '◎', text: 'Checking results...' },
+                { icon: '◇', text: 'Validating output...' },
+            ],
+            retrieving: [
+                { icon: '◉', text: 'Querying knowledge graph...' },
+                { icon: '◎', text: 'Searching documents...' },
+                { icon: '◇', text: 'Retrieving memories...' },
+            ],
+            speaking: [
+                { icon: '◉', text: 'Generating response...' },
+                { icon: '◎', text: 'Synthesizing answer...' },
+            ],
+            complete: [
+                { icon: '✓', text: 'Mission complete' },
+                { icon: '◉', text: 'Results delivered' },
+            ],
+            error: [
+                { icon: '✗', text: 'Error detected' },
+                { icon: '⚠', text: 'Attempting recovery...' },
+            ],
+            mission_active: [
+                { icon: '◉', text: 'Mission in progress...' },
+                { icon: '◎', text: 'Workers active...' },
+            ],
         };
-
-        this._boundPollMissions = this._pollMissions.bind(this);
     }
-
-    /* ---- STATE ---- */
 
     setState(state) {
-        if (this.coreStateEl) {
-            this.coreStateEl.textContent = state.toUpperCase();
-            this.coreStateEl.classList.toggle('active', state !== 'idle');
+        if (this.coreState) {
+            this.coreState.textContent = state.toUpperCase().replace('_', ' ');
+        }
+        if (this.coreLabel) {
+            this.coreLabel.classList.toggle('active', state !== 'idle');
         }
 
-        // Update core label with state-specific messaging
-        if (this.coreLabelEl) {
-            const labels = {
-                idle: 'JARVIS',
-                thinking: 'ANALYZING',
-                listening: 'LISTENING',
-                speaking: 'SPEAKING',
-                working: 'EXECUTING',
-                retrieving: 'RETRIEVING',
-                planning: 'PLANNING',
-                delegating: 'DELEGATING',
-                reviewing: 'REVIEWING',
-                complete: 'COMPLETE',
-            };
-            this.coreLabelEl.textContent = labels[state] || 'JARVIS';
+        if (this._fallbackInterval) {
+            clearInterval(this._fallbackInterval);
+            this._fallbackInterval = null;
         }
 
-        // Start/stop fallback thoughts based on state
-        if (state === 'thinking' || state === 'working' || state === 'listening'
-            || state === 'retrieving' || state === 'planning' || state === 'delegating'
-            || state === 'reviewing') {
+        if (state !== 'idle') {
             this._startFallbackThoughts(state);
-        } else if (state === 'idle' || state === 'complete') {
-            this._stopFallbackThoughts();
-            if (state === 'complete') {
-                this._emitThought({ icon: '\u2714', text: 'Mission complete', type: 'complete' });
-            }
         }
     }
-
-    /* ---- WEBSOCKET EVENTS ---- */
 
     connectEvents(wsUrl) {
-        if (this._ws) return;
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const url = wsUrl || `${protocol}//${location.host}/ws/agents`;
+        if (this._ws && this._ws.readyState === WebSocket.OPEN) return;
 
-        try {
-            this._ws = new WebSocket(url);
-            this._ws.onmessage = (e) => this._handleWSMessage(e);
-            this._ws.onclose = () => { this._ws = null; setTimeout(() => this.connectEvents(wsUrl), 3000); };
-            this._ws.onerror = () => {};
-        } catch (_) {}
+        const url = wsUrl || `ws://${location.host}/ws/agents`;
+        this._ws = new WebSocket(url);
+
+        this._ws.onopen = () => {
+            console.log('[JARVIS] WebSocket connected');
+            if (this._reconnectTimer) {
+                clearTimeout(this._reconnectTimer);
+                this._reconnectTimer = null;
+            }
+        };
+
+        this._ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                this._handleWSMessage(data);
+            } catch (e) {
+                console.error('[JARVIS] WS parse error:', e);
+            }
+        };
+
+        this._ws.onclose = () => {
+            console.log('[JARVIS] WebSocket closed, reconnecting in 3s...');
+            this._reconnectTimer = setTimeout(() => this.connectEvents(wsUrl), 3000);
+        };
+
+        this._ws.onerror = (err) => {
+            console.error('[JARVIS] WebSocket error:', err);
+        };
     }
 
-    _handleWSMessage(event) {
-        try {
-            const msg = JSON.parse(event.data);
-            if (msg.type === 'event') {
-                this._processEvent(msg.data);
-            } else if (msg.type === 'status') {
-                this._updateAgentStatus(msg.data);
-            } else if (msg.type === 'visual_state') {
-                // v3.2.0: Wire Event Bus → Three.js core
+    _handleWSMessage(data) {
+        switch (data.type) {
+            case 'event':
+                this._processEvent(data.data);
+                break;
+            case 'status':
+                this._updateAgentStatus(data.data);
+                break;
+            case 'visual_state':
                 if (window.jarvisState) {
-                    window.jarvisState.setState(msg.state);
+                    window.jarvisState.set(data.state);
                 }
-                if (window.graph3d) {
-                    window.graph3d.setState(msg.state);
-                }
-            }
-        } catch (_) {}
+                break;
+            case 'agent_conversation':
+                this._addAgentConversation(data.data);
+                break;
+            case 'mission_progress':
+                this._updateMissionProgress(data.data);
+                break;
+        }
     }
 
     _processEvent(data) {
-        const eventMap = {
-            'jarvis.thinking': { icon: '\U0001f9e0', text: 'Analyzing your request', type: 'process' },
-            'jarvis.delegated': { icon: '\u2b07', text: `Delegating to ${data.payload?.intent || 'specialist'}`, type: 'delegate' },
-            'jarvis.responded': { icon: '\u2714', text: 'Preparing response', type: 'complete' },
-            'king.planning': { icon: '\U0001f4cb', text: `Planning: ${data.payload?.task || 'strategy'}`, type: 'plan' },
-            'king.delegated': { icon: '\U0001f464', text: `Assigned ${data.payload?.workers || 'workers'}`, type: 'delegate' },
-            'king.completed': { icon: '\U0001f44d', text: `Review: ${data.payload?.task || 'results'}`, type: 'review' },
-            'worker.started': { icon: '\u25b6', text: `${data.source} started`, type: 'work' },
-            'worker.completed': { icon: '\u2714', text: `${data.source} done (conf: ${data.payload?.confidence || '?'})`, type: 'work' },
-            'worker.error': { icon: '\u274c', text: `${data.source} error`, type: 'error' },
+        const { event_type, source, payload, label, icon } = data;
+
+        const thought = {
+            icon: icon || '◉',
+            text: label || event_type,
+            source: source,
+            type: event_type,
         };
 
-        const mapped = eventMap[data.event_type];
-        if (mapped) {
-            this._emitThought(mapped);
-        }
+        this._emitThought(thought);
 
-        // Auto-map event type to visual state
         const stateMap = {
             'jarvis.thinking': 'thinking',
             'jarvis.delegated': 'delegating',
@@ -144,48 +175,31 @@ class LivingInterface {
             'king.completed': 'reviewing',
             'worker.started': 'working',
             'worker.completed': 'working',
-            'worker.error': 'working',
+            'worker.error': 'error',
         };
-        const newState = stateMap[data.event_type];
-        if (newState && window.jarvisState) {
-            window.jarvisState.setState(newState);
+
+        if (stateMap[event_type] && window.jarvisState) {
+            window.jarvisState.set(stateMap[event_type]);
         }
     }
 
     _updateAgentStatus(data) {
-        // Update agent activity indicator
-        if (data.kings) {
-            let activeCount = 0;
-            for (const [_, king] of Object.entries(data.kings)) {
-                if (king.state !== 'idle') activeCount++;
-                if (king.workers) {
-                    for (const [__, worker] of Object.entries(king.workers)) {
-                        if (worker.state !== 'idle') activeCount++;
-                    }
-                }
-            }
-            // Could update a live agent count display here
-        }
+        if (!data || !data.kings) return;
+        window._agentStatusData = data;
     }
 
-    /* ---- THOUGHT STREAM ---- */
-
     _startFallbackThoughts(state) {
-        this._stopFallbackThoughts();
-        const pool = this._fallbackThoughts[state] || this._fallbackThoughts.idle;
+        const thoughts = this._stateThoughts[state] || this._stateThoughts.idle;
         let idx = 0;
 
-        const emit = () => {
-            this._emitThought({
-                icon: '\u2022',
-                text: pool[idx % pool.length],
-                type: 'process',
-            });
-            idx++;
-        };
-
-        emit();
-        this._fallbackInterval = setInterval(emit, 3000 + Math.random() * 1000);
+        this._fallbackInterval = setInterval(() => {
+            if (idx < thoughts.length) {
+                this._emitThought(thoughts[idx]);
+                idx++;
+            } else {
+                idx = 0;
+            }
+        }, 3500);
     }
 
     _stopFallbackThoughts() {
@@ -196,156 +210,209 @@ class LivingInterface {
     }
 
     _emitThought(thought) {
+        if (!this.thoughtStream) return;
+
         const el = document.createElement('div');
-        el.className = `thought thought-${thought.type || 'process'}`;
+        el.className = 'thought';
 
         const iconSpan = document.createElement('span');
         iconSpan.className = 'thought-icon';
-        iconSpan.textContent = thought.icon || '\u2022';
+        iconSpan.textContent = thought.icon || '◉';
 
         const textSpan = document.createElement('span');
         textSpan.className = 'thought-text';
-        textSpan.textContent = thought.text;
+        textSpan.textContent = thought.text || '';
 
-        el.appendChild(iconSpan);
-        el.appendChild(textSpan);
+        if (thought.source) {
+            const sourceSpan = document.createElement('span');
+            sourceSpan.className = 'thought-source';
+            sourceSpan.textContent = thought.source;
+            el.appendChild(iconSpan);
+            el.appendChild(textSpan);
+            el.appendChild(sourceSpan);
+        } else {
+            el.appendChild(iconSpan);
+            el.appendChild(textSpan);
+        }
 
-        // Position around the core
-        const cx = window.innerWidth / 2;
-        const cy = window.innerHeight / 2;
-        const angle = Math.random() * Math.PI * 2;
-        const radius = 100 + Math.random() * 120;
-
-        el.style.left = `${cx + Math.cos(angle) * radius}px`;
-        el.style.top = `${cy + Math.sin(angle) * radius}px`;
-        el.style.setProperty('--drift-x', `${(Math.random() - 0.5) * 40}px`);
+        const driftX = (Math.random() - 0.5) * 60;
+        el.style.setProperty('--drift-x', `${driftX}px`);
 
         this.thoughtStream.appendChild(el);
         this._thoughts.push(el);
 
-        // Trim old thoughts
+        requestAnimationFrame(() => el.classList.add('visible'));
+
+        setTimeout(() => {
+            el.classList.add('fading');
+            setTimeout(() => {
+                el.remove();
+                this._thoughts = this._thoughts.filter(t => t !== el);
+            }, 800);
+        }, 5800);
+
         while (this._thoughts.length > this._maxThoughts) {
             const old = this._thoughts.shift();
-            if (old && old.parentNode) old.remove();
+            old.remove();
         }
-
-        // Auto-remove after animation
-        setTimeout(() => {
-            if (el.parentNode) el.remove();
-            const idx = this._thoughts.indexOf(el);
-            if (idx >= 0) this._thoughts.splice(idx, 1);
-        }, 6200);
     }
 
-    /* ---- RESPONSE ---- */
+    _addAgentConversation(data) {
+        const { sender, receiver, content, card_id, title } = data;
+
+        this._agentConversations.push({
+            sender, receiver, content, card_id, title,
+            timestamp: Date.now()
+        });
+
+        if (this._agentConversations.length > this._maxConversations) {
+            this._agentConversations.shift();
+        }
+
+        const stream = document.getElementById('agent-conversation-stream');
+        if (!stream) return;
+
+        const el = document.createElement('div');
+        el.className = 'agent-msg';
+
+        const header = document.createElement('div');
+        header.className = 'agent-msg-header';
+        header.innerHTML = `<span class="agent-card">${card_id || '?'}</span> <span class="agent-name">${title || sender}</span>`;
+        if (receiver) {
+            header.innerHTML += ` → <span class="agent-recv">${receiver}</span>`;
+        }
+
+        const body = document.createElement('div');
+        body.className = 'agent-msg-body';
+        body.textContent = content;
+
+        el.appendChild(header);
+        el.appendChild(body);
+        stream.appendChild(el);
+
+        stream.scrollTop = stream.scrollHeight;
+
+        requestAnimationFrame(() => el.classList.add('visible'));
+
+        while (stream.children.length > 20) {
+            stream.removeChild(stream.firstChild);
+        }
+    }
+
+    _updateMissionProgress(data) {
+        if (!this.missionState) return;
+
+        const { goal, progress, agents_active, status } = data;
+
+        this.missionState.classList.remove('hidden');
+        this.missionState.innerHTML = `
+            <div class="mission-label">MISSION ACTIVE</div>
+            <div class="mission-progress-bar">
+                <div class="mission-progress-fill" style="width: ${(progress || 0) * 100}%"></div>
+            </div>
+            <div class="mission-detail">${goal || 'Processing...'}</div>
+            <div class="mission-agents">${agents_active || 0} agents active</div>
+        `;
+    }
 
     showResponse(text, audioUrl) {
-        this._clearResponse();
+        if (!this.responseDisplay) return;
 
         const bubble = document.createElement('div');
         bubble.className = 'response-bubble';
 
-        // Add reasoning details if available
-        const reasoningHtml = this._buildReasoningDetails();
-        bubble.innerHTML = `
-            <div class="response-text">${this._md(text)}</div>
-            ${reasoningHtml}
-        `;
+        const content = document.createElement('div');
+        content.className = 'response-text';
+        content.innerHTML = this._md(text || '');
 
+        const reasoning = this._buildReasoningDetails();
+        if (reasoning) {
+            const details = document.createElement('div');
+            details.className = 'response-reasoning';
+            details.innerHTML = reasoning;
+            bubble.appendChild(content);
+            bubble.appendChild(details);
+        } else {
+            bubble.appendChild(content);
+        }
+
+        this.responseDisplay.innerHTML = '';
         this.responseDisplay.appendChild(bubble);
-        this.currentResponse = bubble;
+        this.responseDisplay.classList.remove('hidden');
 
-        this.responseTimeout = setTimeout(() => this._fadeResponse(), 15000);
+        requestAnimationFrame(() => bubble.classList.add('visible'));
+
+        this._responseTimer = setTimeout(() => this._fadeResponse(), 20000);
 
         if (audioUrl) this._playAudio(audioUrl);
     }
 
     _buildReasoningDetails() {
-        // Show last few thoughts as reasoning trail
         const recent = this._thoughts.slice(-4);
         if (recent.length === 0) return '';
 
-        const items = recent.map(el => {
-            const icon = el.querySelector('.thought-icon')?.textContent || '';
-            const text = el.querySelector('.thought-text')?.textContent || '';
-            return `<span class="reasoning-step">${icon} ${text}</span>`;
+        const items = recent.map(t => {
+            const text = t.querySelector('.thought-text')?.textContent || '';
+            return `<li>${text}</li>`;
         }).join('');
 
-        return `<div class="reasoning-trail">${items}</div>`;
+        return `<div class="reasoning-label">Reasoning trail:</div><ul>${items}</ul>`;
     }
 
     _fadeResponse() {
-        if (this.currentResponse) {
-            this.currentResponse.classList.add('fading');
-            setTimeout(() => this._clearResponse(), 600);
+        if (this.responseDisplay) {
+            const bubble = this.responseDisplay.querySelector('.response-bubble');
+            if (bubble) {
+                bubble.classList.add('fading');
+                setTimeout(() => {
+                    this.responseDisplay.classList.add('hidden');
+                    this.responseDisplay.innerHTML = '';
+                }, 600);
+            }
         }
     }
 
-    _clearResponse() {
-        if (this.responseTimeout) { clearTimeout(this.responseTimeout); this.responseTimeout = null; }
-        if (this.currentResponse) { this.currentResponse.remove(); this.currentResponse = null; }
-    }
-
     _playAudio(url) {
-        const audio = new Audio(url);
-        audio.addEventListener('ended', () => {
-            if (window.jarvisState) window.jarvisState.stopSpeaking();
-            this.setState('idle');
-        });
-        audio.play().catch(() => {});
+        try {
+            const audio = new Audio(url);
+            audio.onended = () => {
+                if (window.jarvisState) window.jarvisState.stopSpeaking();
+            };
+            audio.play().catch(() => {});
+        } catch (e) {}
     }
-
-    /* ---- MISSIONS ---- */
 
     startMissionPolling() {
         this._pollMissions();
-        this.missionPollId = setInterval(this._boundPollMissions, 5000);
+        setInterval(() => this._pollMissions(), 5000);
     }
 
     async _pollMissions() {
         try {
             const res = await fetch('/api/workspace');
-            const workspaces = await res.json();
-            const active = workspaces.find(w => w.status !== 'completed' && w.status !== 'failed');
+            if (!res.ok) return;
+            const data = await res.json();
+            const workspaces = data.workspaces || [];
+            const active = workspaces.find(w => w.status === 'working');
             if (active) {
-                this._showMission({
-                    goal: active.goal,
-                    progress: active.progress || 0,
-                    agents: (active.tasks || []).length,
-                });
-            } else {
-                this._hideMission();
+                this._showMission(active);
             }
-        } catch (_) {}
+        } catch (e) {}
     }
 
     _showMission(m) {
+        if (!this.missionState) return;
+        const progress = m.progress || 0;
+        const pct = Math.round(progress * 100);
+
+        this.missionState.classList.remove('hidden');
         this.missionState.innerHTML = `
-            <div class="mission-label">Active Mission</div>
-            <div class="mission-bar"><div class="mission-fill" style="width:${m.progress}%"></div></div>
-            <div class="mission-detail">${this._esc(m.goal)} \u00b7 ${m.agents} agents</div>
+            <div class="mission-label">MISSION ACTIVE</div>
+            <div class="mission-progress-bar">
+                <div class="mission-progress-fill" style="width: ${pct}%"></div>
+            </div>
+            <div class="mission-detail">${m.goal || 'Processing...'}</div>
         `;
-        this.missionState.classList.add('visible');
-    }
-
-    _hideMission() {
-        this.missionState.classList.remove('visible');
-    }
-
-    /* ---- HELPERS ---- */
-
-    _md(text) {
-        return text
-            .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\n/g, '<br>');
-    }
-
-    _esc(s) {
-        const d = document.createElement('div');
-        d.textContent = s;
-        return d.innerHTML;
     }
 }
 

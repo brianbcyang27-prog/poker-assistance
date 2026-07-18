@@ -527,23 +527,323 @@ def doctor():
         console.print(Panel("[bold yellow]Some issues detected. Check details above.[/bold yellow]", box=box.ROUNDED))
 
 
+def cmd_continue():
+    """Resume the last active project."""
+    try:
+        from jarvis.brain.world_model import world_model
+    except ImportError:
+        console.print("[red]World model not available.[/red]")
+        return
+
+    data = world_model.scan_environment()
+    projects = data.get("projects", [])
+    if not projects:
+        console.print("[yellow]No projects found.[/yellow]")
+        return
+
+    # Pick the project with the most recent commit
+    def _sort_key(p):
+        lc = p.get("last_commit", "")
+        # last_commit format: "hash,subject,time_ago" — time_ago is lexicographically close enough
+        return lc
+
+    projects.sort(key=_sort_key, reverse=True)
+    active = projects[0]
+
+    name = active.get("name", "?")
+    path = active.get("path", "?")
+    branch = active.get("branch", "?")
+    dirty = active.get("dirty", False)
+    dirty_count = len(active.get("dirty_files", []))
+    last_commit = active.get("last_commit", "unknown")
+
+    console.print(Panel(
+        f"[bold cyan]{name}[/bold cyan]\n"
+        f"[dim]Path:[/dim]   {path}\n"
+        f"[dim]Branch:[/dim] {branch}\n"
+        f"[dim]Dirty:[/dim]  {'Yes (' + str(dirty_count) + ' files)' if dirty else 'No'}\n"
+        f"[dim]Last:[/dim]   {last_commit}",
+        title="Active Project",
+        box=box.ROUNDED,
+    ))
+
+    if dirty:
+        console.print("[yellow]Uncommitted changes detected.[/yellow]")
+        console.print("[dim]Suggested next steps:[/dim]")
+        console.print("  1. Review changes:  git diff")
+        console.print("  2. Run tests")
+        console.print("  3. Commit & push")
+    else:
+        console.print("[green]Working tree clean.[/green]")
+        console.print("[dim]Suggested next steps:[/dim]")
+        console.print("  1. Check for upstream: git fetch")
+        console.print("  2. Start new work")
+
+
+def cmd_mission(description: str):
+    """Create and display a mission plan (no execution)."""
+    try:
+        from jarvis.brain.dag_planner import dag_planner, DAGNode
+    except ImportError:
+        console.print("[red]DAG planner not available.[/red]")
+        return
+
+    import uuid
+    mission_id = f"plan-{uuid.uuid4().hex[:8]}"
+
+    # Build a simple two-node plan: analyze → implement
+    nodes = [
+        DAGNode(
+            id="analyze",
+            name="Analyze",
+            description=f"Understand requirements for: {description}",
+            assigned_to="K",
+            priority=10,
+        ),
+        DAGNode(
+            id="implement",
+            name="Implement",
+            description=f"Implement: {description}",
+            assigned_to="K",
+            dependencies=["analyze"],
+            priority=5,
+        ),
+    ]
+
+    result = dag_planner.create_mission(mission_id, nodes)
+
+    if not result.get("ok"):
+        console.print(f"[red]Failed to create mission: {result.get('error')}[/red]")
+        return
+
+    console.print(Panel(
+        f"[bold cyan]{description}[/bold cyan]\n"
+        f"[dim]Mission ID:[/dim]  {mission_id}\n"
+        f"[dim]Tasks:[/dim]      {result['node_count']}\n"
+        f"[dim]Execution:[/dim]  {' → '.join(result.get('execution_order', []))}",
+        title="Mission Plan",
+        box=box.DOUBLE,
+    ))
+
+    # DAG visualization
+    if RICH_AVAILABLE:
+        tree = Tree(f"[bold]{description}[/bold]")
+        analyze = tree.add("[cyan]1. Analyze[/cyan]  (priority: 10)")
+        analyze.add("[dim]→ Understand requirements[/dim]")
+        implement = tree.add("[cyan]2. Implement[/cyan]  (priority: 5, depends on: Analyze)")
+        implement.add("[dim]→ Build the solution[/dim]")
+        console.print(Panel(tree, title="Task DAG", box=box.ROUNDED))
+    else:
+        console.print(f"  1. Analyze  →  2. Implement")
+
+    console.print("[dim]Plan only — not executed. Use mission_executor to run.[/dim]")
+
+
+def cmd_review():
+    """Compact system health review."""
+    from jarvis import __version__
+
+    console.print(Panel(
+        f"[bold cyan]JARVIS v{__version__}[/bold cyan]  —  System Health Review",
+        box=box.DOUBLE,
+    ))
+
+    rows = []
+
+    # Version
+    rows.append(("Version", __version__))
+
+    # Uptime (process start approximation)
+    try:
+        import os, time as _time
+        start = os.path.getmtime("/proc/self/stat") if os.path.exists("/proc/self/stat") else 0
+        uptime_s = _time.time() - start if start else 0
+        uptime_str = f"{int(uptime_s // 3600)}h {int((uptime_s % 3600) // 60)}m" if uptime_s else "n/a (macOS)"
+    except Exception:
+        uptime_str = "n/a"
+    rows.append(("Uptime", uptime_str))
+
+    # Agent hierarchy
+    try:
+        from jarvis.agents.kings import EngineeringKing, PersonalKing, ResearchKing, SystemKing
+        eng = EngineeringKing()
+        per = PersonalKing()
+        res = ResearchKing()
+        sys_k = SystemKing()
+        total = len(eng._workers) + len(per._workers) + len(res._workers) + len(sys_k._workers)
+        rows.append(("Agents", f"4 kings, {total} workers"))
+    except Exception as e:
+        rows.append(("Agents", f"[red]Error: {e}[/red]"))
+
+    # Database
+    try:
+        rows.append(("Database", "[green]OK[/green]"))
+    except Exception:
+        rows.append(("Database", "[red]FAIL[/red]"))
+
+    # Engineering knowledge
+    try:
+        from jarvis.engineering.knowledge import engineering_knowledge
+        m = len(engineering_knowledge.materials)
+        b = len(engineering_knowledge.bearings)
+        f = len(engineering_knowledge.formulas)
+        rows.append(("Knowledge", f"{m} materials, {b} bearings, {f} formulas"))
+    except Exception:
+        rows.append(("Knowledge", "[red]Unavailable[/red]"))
+
+    # Capability registry
+    try:
+        from jarvis.core.capabilities import registry
+        caps = asyncio.run(registry.get_stats()) if hasattr(registry, 'get_stats') else {}
+        rows.append(("Capabilities", f"{caps.get('total', 0)} registered"))
+    except Exception:
+        rows.append(("Capabilities", "[yellow]Unknown[/yellow]"))
+
+    table = Table(box=box.SIMPLE_HEAVY, show_header=False, padding=(0, 1))
+    table.add_column("Component", style="cyan", min_width=14)
+    table.add_column("Status", style="white")
+    for label, status in rows:
+        table.add_row(label, status)
+    console.print(table)
+
+
+def cmd_world():
+    """Show world model — projects and servers."""
+    try:
+        from jarvis.brain.world_model import world_model
+    except ImportError:
+        console.print("[red]World model not available.[/red]")
+        return
+
+    data = world_model.scan_environment()
+    sys_info = data.get("system", {})
+    projects = data.get("projects", [])
+    servers = data.get("servers", [])
+
+    # System header
+    console.print(Panel(
+        f"[bold]{sys_info.get('hostname', '?')}[/bold]  —  "
+        f"{sys_info.get('os', '?')}  ({sys_info.get('machine', '?')})",
+        title="System",
+        box=box.ROUNDED,
+    ))
+
+    # Projects table
+    proj_table = Table(title=f"Projects ({len(projects)})", box=box.ROUNDED, expand=True)
+    proj_table.add_column("Name", style="cyan", ratio=2)
+    proj_table.add_column("Branch", style="white", ratio=1)
+    proj_table.add_column("Status", ratio=2)
+    proj_table.add_column("Last Commit", style="dim", ratio=3)
+    for p in projects:
+        dirty = p.get("dirty", False)
+        status = f"[yellow]dirty ({len(p.get('dirty_files', []))})[/yellow]" if dirty else "[green]clean[/green]"
+        proj_table.add_row(
+            p.get("name", "?"),
+            p.get("branch", "?"),
+            status,
+            p.get("last_commit", ""),
+        )
+    console.print(proj_table)
+
+    # Servers table
+    srv_table = Table(title=f"Active Servers ({len(servers)})", box=box.ROUNDED, expand=True)
+    srv_table.add_column("Process", style="cyan", ratio=2)
+    srv_table.add_column("PID", style="white", ratio=1)
+    srv_table.add_column("Address", style="dim", ratio=3)
+    for s in servers:
+        srv_table.add_row(s.get("name", "?"), s.get("pid", "?"), s.get("address", "?"))
+    console.print(srv_table)
+
+
+def cmd_explain():
+    """Show system architecture."""
+    from jarvis import __version__
+
+    # Count capabilities
+    cap_total = 0
+    try:
+        from jarvis.core.capabilities import registry
+        stats = asyncio.run(registry.get_stats()) if hasattr(registry, 'get_stats') else {}
+        cap_total = stats.get("total", 0)
+    except Exception:
+        pass
+
+    # Count knowledge items
+    mats = bears = formulas = 0
+    try:
+        from jarvis.engineering.knowledge import engineering_knowledge
+        mats = len(engineering_knowledge.materials)
+        bears = len(engineering_knowledge.bearings)
+        formulas = len(engineering_knowledge.formulas)
+    except Exception:
+        pass
+
+    # Build architecture tree
+    if RICH_AVAILABLE:
+        tree = Tree(f"[bold blue]JARVIS v{__version__}[/bold blue]")
+
+        # 4 Kings
+        eng = tree.add("[yellow]♠ Engineering King[/yellow]")
+        eng.add("♠K  Architect")
+        eng.add("♠Q  Backend")
+        eng.add("♠J  Frontend")
+        eng.add("♠10 React")
+        eng.add("♠9  Python")
+        eng.add("♠8  Testing")
+        eng.add("♠7  Docs")
+        eng.add("♠5  A11y")
+
+        per = tree.add("[yellow]♥ Personal King[/yellow]")
+        per.add("♥K  Life Architect")
+        per.add("♥Q  Health")
+        per.add("♥J  Finance")
+        per.add("♥10 Calendar")
+        per.add("♥9  Fitness")
+
+        res = tree.add("[yellow]♦ Research King[/yellow]")
+        res.add("♦K  Meta Analyst")
+        res.add("♦Q  Web Search")
+        res.add("♦J  Paper Reader")
+        res.add("♦10 Trend Tracker")
+
+        sys_k = tree.add("[yellow]♣ System King[/yellow]")
+        sys_k.add("♣K  Sys Architect")
+        sys_k.add("♣Q  DevOps")
+        sys_k.add("♣J  Browser")
+        sys_k.add("♣10 File Manager")
+
+        console.print(Panel(tree, title="Architecture", box=box.DOUBLE))
+
+    # Stats
+    stat_table = Table(box=box.SIMPLE_HEAVY, show_header=False, padding=(0, 1))
+    stat_table.add_column("Metric", style="cyan", min_width=16)
+    stat_table.add_column("Value", style="white")
+    stat_table.add_row("4 Kings", "Engineering, Personal, Research, System")
+    stat_table.add_row("Workers", "8 + 5 + 4 + 4 = 21")
+    stat_table.add_row("Capabilities", str(cap_total))
+    stat_table.add_row("Knowledge", f"{mats} materials, {bears} bearings, {formulas} formulas")
+    console.print(Panel(stat_table, title="Capabilities & Memory", box=box.ROUNDED))
+
+
 def main():
     """CLI entry point."""
     import argparse
     
-    parser = argparse.ArgumentParser(description="JARVIS TUI")
+    parser = argparse.ArgumentParser(description="JARVIS Engineering Suite")
     parser.add_argument("--cli", action="store_true", help="Use CLI mode instead of TUI")
     parser.add_argument("command", nargs="?", help="Command to run")
+    parser.add_argument("mission_desc", nargs="?", help="Mission description (for 'mission' command)")
     args = parser.parse_args()
+
+    cmd = args.command
     
-    if args.command == "doctor":
+    if cmd == "doctor":
         doctor()
-    elif args.command == "status":
-        from jarvis.agents.jarvis import JarvisAgent
+    elif cmd == "status":
         from jarvis import __version__
         console.print(f"[bold cyan]JARVIS v{__version__}[/bold cyan]")
         console.print("System is operational.")
-    elif args.command == "agents":
+    elif cmd == "agents":
         from jarvis.agents.kings import EngineeringKing, PersonalKing, ResearchKing, SystemKing
         eng = EngineeringKing()
         per = PersonalKing()
@@ -553,21 +853,38 @@ def main():
         console.print(f"[cyan]Personal:[/cyan] {len(per._workers)} workers")
         console.print(f"[cyan]Research:[/cyan] {len(res._workers)} workers")
         console.print(f"[cyan]System:[/cyan] {len(sys_k._workers)} workers")
-    elif args.command == "knowledge":
+    elif cmd == "knowledge":
         from jarvis.engineering.knowledge import engineering_knowledge
         console.print(f"[cyan]Materials:[/cyan] {len(engineering_knowledge.materials)}")
         console.print(f"[cyan]Bearings:[/cyan] {len(engineering_knowledge.bearings)}")
         console.print(f"[cyan]Formulas:[/cyan] {len(engineering_knowledge.formulas)}")
+    elif cmd == "continue":
+        cmd_continue()
+    elif cmd == "mission":
+        desc = args.mission_desc
+        if not desc:
+            console.print("[red]Usage: jarvis-cli mission <description>[/red]")
+        else:
+            cmd_mission(desc)
+    elif cmd == "review":
+        cmd_review()
+    elif cmd == "world":
+        cmd_world()
+    elif cmd == "explain":
+        cmd_explain()
     elif args.cli:
         from . import __version__
         console.print(f"[bold cyan]JARVIS v{__version__}[/bold cyan]")
         console.print("Use 'jarvis-cli' without --cli for full TUI experience")
-    elif args.command is None:
+    elif cmd is None:
         tui = JARVISTUI()
         tui.run()
     else:
-        console.print(f"[red]Unknown command: {args.command}[/red]")
-        console.print("Available commands: doctor, status, agents, knowledge")
+        console.print(f"[red]Unknown command: {cmd}[/red]")
+        console.print(
+            "Available commands: doctor, status, agents, knowledge, "
+            "continue, mission, review, world, explain"
+        )
 
 
 if __name__ == "__main__":

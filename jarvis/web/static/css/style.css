@@ -2,6 +2,7 @@
     --bg-primary: #050b14;
     --bg-glass: rgba(5, 11, 20, 0.75);
     --bg-glass-hover: rgba(5, 11, 20, 0.88);
+    --bg-panel: rgba(8, 16, 28, 0.92);
     --border: rgba(0, 240, 255, 0.1);
     --border-active: rgba(0, 240, 255, 0.35);
     --text-primary: rgba(180, 230, 245, 0.9);
@@ -18,6 +19,9 @@
     --hearts: #ff3366;
     --diamonds: #ffaa00;
     --clubs: #00cc66;
+    --nav-width: 72px;
+    --right-width: 280px;
+    --bottom-height: 120px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -33,7 +37,7 @@ body {
 }
 
 /* ============================================
-   APP SHELL
+   UNIFIED DASHBOARD — Three-panel layout
    ============================================ */
 
 #app {
@@ -42,30 +46,183 @@ body {
     height: 100vh;
 }
 
+#dashboard {
+    display: grid;
+    grid-template-columns: var(--nav-width) 1fr var(--right-width);
+    grid-template-rows: 1fr;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+/* ============================================
+   LEFT NAV — Vertical navigation column
+   ============================================ */
+
+#left-nav {
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    z-index: 30;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.nav-logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.4s ease;
+}
+
+.logo-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 240, 255, 0.15);
+    animation: logoPulse 4s ease-in-out infinite;
+}
+
+@keyframes logoPulse {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.08); }
+}
+
+.logo-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
+}
+
+.nav-logo:hover {
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+    transform: scale(1.05);
+}
+
+.nav-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    width: 56px;
+}
+
+.nav-btn span {
+    font-size: 8px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    opacity: 0.6;
+}
+
+.nav-btn:hover {
+    color: var(--accent);
+    background: rgba(0, 240, 255, 0.06);
+}
+
+.nav-btn:hover span { opacity: 1; }
+
+.nav-btn.active {
+    color: var(--accent);
+    background: rgba(0, 240, 255, 0.1);
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.15);
+}
+
+.nav-btn.active span { opacity: 1; }
+
+.nav-footer {
+    margin-top: auto;
+    padding-top: 16px;
+}
+
+.version-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: default;
+}
+
+.version-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 6px rgba(0, 204, 102, 0.5);
+    animation: dotPulse 3s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+.version-text {
+    font-size: 9px;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+}
+
+/* ============================================
+   CENTER PANEL — Core visualization + Mission + Input
+   ============================================ */
+
+#center-panel {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+#center-core {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
 #jarvis-canvas {
-    position: fixed;
+    position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
     z-index: 0;
     background: #050b14;
 }
 
-/* ============================================
-   LIVING UI LAYER
-   ============================================ */
-
-#living-ui {
-    position: fixed;
+#graph-container {
+    position: absolute;
     top: 0; left: 0;
     width: 100%; height: 100%;
-    z-index: 10;
-    pointer-events: none;
+    z-index: 0;
+    background: #000;
 }
 
-#living-ui > * { pointer-events: auto; }
-
 /* ============================================
-   CORE LABEL — floats below the particle sphere
+   CORE LABEL — floats below particle sphere
    ============================================ */
 
 #core-label {
@@ -94,7 +251,7 @@ body {
 }
 
 /* ============================================
-   THOUGHT STREAM — ephemeral thoughts orbiting the core
+   THOUGHT STREAM — ephemeral thoughts orbiting core
    ============================================ */
 
 #thought-stream {
@@ -130,8 +287,8 @@ body {
    ============================================ */
 
 #response-display {
-    position: fixed;
-    bottom: 90px; left: 50%;
+    position: absolute;
+    bottom: 100px; left: 50%;
     transform: translateX(-50%);
     max-width: 620px;
     width: 90%;
@@ -190,16 +347,23 @@ body {
 .response-text strong { color: var(--text-primary); }
 
 /* ============================================
-   MISSION STATE — floats above input
+   MISSION BAR — sits between core and input
    ============================================ */
 
-#mission-state {
-    position: absolute;
-    bottom: 80px; left: 50%;
-    transform: translateX(-50%);
-    text-align: center;
-    pointer-events: none;
+#mission-bar {
+    height: 48px;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-panel);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 20px;
     z-index: 12;
+}
+
+#mission-state {
+    text-align: center;
     opacity: 0;
     transition: opacity 1s ease;
 }
@@ -214,15 +378,16 @@ body {
     margin-bottom: 8px;
 }
 
-.mission-bar {
-    width: 180px; height: 2px;
+.mission-progress-bar {
+    width: 180px;
+    height: 2px;
     background: var(--border);
     border-radius: 1px;
     overflow: hidden;
     margin: 0 auto 6px;
 }
 
-.mission-fill {
+.mission-progress-fill {
     height: 100%;
     background: linear-gradient(90deg, #00f0ff, #00cc88);
     border-radius: 1px;
@@ -236,31 +401,85 @@ body {
     letter-spacing: 1px;
 }
 
+.mission-agents {
+    font-size: 9px;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+}
+
 /* ============================================
-   INPUT BAR — the only persistent UI
+   BOTTOM PANEL — Terminal + Input
+   ============================================ */
+
+#bottom-panel {
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+}
+
+#terminal-log {
+    height: var(--bottom-height);
+    border-top: 1px solid var(--border);
+    background: rgba(5, 11, 20, 0.95);
+    overflow-y: auto;
+    padding: 8px 16px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    display: none;
+}
+
+#terminal-log.visible {
+    display: block;
+}
+
+#terminal-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.terminal-line {
+    color: var(--text-secondary);
+    opacity: 0.7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    animation: termFadeIn 0.3s ease;
+}
+
+.terminal-line.error { color: var(--danger); }
+.terminal-line.success { color: var(--success); }
+.terminal-line.info { color: var(--accent); }
+
+@keyframes termFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 0.7; transform: translateY(0); }
+}
+
+/* ============================================
+   INPUT BAR — the persistent command center
    ============================================ */
 
 #input-bar {
-    position: fixed;
-    bottom: 24px; left: 50%;
-    transform: translateX(-50%);
     display: flex;
     align-items: center;
     gap: 6px;
     padding: 6px 8px 6px 16px;
     background: rgba(5, 11, 20, 0.85);
-    border: 1px solid rgba(0, 240, 255, 0.12);
-    border-radius: 28px;
+    border-top: 1px solid rgba(0, 240, 255, 0.08);
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    box-shadow: 0 0 40px rgba(0, 240, 255, 0.04), inset 0 0 15px rgba(0, 240, 255, 0.02);
-    z-index: 20;
-    transition: border-color 0.4s ease, box-shadow 0.4s ease, transform 0.3s ease;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.4s ease, box-shadow 0.4s ease;
 }
 
 #input-bar:focus-within {
-    border-color: rgba(0, 240, 255, 0.3);
-    box-shadow: 0 0 60px rgba(0, 240, 255, 0.08), 0 0 120px rgba(0, 240, 255, 0.03);
+    border-top-color: rgba(0, 240, 255, 0.3);
+    box-shadow: 0 -4px 30px rgba(0, 240, 255, 0.05);
 }
 
 #message-input {
@@ -271,7 +490,7 @@ body {
     font-size: 14px;
     font-family: inherit;
     outline: none;
-    min-width: 260px;
+    min-width: 200px;
     padding: 8px 0;
 }
 
@@ -309,9 +528,7 @@ body {
     box-shadow: 0 0 24px rgba(0, 240, 255, 0.5);
 }
 
-#send-btn:active {
-    transform: scale(0.95);
-}
+#send-btn:active { transform: scale(0.95); }
 
 #mic-btn.active {
     color: var(--accent);
@@ -325,7 +542,157 @@ body {
 }
 
 /* ============================================
-   SETTINGS OVERLAY — emerges on Ctrl+,
+   RIGHT PANEL — Agent conversations + Health
+   ============================================ */
+
+#right-panel {
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 25;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.right-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.right-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0 12px;
+}
+
+.right-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 8px;
+    flex-shrink: 0;
+}
+
+.right-title {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.right-status {
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 240, 255, 0.08);
+}
+
+.right-status.health-ok { color: var(--success); background: rgba(0, 204, 102, 0.08); }
+
+/* ---- Agent Conversation Stream ---- */
+
+#agent-conversation-stream {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 12px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.agent-msg {
+    padding: 8px 12px;
+    background: rgba(0, 240, 255, 0.04);
+    border: 1px solid rgba(0, 240, 255, 0.1);
+    border-radius: 8px;
+    opacity: 0;
+    animation: agentMsgIn 0.4s ease forwards;
+    transition: opacity 0.3s ease;
+}
+
+.agent-msg:hover {
+    border-color: rgba(0, 240, 255, 0.25);
+}
+
+@keyframes agentMsgIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.agent-msg-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.agent-card {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--accent);
+    padding: 1px 5px;
+    background: rgba(0, 240, 255, 0.1);
+    border-radius: 3px;
+}
+
+.agent-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.agent-recv {
+    font-size: 9px;
+    color: var(--text-secondary);
+}
+
+.agent-msg-body {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+
+/* ---- Health Panel ---- */
+
+#health-panel {
+    padding: 0 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.health-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.health-row:last-child { border-bottom: none; }
+
+.health-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+.health-value {
+    font-size: 11px;
+    font-family: 'SF Mono', monospace;
+    color: var(--accent);
+}
+
+/* ============================================
+   SETTINGS OVERLAY
    ============================================ */
 
 .overlay {
@@ -396,10 +763,7 @@ body {
 
 .overlay-close:hover { color: var(--accent); }
 
-/* Settings form inside overlay */
-.settings-section {
-    margin-bottom: 24px;
-}
+.settings-section { margin-bottom: 24px; }
 
 .settings-section h3 {
     font-size: 10px;
@@ -502,11 +866,14 @@ body {
     color: var(--text-primary);
 }
 
-/* Toast */
+/* ============================================
+   TOAST
+   ============================================ */
+
 .toast {
     position: fixed;
-    bottom: 80px; left: 50%;
-    transform: translateX(-50%) translateY(20px);
+    top: 20px; left: 50%;
+    transform: translateX(-50%) translateY(-20px);
     background: rgba(5, 11, 20, 0.9);
     border: 1px solid rgba(0, 204, 102, 0.4);
     color: #00cc66;
@@ -528,57 +895,6 @@ body {
 }
 
 /* ============================================
-   NAV CLUSTER — bottom-left, hover-reveal
-   ============================================ */
-
-#nav-cluster {
-    position: fixed;
-    bottom: 28px;
-    left: 24px;
-    display: flex;
-    gap: 6px;
-    z-index: 25;
-    opacity: 0.15;
-    transition: opacity 0.5s ease;
-}
-
-#nav-cluster:hover {
-    opacity: 1;
-}
-
-.nav-dot {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 240, 255, 0.1);
-    background: rgba(5, 11, 20, 0.8);
-    color: rgba(0, 240, 255, 0.35);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-decoration: none;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: all 0.3s ease;
-}
-
-.nav-dot:hover {
-    border-color: rgba(0, 240, 255, 0.4);
-    color: #00f0ff;
-    background: rgba(0, 240, 255, 0.08);
-    transform: scale(1.1);
-    box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
-}
-
-.nav-dot.active {
-    border-color: rgba(0, 240, 255, 0.4);
-    color: #00f0ff;
-    background: rgba(0, 240, 255, 0.1);
-    box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
-}
-
-/* ============================================
    SCROLLBAR
    ============================================ */
 
@@ -592,11 +908,11 @@ body {
    ============================================ */
 
 #chat-container {
-    position: fixed;
-    bottom: 70px;
+    position: absolute;
+    bottom: 20px;
     left: 50%;
     transform: translateX(-50%);
-    width: min(680px, 90vw);
+    width: min(680px, 90%);
     max-height: 60vh;
     overflow-y: auto;
     z-index: 12;
@@ -657,168 +973,12 @@ body {
 }
 
 /* ============================================
-   RESPONSIVE
+   DEPARTMENT BADGES — inline in center panel
    ============================================ */
 
-@media (max-width: 768px) {
-    #message-input { min-width: 140px; }
-    .response-bubble { padding: 16px 20px; }
-    .overlay-content { padding: 24px; }
-    .setting-control input[type="text"],
-    .setting-control input[type="password"],
-    .setting-control input[type="number"],
-    .setting-control select { width: 140px; }
-}
-
-/* ============================================
-   SYSTEM ERROR STATE — red theme when broken
-   ============================================ */
-
-body.system-error {
-    --accent: #ff3366;
-    --accent-dim: rgba(255, 51, 102, 0.2);
-    --accent-glow: rgba(255, 51, 102, 0.4);
-    --border: rgba(255, 51, 102, 0.15);
-    --border-active: rgba(255, 51, 102, 0.4);
-}
-
-body.system-error #jarvis-canvas {
-    background: #0a0510;
-}
-
-body.system-error #input-bar {
-    border-color: rgba(255, 51, 102, 0.4);
-    box-shadow: 0 0 20px rgba(255, 51, 102, 0.15);
-}
-
-body.system-error #input-bar input {
-    border-color: rgba(255, 51, 102, 0.3);
-}
-
-body.system-error #input-bar button {
-    background: rgba(255, 51, 102, 0.15);
-    border-color: rgba(255, 51, 102, 0.3);
-    color: #ff3366;
-}
-
-body.system-error #input-bar button:hover {
-    background: rgba(255, 51, 102, 0.3);
-}
-
-body.system-error .response-bubble {
-    border-color: rgba(255, 51, 102, 0.3);
-    box-shadow: 0 0 30px rgba(255, 51, 102, 0.1);
-}
-
-body.system-error .response-bubble.error {
-    background: rgba(255, 51, 102, 0.08);
-    border-color: rgba(255, 51, 102, 0.5);
-}
-
-body.system-error #settings-overlay .overlay-content {
-    border-color: rgba(255, 51, 102, 0.3);
-}
-
-body.system-error #settings-overlay .overlay-content h2,
-body.system-error #settings-overlay .overlay-content h3 {
-    color: #ff3366;
-}
-
-body.system-error #settings-overlay .save-btn {
-    background: rgba(255, 51, 102, 0.15);
-    border-color: rgba(255, 51, 102, 0.4);
-    color: #ff3366;
-}
-
-body.system-error #settings-overlay .save-btn:hover {
-    background: rgba(255, 51, 102, 0.3);
-}
-
-body.system-error #settings-overlay .reset-btn {
-    border-color: rgba(255, 51, 102, 0.25);
-    color: #ff3366;
-}
-
-/* Nav dots turn red on error */
-body.system-error .nav-dot {
-    background: rgba(255, 51, 102, 0.4);
-}
-
-body.system-error .nav-dot:hover {
-    background: #ff3366;
-    box-shadow: 0 0 10px rgba(255, 51, 102, 0.5);
-}
-
-/* Error badge pulsing */
-body.system-error #input-bar::before {
-    content: 'SYSTEM ERROR';
-    position: absolute;
-    top: -24px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 10px;
-    letter-spacing: 3px;
-    color: #ff3366;
-    text-shadow: 0 0 10px rgba(255, 51, 102, 0.5);
-    animation: errorPulse 2s ease-in-out infinite;
-}
-
-@keyframes errorPulse {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
-}
-
-/* ============================================================
-   v3.2.0 — Living Intelligence Interface Styles
-   ============================================================ */
-
-/* ---- Thought Stream ---- */
-#thought-stream {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 15;
-}
-
-.thought {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    background: rgba(5, 11, 20, 0.85);
-    border: 1px solid rgba(0, 240, 255, 0.15);
-    border-radius: 20px;
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    opacity: 0;
-    animation: thoughtFade 5.8s ease-in-out forwards;
-    white-space: nowrap;
-    backdrop-filter: blur(8px);
-}
-
-.thought-icon { font-size: 13px; }
-.thought-text { letter-spacing: 0.3px; }
-
-.thought-process { border-color: rgba(0, 240, 255, 0.2); }
-.thought-work { border-color: rgba(0, 240, 255, 0.3); }
-.thought-plan { border-color: rgba(136, 68, 255, 0.3); }
-.thought-delegate { border-color: rgba(255, 170, 0, 0.3); }
-.thought-review { border-color: rgba(0, 204, 102, 0.3); }
-.thought-complete { border-color: rgba(0, 204, 102, 0.5); }
-.thought-error { border-color: rgba(255, 51, 102, 0.4); }
-
-@keyframes thoughtFade {
-    0% { opacity: 0; transform: translateY(8px); }
-    8% { opacity: 1; transform: translateY(0); }
-    85% { opacity: 1; }
-    100% { opacity: 0; transform: translateY(-12px) translateX(var(--drift-x, 0)); }
-}
-
-/* ---- Department Badges ---- */
 #department-badges {
-    position: fixed;
-    top: 80px;
+    position: absolute;
+    top: 20px;
     right: 20px;
     display: flex;
     flex-direction: column;
@@ -832,7 +992,7 @@ body.system-error #input-bar::before {
     gap: 8px;
     padding: 8px 14px;
     background: rgba(5, 11, 20, 0.8);
-    border: 1px solid var(--dept-color, var(--color-line));
+    border: 1px solid var(--dept-color, var(--border));
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -846,25 +1006,14 @@ body.system-error #input-bar::before {
     background: rgba(5, 11, 20, 0.95);
 }
 
-.dept-badge .dept-icon {
-    font-size: 16px;
-    color: var(--dept-color);
-}
+.dept-badge .dept-icon { font-size: 16px; color: var(--dept-color); }
+.dept-badge .dept-name { font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: var(--text-primary); }
+.dept-badge .dept-motto { font-size: 9px; color: var(--text-secondary); letter-spacing: 0.3px; }
 
-.dept-badge .dept-name {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    color: var(--color-text-primary);
-}
+/* ============================================
+   EXPLAINABILITY OVERLAY
+   ============================================ */
 
-.dept-badge .dept-motto {
-    font-size: 9px;
-    color: var(--color-text-muted);
-    letter-spacing: 0.3px;
-}
-
-/* ---- Explainability Overlay ---- */
 #explain-overlay {
     position: fixed;
     inset: 0;
@@ -874,6 +1023,7 @@ body.system-error #input-bar::before {
     pointer-events: none;
     transition: opacity 0.3s ease;
 }
+
 #explain-overlay.visible {
     opacity: 1;
     pointer-events: all;
@@ -884,7 +1034,7 @@ body.system-error #input-bar::before {
     width: 380px;
     max-height: 80vh;
     background: rgba(8, 16, 28, 0.95);
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--border);
     border-radius: 12px;
     z-index: 95;
     opacity: 0;
@@ -894,155 +1044,22 @@ body.system-error #input-bar::before {
     overflow-y: auto;
     backdrop-filter: blur(16px);
 }
+
 #explain-panel.visible {
     opacity: 1;
     transform: translateY(0) scale(1);
     pointer-events: all;
 }
 
-.explain-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px;
-    border-bottom: 1px solid var(--color-line);
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent, var(--color-primary)) 8%, transparent), transparent);
-}
+/* ============================================
+   MISSION DAG CONTAINER
+   ============================================ */
 
-.explain-icon { font-size: 24px; }
-.explain-title { flex: 1; }
-.explain-title h3 { margin: 0; font-size: 14px; color: var(--color-text-primary); }
-.explain-type { font-size: 10px; color: var(--color-text-muted); letter-spacing: 1px; }
-
-.explain-close {
-    background: none;
-    border: none;
-    color: var(--color-text-muted);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 4px;
-}
-.explain-close:hover { color: var(--color-text-primary); }
-
-.explain-body { padding: 12px 16px; }
-
-.explain-section { margin-bottom: 16px; }
-.explain-section h4 {
-    margin: 0 0 8px;
-    font-size: 10px;
-    letter-spacing: 1.5px;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-}
-
-/* Reasoning chain */
-.reasoning-chain {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.reasoning-step {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 4px 0;
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    border-left: 2px solid var(--color-line);
-    padding-left: 10px;
-    margin-bottom: 4px;
-}
-.step-conf {
-    margin-left: auto;
-    font-size: 10px;
-    color: var(--color-primary);
-    font-weight: 600;
-}
-
-/* Metrics */
-.explain-metrics { display: flex; flex-direction: column; gap: 6px; }
-.metric-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-}
-.metric-label { color: var(--color-text-muted); min-width: 80px; }
-.metric-value { color: var(--color-text-primary); font-family: var(--font-mono); }
-.metric-bar-wrap {
-    flex: 1;
-    height: 4px;
-    background: var(--color-line);
-    border-radius: 2px;
-    overflow: hidden;
-}
-.metric-bar {
-    height: 100%;
-    background: var(--color-primary);
-    border-radius: 2px;
-    transition: width 0.5s ease;
-}
-
-/* Tags */
-.explain-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-.explain-tag {
-    padding: 3px 8px;
-    background: rgba(0, 240, 255, 0.08);
-    border: 1px solid rgba(0, 240, 255, 0.2);
-    border-radius: 4px;
-    font-size: 10px;
-    color: var(--color-primary);
-    font-family: var(--font-mono);
-}
-
-/* Memories */
-.explain-memories { display: flex; flex-direction: column; gap: 4px; }
-.memory-item {
-    display: flex;
-    gap: 8px;
-    padding: 6px 8px;
-    background: rgba(255, 255, 255, 0.02);
-    border-radius: 4px;
-    font-size: 11px;
-}
-.mem-source {
-    color: var(--color-text-muted);
-    font-family: var(--font-mono);
-    font-size: 9px;
-    min-width: 60px;
-}
-.mem-text {
-    color: var(--color-text-secondary);
-    flex: 1;
-}
-
-/* Timeline */
-.explain-timeline {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-.timeline-event {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 3px 0;
-    font-size: 11px;
-    color: var(--color-text-secondary);
-}
-.tl-time {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--color-text-muted);
-    min-width: 50px;
-}
-
-/* ---- Mission DAG Container ---- */
 #mission-dag-container {
     width: 100%;
     height: 300px;
     margin-top: 20px;
-    border: 1px solid var(--color-line);
+    border: 1px solid var(--border);
     border-radius: 8px;
     background: rgba(5, 11, 20, 0.5);
     overflow: hidden;
@@ -1050,62 +1067,181 @@ body.system-error #input-bar::before {
 
 .mission-dag-svg { display: block; }
 
-/* ---- Memory Galaxy Container ---- */
-#memory-galaxy-container {
-    width: 100%;
-    height: 400px;
-    border: 1px solid var(--color-line);
-    border-radius: 8px;
-    background: #050b14;
-    overflow: hidden;
-    cursor: grab;
-}
-#memory-galaxy-container:active { cursor: grabbing; }
+/* ============================================
+   SYSTEM ERROR STATE — red theme when broken
+   ============================================ */
 
-/* ---- Mission State (bottom-left) ---- */
-#mission-state {
-    position: fixed;
-    bottom: 80px;
-    left: 20px;
-    padding: 10px 16px;
-    background: rgba(5, 11, 20, 0.9);
-    border: 1px solid var(--color-line);
-    border-radius: 8px;
-    z-index: 20;
+body.system-error {
+    --accent: #ff3366;
+    --accent-dim: rgba(255, 51, 102, 0.2);
+    --accent-glow: rgba(255, 51, 102, 0.4);
+    --border: rgba(255, 51, 102, 0.15);
+    --border-active: rgba(255, 51, 102, 0.4);
+}
+
+body.system-error #input-bar {
+    border-top-color: rgba(255, 51, 102, 0.4);
+}
+
+body.system-error #input-bar input { border-color: rgba(255, 51, 102, 0.3); }
+body.system-error #input-bar button { background: rgba(255, 51, 102, 0.15); color: #ff3366; }
+body.system-error #input-bar button:hover { background: rgba(255, 51, 102, 0.3); }
+body.system-error .response-bubble { border-color: rgba(255, 51, 102, 0.3); }
+body.system-error .nav-btn.active { background: rgba(255, 51, 102, 0.1); color: #ff3366; }
+body.system-error .agent-msg { border-color: rgba(255, 51, 102, 0.2); }
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 900px) {
+    #dashboard {
+        grid-template-columns: var(--nav-width) 1fr;
+    }
+    #right-panel { display: none; }
+}
+
+@media (max-width: 600px) {
+    #dashboard {
+        grid-template-columns: 1fr;
+    }
+    #left-nav { display: none; }
+    #right-panel { display: none; }
+}
+
+/* ============================================
+   CINEMATIC UI ANIMATIONS
+   ============================================ */
+
+/* 1. Breathing Panels — pulsing border glow on side panels */
+#left-nav, #right-panel {
+    animation: panelBreathe 6s ease-in-out infinite;
+}
+@keyframes panelBreathe {
+    0%, 100% { border-color: rgba(0, 240, 255, 0.1); }
+    50% { border-color: rgba(0, 240, 255, 0.2); }
+}
+
+/* 2. Floating cards — enhanced agent message entrance with rotation + scale */
+@keyframes agentMsgIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.95) rotate(-0.4deg); }
+    60%  { opacity: 1; transform: translateY(-2px) scale(1.01) rotate(0.1deg); }
+    to   { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
+/* 3. Energy flow lines — animated gradient along left border of center panel */
+#center-panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 2px; height: 100%;
+    background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+    animation: energyFlow 4s linear infinite;
+    z-index: 30;
+    opacity: 0.3;
+}
+#center-panel::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 2px; height: 100%;
+    background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+    animation: energyFlow 5s linear infinite reverse;
+    z-index: 30;
+    opacity: 0.2;
+}
+@keyframes energyFlow {
+    0%   { background-position: 0 -100%; }
+    100% { background-position: 0 200%; }
+}
+
+/* 4. Nav button hover glow — radial glow on hover */
+.nav-btn {
+    position: relative;
+}
+.nav-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
     opacity: 0;
-    transform: translateY(10px);
-    transition: all 0.4s ease;
-    backdrop-filter: blur(8px);
-    max-width: 260px;
+    background: radial-gradient(circle at center, rgba(0, 240, 255, 0.15), transparent 70%);
+    transition: opacity 0.3s ease;
+    pointer-events: none;
 }
-#mission-state.visible {
+.nav-btn:hover::after {
     opacity: 1;
-    transform: translateY(0);
+}
+.nav-btn.active::after {
+    opacity: 0.6;
+    background: radial-gradient(circle at center, rgba(0, 240, 255, 0.2), transparent 70%);
 }
 
-.mission-label {
-    font-size: 9px;
-    letter-spacing: 1.5px;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    margin-bottom: 6px;
+/* 5. Core state color transitions */
+#core-state {
+    transition: opacity 0.8s ease, letter-spacing 0.8s ease, text-shadow 0.8s ease, color 1.2s ease;
+}
+#core-state[data-state="listening"] {
+    color: #00cc66;
+    text-shadow: 0 0 16px rgba(0, 204, 102, 0.5);
+}
+#core-state[data-state="thinking"] {
+    color: #ffaa00;
+    text-shadow: 0 0 16px rgba(255, 170, 0, 0.5);
+}
+#core-state[data-state="speaking"] {
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+}
+#core-state[data-state="error"] {
+    color: #ff3366;
+    text-shadow: 0 0 16px rgba(255, 51, 102, 0.5);
 }
 
-.mission-bar {
-    height: 3px;
-    background: var(--color-line);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: 6px;
+/* 6. Response bubble spring entrance */
+@keyframes bubble-spring {
+    0%   { opacity: 0; transform: translateY(30px) scale(0.92); }
+    50%  { opacity: 1; transform: translateY(-4px) scale(1.02); }
+    70%  { transform: translateY(2px) scale(0.99); }
+    85%  { transform: translateY(-1px) scale(1.005); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-.mission-fill {
-    height: 100%;
-    background: var(--color-primary);
-    border-radius: 2px;
-    transition: width 1s ease;
+.response-bubble {
+    animation: bubble-spring 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.mission-detail {
-    font-size: 11px;
-    color: var(--color-text-secondary);
+/* 7. Mission bar pulse when active */
+#mission-bar.active {
+    animation: missionPulse 3s ease-in-out infinite;
+}
+@keyframes missionPulse {
+    0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+    50%      { box-shadow: inset 0 0 20px -8px rgba(0, 240, 255, 0.12); }
+}
+#mission-bar.active .mission-progress-fill {
+    box-shadow: 0 0 12px rgba(0, 240, 255, 0.5), 0 0 24px rgba(0, 240, 255, 0.15);
+}
+
+/* 8. Health panel status indicator dots */
+.health-value::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    animation: dotPulse 3s ease-in-out infinite;
+}
+.health-value.status-ok::before {
+    background: var(--success);
+    box-shadow: 0 0 6px rgba(0, 204, 102, 0.6);
+}
+.health-value.status-warn::before {
+    background: var(--warning);
+    box-shadow: 0 0 6px rgba(255, 170, 0, 0.6);
+}
+.health-value.status-error::before {
+    background: var(--danger);
+    box-shadow: 0 0 6px rgba(255, 51, 102, 0.6);
 }

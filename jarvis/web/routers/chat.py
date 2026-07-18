@@ -108,24 +108,39 @@ async def chat(req: ChatRequest):
 
 @router.get("/stream")
 async def chat_stream(message: str, session_id: Optional[str] = None):
-    """Stream a chat response via SSE."""
+    """Stream a chat response via SSE — true token-by-token streaming."""
     sid = session_id or str(uuid.uuid4())[:8]
-    
+
     async def event_generator():
-        # NOTE: This is not true streaming — it awaits the full response before
-        # sending. Real streaming would require the LLM backend to support it.
-        # Send thinking state
         yield f"data: {json.dumps({'type': 'state', 'state': 'thinking'})}\n\n"
-        
-        # Process message
-        response = await web_main.jarvis.process_user_request(message)
-        
-        # Send response
-        yield f"data: {json.dumps({'type': 'response', 'content': response, 'session_id': sid})}\n\n"
-        
-        # Send idle state
-        yield f"data: {json.dumps({'type': 'state', 'state': 'idle'})}\n\n"
-    
+
+        # Save user message to DB
+        db = await get_db()
+        await db.index_conversation(sid, "user", message)
+
+        llm = getattr(web_main.jarvis, '_llm', None)
+        if llm:
+            await llm.load_session_context(sid)
+
+        # Use the async streaming LLM if available
+        if llm and hasattr(llm, 'achat_stream'):
+            full_response: list[str] = []
+            async for token in llm.achat_stream(message):
+                full_response.append(token)
+                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+
+            response = "".join(full_response)
+
+            await db.index_conversation(sid, "assistant", response)
+            await llm.save_session_context(sid)
+        else:
+            # Fallback: non-streaming path
+            response = await web_main.jarvis.process_user_request(message)
+            await db.index_conversation(sid, "assistant", response)
+            yield f"data: {json.dumps({'type': 'token', 'content': response})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'done', 'session_id': sid})}\n\n"
+
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 

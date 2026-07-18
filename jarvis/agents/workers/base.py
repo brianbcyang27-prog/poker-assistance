@@ -213,6 +213,17 @@ After receiving tool results, continue your work. When done, provide your final 
                             except ValueError:
                                 params[arg[0]] = arg[1]
                 
+                # Emit tool_call event for real-time UI
+                await event_bus.emit(Event(
+                    type="worker.tool_call",
+                    data={
+                        "worker": self.card_id,
+                        "action": action_str,
+                        "params": str(params)[:100],
+                    },
+                    source=self.card_id,
+                ))
+
                 # Execute the tool
                 result = await tool_executor.execute(action_str, **params)
                 

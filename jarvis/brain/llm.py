@@ -198,6 +198,171 @@ class LLM:
         except json.JSONDecodeError:
             return {"raw_response": response, "parse_error": True}
     
+    def _build_messages(
+        self,
+        message: str,
+        system_prompt: Optional[str] = None,
+    ) -> List[Dict[str, str]]:
+        messages: List[Dict[str, str]] = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.extend(self.conversation_history[-10:])
+        messages.append({"role": "user", "content": message})
+        return messages
+
+    def _chat_completion_stream(
+        self,
+        messages: List[Dict[str, str]],
+        model: str,
+        base_url: str,
+        api_key: str,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+    ):
+        """Yield SSE tokens from /chat/completions via httpx streaming."""
+        url = f"{base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+
+        with self._http.stream("POST", url, json=payload, headers=headers) as resp:
+            resp.raise_for_status()
+            for line in resp.iter_lines():
+                if not line:
+                    continue
+                # SSE lines are prefixed with "data: "
+                if line.startswith("data: "):
+                    line = line[6:]
+                if line.strip() == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(line)
+                    delta = chunk["choices"][0].get("delta", {})
+                    content = delta.get("content")
+                    if content:
+                        yield content
+                except (json.JSONDecodeError, KeyError, IndexError):
+                    continue
+
+    async def _achat_completion_stream(
+        self,
+        messages: List[Dict[str, str]],
+        model: str,
+        base_url: str,
+        api_key: str,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+    ):
+        """Async yield SSE tokens from /chat/completions via httpx streaming."""
+        url = f"{base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": True,
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async with client.stream("POST", url, json=payload, headers=headers) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line:
+                        continue
+                    if line.startswith("data: "):
+                        line = line[6:]
+                    if line.strip() == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(line)
+                        delta = chunk["choices"][0].get("delta", {})
+                        content = delta.get("content")
+                        if content:
+                            yield content
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue
+
+    def chat_stream(
+        self,
+        message: str,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+    ):
+        """Yield response tokens one by one as they arrive from the LLM."""
+        try:
+            from .privacy import scrubber
+            message = scrubber.scrub(message)
+        except Exception:
+            pass
+
+        base_url, api_key, model = self._get_endpoint()
+        messages = self._build_messages(message, system_prompt)
+
+        full_response: List[str] = []
+        for token in self._chat_completion_stream(
+            messages=messages,
+            model=model,
+            base_url=base_url,
+            api_key=api_key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        ):
+            full_response.append(token)
+            yield token
+
+        # Persist to conversation history after stream completes
+        self.conversation_history.append({"role": "user", "content": message})
+        self.conversation_history.append({"role": "assistant", "content": "".join(full_response)})
+        if len(self.conversation_history) > 20:
+            self.conversation_history = self.conversation_history[-20:]
+
+    async def achat_stream(
+        self,
+        message: str,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+    ):
+        """Async yield response tokens one by one as they arrive from the LLM."""
+        try:
+            from .privacy import scrubber
+            message = scrubber.scrub(message)
+        except Exception:
+            pass
+
+        base_url, api_key, model = self._get_endpoint()
+        messages = self._build_messages(message, system_prompt)
+
+        full_response: List[str] = []
+        async for token in self._achat_completion_stream(
+            messages=messages,
+            model=model,
+            base_url=base_url,
+            api_key=api_key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        ):
+            full_response.append(token)
+            yield token
+
+        self.conversation_history.append({"role": "user", "content": message})
+        self.conversation_history.append({"role": "assistant", "content": "".join(full_response)})
+        if len(self.conversation_history) > 20:
+            self.conversation_history = self.conversation_history[-20:]
+
     def clear_history(self):
         """Clear the conversation history."""
         self.conversation_history = []

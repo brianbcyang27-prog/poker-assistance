@@ -15,74 +15,151 @@
 </head>
 <body>
     <div id="app">
-        <div id="jarvis-canvas"></div>
-        <div id="graph-container" style="position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:0;display:none;background:#000;"></div>
 
-        <div id="living-ui">
-            <div id="core-label">
-                <div id="core-state">IDLE</div>
-            </div>
+        <!-- ===== UNIFIED DASHBOARD ===== -->
+        <div id="dashboard">
 
-            <div id="thought-stream"></div>
+            <!-- LEFT NAV PANEL -->
+            <nav id="left-nav">
+                <div class="nav-logo">
+                    <div class="logo-ring"></div>
+                    <span class="logo-text">J</span>
+                </div>
+                <div class="nav-items">
+                    <button class="nav-btn active" data-panel="core" title="Neural Core">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4m-9-9h4m14 0h4"/>
+                        </svg>
+                        <span>Core</span>
+                    </button>
+                    <button class="nav-btn" data-panel="agents" title="Agent Hierarchy">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/>
+                        </svg>
+                        <span>Agents</span>
+                    </button>
+                    <button class="nav-btn" data-panel="graph" title="Knowledge Graph">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/>
+                            <line x1="8" y1="6" x2="16" y2="6"/><line x1="7" y1="8" x2="11" y2="16"/><line x1="17" y1="8" x2="13" y2="16"/>
+                        </svg>
+                        <span>Graph</span>
+                    </button>
+                    <button class="nav-btn" data-panel="health" title="System Health">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                        </svg>
+                        <span>Health</span>
+                    </button>
+                    <button class="nav-btn" data-panel="settings" title="Settings (Ctrl+,)">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                        <span>Settings</span>
+                    </button>
+                </div>
+                <div class="nav-footer">
+                    <div class="version-badge" title="System Status">
+                        <span class="version-dot"></span>
+                        <span class="version-text">v4.0.0</span>
+                    </div>
+                </div>
+            </nav>
 
-            <div id="mission-state"></div>
+            <!-- CENTER PANEL: Core + Mission + Chat/Response -->
+            <main id="center-panel">
+                <div id="center-core">
+                    <div id="jarvis-canvas"></div>
+                    <div id="graph-container" style="display:none;"></div>
+
+                    <div id="core-label">
+                        <div id="core-state">IDLE</div>
+                    </div>
+
+                    <div id="thought-stream"></div>
+
+                    <div id="department-badges"></div>
+
+                    <div id="response-display"></div>
+
+                    <!-- Chat mode: scrollable conversation -->
+                    <div id="chat-container" style="display:none;">
+                        <div id="chat-messages"></div>
+                    </div>
+                </div>
+
+                <div id="mission-bar">
+                    <div id="mission-state"></div>
+                </div>
+
+                <!-- BOTTOM: Input + Terminal -->
+                <div id="bottom-panel">
+                    <div id="terminal-log">
+                        <div id="terminal-entries"></div>
+                    </div>
+                    <div id="input-bar">
+                        <button id="mic-btn" onclick="toggleVoice()" title="Voice input">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                            </svg>
+                        </button>
+                        <input type="text" id="message-input" placeholder="Speak to JARVIS..."
+                               onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}">
+                        <button id="send-btn" onclick="sendMessage()" title="Send">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </main>
+
+            <!-- RIGHT PANEL: Thoughts + Agent Conversations + Health -->
+            <aside id="right-panel">
+                <div class="right-section" id="right-thoughts">
+                    <div class="right-header">
+                        <span class="right-title">THOUGHT STREAM</span>
+                        <span class="right-status" id="thought-count">0</span>
+                    </div>
+                    <div id="agent-conversation-stream"></div>
+                </div>
+
+                <div class="right-divider"></div>
+
+                <div class="right-section" id="right-health">
+                    <div class="right-header">
+                        <span class="right-title">SYSTEM HEALTH</span>
+                        <span class="right-status health-ok" id="health-status">OK</span>
+                    </div>
+                    <div id="health-panel">
+                        <div class="health-row">
+                            <span class="health-label">Agents</span>
+                            <span class="health-value" id="health-agents">23/23</span>
+                        </div>
+                        <div class="health-row">
+                            <span class="health-label">Kings</span>
+                            <span class="health-value" id="health-kings">4/4</span>
+                        </div>
+                        <div class="health-row">
+                            <span class="health-label">Events</span>
+                            <span class="health-value" id="health-events">0</span>
+                        </div>
+                        <div class="health-row">
+                            <span class="health-label">Uptime</span>
+                            <span class="health-value" id="health-uptime">0s</span>
+                        </div>
+                        <div class="health-row">
+                            <span class="health-label">Missions</span>
+                            <span class="health-value" id="health-missions">0</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
         </div>
 
-        <div id="department-badges"></div>
-
-        <div id="response-display"></div>
-
-        <!-- Chat mode: scrollable conversation -->
-        <div id="chat-container" style="display:none;">
-            <div id="chat-messages"></div>
-        </div>
-
-        <div id="input-bar">
-            <button id="mic-btn" onclick="toggleVoice()" title="Voice input">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                </svg>
-            </button>
-            <input type="text" id="message-input" placeholder="Speak to JARVIS..."
-                   onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}">
-            <button id="send-btn" onclick="sendMessage()" title="Send">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-            </button>
-        </div>
-
-        <!-- Nav cluster — bottom-left, emerges on hover -->
-        <nav id="nav-cluster">
-            <a href="/" class="nav-dot active" title="Neural Core">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4m-9-9h4m14 0h4"/>
-                </svg>
-            </a>
-            <a href="/command-map" class="nav-dot" title="Command Map">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/>
-                </svg>
-            </a>
-            <a href="/history" class="nav-dot" title="History">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-            </a>
-            <button class="nav-dot" onclick="toggleGraph()" title="Knowledge Graph">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/>
-                    <line x1="8" y1="6" x2="16" y2="6"/><line x1="7" y1="8" x2="11" y2="16"/><line x1="17" y1="8" x2="13" y2="16"/>
-                </svg>
-            </button>
-            <button class="nav-dot" onclick="toggleSettings()" title="Settings (Ctrl+,)">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
-            </button>
-        </nav>
-
+        <!-- SETTINGS OVERLAY -->
         <div id="settings-overlay" class="overlay hidden">
             <div class="overlay-content">
                 <div class="overlay-header">
@@ -188,7 +265,7 @@
                         <div class="setting-row">
                             <div class="setting-info">
                                 <div class="setting-name">View Mode</div>
-                                <div class="setting-desc">Neural Core (living particles) or 3D Knowledge Graph</div>
+                                <div class="setting-desc">Neural Core or 3D Knowledge Graph</div>
                             </div>
                             <div class="setting-control">
                                 <select name="view_mode" id="view-mode" onchange="setViewMode(this.value)">
@@ -200,7 +277,7 @@
                         <div class="setting-row">
                             <div class="setting-info">
                                 <div class="setting-name">Chat Mode</div>
-                                <div class="setting-desc">Popup bubble (floating) or Chat (scrollable history)</div>
+                                <div class="setting-desc">Popup bubble or scrollable history</div>
                             </div>
                             <div class="setting-control">
                                 <select name="chat_mode" id="chat-mode" onchange="setChatMode(this.value)">

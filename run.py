@@ -15,7 +15,7 @@ if __name__ == "__main__":
     config = get_config()
     app = create_app()
 
-    print(f"\n  JARVIS v3.0.0")
+    print(f"\n  JARVIS v4.0.0")
     print(f"  Running on http://{config.host}:{config.port}\n")
 
     uvicorn.run(app, host=config.host, port=config.port)

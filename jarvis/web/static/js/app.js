@@ -1,7 +1,6 @@
 /**
- * JARVIS — Living Interface Application
- * The only persistent UI is the neural core and the input bar.
- * Everything else emerges and dissolves.
+ * JARVIS — Unified Dashboard Application v4.0.0
+ * LEFT nav | CENTER core | RIGHT conversations + health | BOTTOM terminal + input
  */
 
 let currentSessionId = null;
@@ -9,6 +8,9 @@ let selectedVoiceId = null;
 let graph3d = null;
 let currentViewMode = 'core';
 let currentChatMode = 'popup';
+let _startTime = Date.now();
+let _eventCount = 0;
+let _missionCount = 0;
 
 /* ---- Settings overlay ---- */
 
@@ -116,68 +118,103 @@ function showToast(msg) {
 /* ---- Chat ---- */
 
 function sendMessage() {
+    sendMessageStreaming();
+}
+
+/* ---- Streaming Chat ---- */
+
+function sendMessageStreaming() {
     const input = document.getElementById('message-input');
     const message = input.value.trim();
     if (!message) return;
     input.value = '';
 
-    // Add user message to chat mode
     if (currentChatMode === 'chat') {
         addChatMessage('user', message);
     }
+
+    _addTerminalLine(`> ${message}`, 'info');
 
     if (window.jarvisState) window.jarvisState.startThinking();
     if (window.livingUI) window.livingUI.setState('thinking');
     if (graph3d) graph3d.setState('thinking');
 
-    const body = { message, session_id: currentSessionId };
-    if (selectedVoiceId) body.voice_id = selectedVoiceId;
+    const params = new URLSearchParams({ message });
+    if (currentSessionId) params.set('session_id', currentSessionId);
 
-    fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-    })
-        .then(r => {
-            if (!r.ok) {
-                // Try to get error message from JSON, fall back to status text
-                return r.text().then(text => {
-                    let msg = r.statusText;
-                    try { msg = JSON.parse(text).detail || text; } catch (_) { msg = text || msg; }
-                    throw new Error(msg);
+    // Create a streaming assistant bubble in chat mode
+    let bubble = null;
+    if (currentChatMode === 'chat') {
+        bubble = addChatMessage('assistant', '');
+    }
+
+    let fullText = '';
+    let firstToken = true;
+
+    fetch(`/api/chat/stream?${params}`)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            function read() {
+                reader.read().then(({ done, value }) => {
+                    if (done) return;
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Split on double-newline (SSE frame boundary)
+                    const frames = buffer.split('\n\n');
+                    buffer = frames.pop(); // incomplete frame stays in buffer
+
+                    for (const frame of frames) {
+                        const trimmed = frame.trim();
+                        if (!trimmed) continue;
+
+                        // Parse one or more "data:" lines
+                        for (const rawLine of trimmed.split('\n')) {
+                            const line = rawLine.trim();
+                            if (!line.startsWith('data: ')) continue;
+                            try {
+                                const evt = JSON.parse(line.slice(6));
+                                if (evt.type === 'token') {
+                                    if (firstToken) {
+                                        firstToken = false;
+                                        if (window.jarvisState) window.jarvisState.startSpeaking();
+                                        if (window.livingUI) window.livingUI.setState('speaking');
+                                        if (graph3d) graph3d.setState('speaking');
+                                    }
+                                    fullText += evt.content;
+                                    if (bubble) {
+                                        bubble.innerHTML = _md(fullText);
+                                        bubble.parentElement.scrollTop = bubble.parentElement.scrollHeight;
+                                    }
+                                } else if (evt.type === 'done') {
+                                    currentSessionId = evt.session_id || currentSessionId;
+                                    setErrorState(false);
+                                    if (window.jarvisState) window.jarvisState.set('idle');
+                                    if (window.livingUI) window.livingUI.setState('idle');
+                                    if (graph3d) graph3d.setState('idle');
+                                } else if (evt.type === 'state') {
+                                    // handled above
+                                }
+                            } catch (_) {}
+                        }
+                    }
+                    read();
                 });
             }
-            return r.json();
-        })
-        .then(data => {
-            currentSessionId = data.session_id;
-            setErrorState(false);
-
-            if (currentChatMode === 'chat') {
-                addChatMessage('assistant', data.response);
-            } else {
-                if (window.livingUI) {
-                    window.livingUI.showResponse(data.response, data.audio_url);
-                }
-            }
-
-            if (data.audio_url && window.jarvisState) {
-                window.jarvisState.startSpeaking();
-                if (window.livingUI) window.livingUI.setState('speaking');
-                if (graph3d) graph3d.setState('speaking');
-            } else {
-                if (window.jarvisState) window.jarvisState.set('idle');
-                if (window.livingUI) window.livingUI.setState('idle');
-                if (graph3d) graph3d.setState('idle');
-            }
+            read();
         })
         .catch(err => {
             setErrorState(true);
-            const msg = err.message || 'Unknown error';
-            if (currentChatMode === 'chat') {
-                addChatMessage('assistant', 'Error: ' + msg);
-            } else {
-                if (window.livingUI) window.livingUI.showResponse('Error: ' + msg);
+            _addTerminalLine(`ERROR: ${err.message}`, 'error');
+            if (bubble) {
+                bubble.innerHTML = _md('Error: ' + err.message);
+            } else if (currentChatMode === 'chat') {
+                addChatMessage('assistant', 'Error: ' + err.message);
+            } else if (window.livingUI) {
+                window.livingUI.showResponse('Error: ' + err.message);
             }
             if (window.jarvisState) window.jarvisState.set('idle');
             if (window.livingUI) window.livingUI.setState('idle');
@@ -208,10 +245,10 @@ function addChatMessage(role, text) {
     msg.innerHTML = role === 'assistant' ? _md(text) : _escHtml(text);
     container.appendChild(msg);
     container.parentElement.scrollTop = container.parentElement.scrollHeight;
+    return msg;
 }
 
 function _md(text) {
-    // Sanitize: strip HTML tags to prevent XSS, then apply markdown
     const clean = text.replace(/<[^>]*>/g, '');
     return clean
         .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
@@ -257,35 +294,159 @@ async function setViewMode(mode) {
     currentViewMode = mode;
     const coreCanvas = document.getElementById('jarvis-canvas');
     const graphContainer = document.getElementById('graph-container');
-    const livingUI = document.getElementById('living-ui');
 
     if (mode === 'graph') {
-        // Hide core + living UI, show 3D graph
         coreCanvas.style.display = 'none';
         graphContainer.style.display = 'block';
-        livingUI.style.display = 'none';
 
         if (!graph3d) {
             graph3d = new Graph3D(graphContainer);
             graph3d.init();
             await graph3d.loadData();
-            // Sync current state
             if (window.jarvisState) {
                 graph3d.setState(window.jarvisState.state || 'idle');
             }
         }
         graph3d.start();
     } else {
-        // Show core + living UI, hide graph
         coreCanvas.style.display = 'block';
         graphContainer.style.display = 'none';
-        livingUI.style.display = '';
 
         if (graph3d) {
             graph3d.stop();
             graph3d.destroy();
             graph3d = null;
         }
+    }
+}
+
+/* ---- Terminal Log ---- */
+
+function _addTerminalLine(text, type) {
+    const entries = document.getElementById('terminal-entries');
+    if (!entries) return;
+
+    const line = document.createElement('div');
+    line.className = `terminal-line ${type || ''}`;
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    line.textContent = `[${time}] ${text}`;
+    entries.appendChild(line);
+
+    while (entries.children.length > 50) {
+        entries.removeChild(entries.firstChild);
+    }
+
+    entries.parentElement.scrollTop = entries.parentElement.scrollHeight;
+}
+
+/* ---- Nav Panel Switching ---- */
+
+function switchNavPanel(panelId) {
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.panel === panelId);
+    });
+
+    const terminalLog = document.getElementById('terminal-log');
+
+    switch (panelId) {
+        case 'core':
+            setViewMode('core');
+            terminalLog.classList.remove('visible');
+            break;
+        case 'agents':
+            setViewMode('core');
+            terminalLog.classList.remove('visible');
+            // Could show agent hierarchy overlay
+            break;
+        case 'graph':
+            setViewMode('graph');
+            terminalLog.classList.remove('visible');
+            break;
+        case 'health':
+            setViewMode('core');
+            terminalLog.classList.add('visible');
+            _refreshHealth();
+            break;
+        case 'settings':
+            toggleSettings();
+            break;
+    }
+}
+
+/* ---- Health Panel ---- */
+
+function _refreshHealth() {
+    fetch('/api/agents')
+        .then(r => r.json())
+        .then(data => {
+            const kings = data.kings || {};
+            let totalWorkers = 0, activeWorkers = 0;
+            let totalKings = Object.keys(kings).length;
+            for (const king of Object.values(kings)) {
+                const workers = king.workers || {};
+                totalWorkers += Object.keys(workers).length;
+                for (const w of Object.values(workers)) {
+                    if (w.state !== 'idle') activeWorkers++;
+                }
+            }
+
+            document.getElementById('health-agents').textContent = `${activeWorkers}/${totalWorkers}`;
+            document.getElementById('health-kings').textContent = `${totalKings}/4`;
+            document.getElementById('health-events').textContent = _eventCount;
+            document.getElementById('health-uptime').textContent = _formatUptime(Date.now() - _startTime);
+            document.getElementById('health-missions').textContent = _missionCount;
+
+            const statusEl = document.getElementById('health-status');
+            statusEl.textContent = 'OK';
+            statusEl.className = 'right-status health-ok';
+        })
+        .catch(() => {
+            const statusEl = document.getElementById('health-status');
+            statusEl.textContent = 'DOWN';
+            statusEl.className = 'right-status';
+            statusEl.style.color = '#ff3366';
+        });
+}
+
+function _formatUptime(ms) {
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m`;
+    const h = Math.floor(m / 60);
+    return `${h}h ${m % 60}m`;
+}
+
+/* ---- Agent Conversation Stream ---- */
+
+function _addAgentConversation(data) {
+    const stream = document.getElementById('agent-conversation-stream');
+    if (!stream) return;
+
+    const el = document.createElement('div');
+    el.className = 'agent-msg';
+
+    const header = document.createElement('div');
+    header.className = 'agent-msg-header';
+    header.innerHTML = `<span class="agent-card">${data.card_id || '?'}</span> <span class="agent-name">${data.title || data.sender || '?'}</span>`;
+    if (data.receiver) {
+        header.innerHTML += ` → <span class="agent-recv">${data.receiver}</span>`;
+    }
+
+    const body = document.createElement('div');
+    body.className = 'agent-msg-body';
+    body.textContent = data.content || '';
+
+    el.appendChild(header);
+    el.appendChild(body);
+    stream.appendChild(el);
+
+    stream.scrollTop = stream.scrollHeight;
+
+    requestAnimationFrame(() => el.classList.add('visible'));
+
+    while (stream.children.length > 30) {
+        stream.removeChild(stream.firstChild);
     }
 }
 
@@ -308,7 +469,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.livingUI = new LivingInterface();
     } catch (e) { console.warn('LivingInterface:', e); }
 
-    // v3.2.0: Initialize new components
     try {
         window.deptIdentity = new DepartmentIdentity();
         window.deptIdentity.renderAll();
@@ -334,9 +494,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (window.livingUI) {
         window.livingUI.setState('idle');
         window.livingUI.startMissionPolling();
-        // v3.2.0: Connect to Event Bus WebSocket for real-time thought stream
         window.livingUI.connectEvents();
     }
+
+    // Wire up nav panel switching
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchNavPanel(btn.dataset.panel));
+    });
 
     loadSettings();
 
@@ -351,6 +515,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             setChatMode(settings.chat_mode);
         }
     } catch (_) {}
+
+    // Health polling
+    setInterval(_refreshHealth, 10000);
+    _refreshHealth();
+
+    // Intercept WS messages for right panel
+    const origHandleWS = window.livingUI?._handleWSMessage;
+    if (window.livingUI) {
+        const orig = window.livingUI._handleWSMessage.bind(window.livingUI);
+        window.livingUI._handleWSMessage = function(data) {
+            orig(data);
+            if (data.type === 'event') {
+                _eventCount++;
+                const ev = data.data;
+                if (ev.event_type) {
+                    _addTerminalLine(`${ev.icon || '•'} ${ev.label || ev.event_type}`, '');
+                }
+            }
+            if (data.type === 'agent_conversation') {
+                _addAgentConversation(data.data);
+            }
+            if (data.type === 'status' && data.data) {
+                _updateHealthFromStatus(data.data);
+            }
+        };
+    }
 
     document.addEventListener('keydown', e => {
         if ((e.ctrlKey || e.metaKey) && e.key === ',') {
@@ -368,3 +558,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 });
+
+function _updateHealthFromStatus(status) {
+    if (!status || !status.kings) return;
+    let totalWorkers = 0, activeWorkers = 0;
+    for (const king of Object.values(status.kings)) {
+        const workers = king.workers || {};
+        totalWorkers += Object.keys(workers).length;
+        for (const w of Object.values(workers)) {
+            if (w.state !== 'idle') activeWorkers++;
+        }
+    }
+    const el = document.getElementById('health-agents');
+    if (el) el.textContent = `${activeWorkers}/${totalWorkers}`;
+}

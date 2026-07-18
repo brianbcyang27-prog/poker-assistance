@@ -6,6 +6,7 @@ import json
 from .base import BaseAgent
 from ..core.models import AgentRole, AgentState, AgentMessage, Task
 from ..brain.llm import LLM
+from ..brain.dag_planner import dag_planner
 
 
 class JarvisAgent(BaseAgent):
@@ -108,29 +109,12 @@ class JarvisAgent(BaseAgent):
         ))
         
         # Delegate to appropriate King(s)
-        results = []
-        for task in delegation_plan.get("tasks", []):
-            king_card = task.get("king", "♠K")
-            king = self._kings.get(king_card)
-            
-            if king is None:
-                results.append(f"No King found for {king_card}")
-                continue
-            
-            # Create task and delegate
-            task_obj = Task(
-                name=task.get("name", "User request"),
-                description=task.get("description", user_message),
-                assigned_to=king_card,
-                priority=task.get("priority", 5),
-            )
-            
-            self.set_state(AgentState.WORKING)
-            try:
-                result = await king.execute_task(task_obj)
-                results.append(result.content)
-            except Exception as e:
-                results.append(f"Error from {king.name}: {e}")
+        self.set_state(AgentState.WORKING)
+
+        if len(tasks) > 1:
+            results = await self._execute_as_mission(tasks, user_message)
+        else:
+            results = await self._execute_sequential(tasks, user_message)
         
         self.set_state(AgentState.IDLE)
         
@@ -319,6 +303,60 @@ Be professional, concise, and helpful. Include relevant details from the agent w
             status="delegated",
         )
     
+    async def _execute_as_mission(self, tasks: list, user_message: str) -> list[str]:
+        """Execute multiple tasks via the MissionExecutor as a DAG mission."""
+        from ..brain.mission_executor import mission_executor
+
+        mission_tasks = []
+        for i, task in enumerate(tasks):
+            mission_tasks.append({
+                "id": f"task_{i}",
+                "name": task.get("name", "Task"),
+                "description": task.get("description", user_message),
+                "assigned_to": task.get("king", "♠K"),
+                "priority": task.get("priority", 5),
+            })
+
+        create_result = mission_executor.create_and_execute(user_message, mission_tasks)
+        if not create_result.get("ok"):
+            return [f"Failed to create mission: {create_result.get('error', 'unknown')}"]
+
+        mission_id = create_result["mission_id"]
+        final_status = await mission_executor.execute_mission(mission_id)
+
+        results = []
+        nodes = dag_planner._missions.get(mission_id, [])
+        for node in nodes:
+            results.append(f"[{node.name}] {node.result or node.status.value}")
+
+        return results if results else [f"Mission finished: {final_status.get('progress', 0):.0%} complete"]
+
+    async def _execute_sequential(self, tasks: list, user_message: str) -> list[str]:
+        """Execute single tasks sequentially (original behavior)."""
+        results = []
+        for task in tasks:
+            king_card = task.get("king", "♠K")
+            king = self._kings.get(king_card)
+
+            if king is None:
+                results.append(f"No King found for {king_card}")
+                continue
+
+            task_obj = Task(
+                name=task.get("name", "User request"),
+                description=task.get("description", user_message),
+                assigned_to=king_card,
+                priority=task.get("priority", 5),
+            )
+
+            try:
+                result = await king.execute_task(task_obj)
+                results.append(result.content)
+            except Exception as e:
+                results.append(f"Error from {king.name}: {e}")
+
+        return results
+
     def get_status(self) -> dict:
         """Get JARVIS status including all registered Kings."""
         return {
