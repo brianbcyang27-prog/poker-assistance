@@ -4,6 +4,7 @@
  */
 
 let recognition = null;
+let _isRecognizing = false;
 
 function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -18,6 +19,7 @@ function initSpeechRecognition() {
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
+        _isRecognizing = true;
         if (window.jarvisState) {
             window.jarvisState.startListening();
         }
@@ -32,6 +34,7 @@ function initSpeechRecognition() {
     };
 
     recognition.onend = () => {
+        _isRecognizing = false;
         document.getElementById('mic-btn').classList.remove('active');
         if (window.jarvisState) {
             window.jarvisState.set('idle');
@@ -44,6 +47,7 @@ function initSpeechRecognition() {
 
     recognition.onerror = (event) => {
         console.warn('Speech recognition error:', event.error);
+        _isRecognizing = false;
         document.getElementById('mic-btn').classList.remove('active');
         if (window.jarvisState) {
             window.jarvisState.set('idle');
@@ -58,7 +62,7 @@ function toggleVoice() {
     }
 
     const btn = document.getElementById('mic-btn');
-    if (recognition.running) {
+    if (_isRecognizing) {
         recognition.stop();
         btn.classList.remove('active');
     } else {

@@ -35,6 +35,12 @@ class Graph3D {
         this.targetPulseSpeedMult = 1.0;
         this.currentPulseSpeedMult = 1.0;
 
+        this.pulsePool = [];
+        this.edgeCount = 0;
+        this.activePulseCount = 0;
+        this.targetMaxPulses = 1;
+        this.currentPulseSpeedMult = 1.0;
+
         // v3.2.0: Ambient and state-specific
         this._targetColorShift = 0; // 0=gold, 0.3=cyan-gold
         this._currentColorShift = 0;
@@ -350,6 +356,8 @@ class Graph3D {
     }
 
     _updatePulse(dt) {
+        if (!this.pulsePool || !Array.isArray(this.pulsePool)) return;
+
         // Spawn new pulses to match target count
         while (this.activePulseCount < this.targetMaxPulses) {
             this._spawnPulse();
@@ -813,7 +821,7 @@ class Graph3D {
             this._completionPulseTimer -= dt;
             const settleT = this._completionPulseTimer / 3.0;
             // Gentle bloom pulse
-            this.bloomPass.strength += settleT * 0.3;
+            if (this.bloomPass) this.bloomPass.strength += settleT * 0.3;
         }
 
         // Ambient idle behavior — random micro-pulses when idle
@@ -865,10 +873,16 @@ class Graph3D {
         this._updatePulse(dt);
 
         // ---- Bloom intensity (lerp toward target) ----
-        this.bloomPass.strength += (this.targetBloom - this.bloomPass.strength) * 0.03;
+        if (this.bloomPass) {
+            this.bloomPass.strength += (this.targetBloom - this.bloomPass.strength) * 0.03;
+        }
 
         // ---- Render with bloom ----
-        this.composer.render();
+        if (this.composer) {
+            this.composer.render();
+        } else if (this.renderer && this.scene && this.camera) {
+            this.renderer.render(this.scene, this.camera);
+        }
     }
 
     /* ================================================================

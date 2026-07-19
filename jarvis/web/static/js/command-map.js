@@ -871,7 +871,7 @@ class CommandMap {
 // Global functions
 function toggleMissions() {
     const panel = document.getElementById('missions-panel');
-    panel.classList.toggle('hidden');
+    if (panel) panel.classList.toggle('hidden');
 }
 
 function closeDetailPanel() {

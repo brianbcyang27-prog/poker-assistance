@@ -318,30 +318,43 @@ class LivingInterface {
     showResponse(text, audioUrl) {
         if (!this.responseDisplay) return;
 
-        const bubble = document.createElement('div');
-        bubble.className = 'response-bubble';
+        let bubble = this.responseDisplay.querySelector('.response-bubble');
+        if (!bubble) {
+            bubble = document.createElement('div');
+            bubble.className = 'response-bubble';
 
-        const content = document.createElement('div');
-        content.className = 'response-text';
-        content.innerHTML = this._md(text || '');
+            const content = document.createElement('div');
+            content.className = 'response-text';
+            bubble.appendChild(content);
 
-        const reasoning = this._buildReasoningDetails();
-        if (reasoning) {
-            const details = document.createElement('div');
-            details.className = 'response-reasoning';
-            details.innerHTML = reasoning;
-            bubble.appendChild(content);
-            bubble.appendChild(details);
-        } else {
-            bubble.appendChild(content);
+            const reasoning = this._buildReasoningDetails();
+            if (reasoning) {
+                const details = document.createElement('div');
+                details.className = 'response-reasoning';
+                bubble.appendChild(details);
+            }
+
+            this.responseDisplay.innerHTML = '';
+            this.responseDisplay.appendChild(bubble);
+            this.responseDisplay.classList.remove('hidden');
+            requestAnimationFrame(() => bubble.classList.add('visible'));
         }
 
-        this.responseDisplay.innerHTML = '';
-        this.responseDisplay.appendChild(bubble);
-        this.responseDisplay.classList.remove('hidden');
+        const contentEl = bubble.querySelector('.response-text');
+        if (contentEl) contentEl.innerHTML = (typeof _md === 'function' ? _md : (t => t))(text || '');
 
-        requestAnimationFrame(() => bubble.classList.add('visible'));
+        const reasoning = this._buildReasoningDetails();
+        let detailsEl = bubble.querySelector('.response-reasoning');
+        if (reasoning) {
+            if (!detailsEl) {
+                detailsEl = document.createElement('div');
+                detailsEl.className = 'response-reasoning';
+                bubble.appendChild(detailsEl);
+            }
+            detailsEl.innerHTML = reasoning;
+        }
 
+        if (this._responseTimer) clearTimeout(this._responseTimer);
         this._responseTimer = setTimeout(() => this._fadeResponse(), 20000);
 
         if (audioUrl) this._playAudio(audioUrl);

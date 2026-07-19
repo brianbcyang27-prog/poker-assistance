@@ -25,7 +25,7 @@ const DEPARTMENTS = {
         name: 'Research',
         color: '#8844ff',
         colorAlt: '#aa66ff',
-        icon: '\U0001f52d', // telescope
+        icon: '\uD83D\uDD2D', // telescope
         shape: 'circle',
         pattern: 'radial',
         motto: 'Discover & Analyze',
@@ -34,7 +34,7 @@ const DEPARTMENTS = {
         name: 'Personal',
         color: '#00cc66',
         colorAlt: '#33dd88',
-        icon: '\U0001f3e0', // house
+        icon: '\uD83C\uDFE0', // house
         shape: 'rounded',
         pattern: 'breathing',
         motto: 'Organize & Assist',

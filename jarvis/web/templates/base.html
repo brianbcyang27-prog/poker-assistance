@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JARVIS</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/command-map.css">
-    <script src="/static/vendor/three.min.js"></script>
-    <script src="/static/vendor/CopyShader.js"></script>
-    <script src="/static/vendor/LuminosityHighPassShader.js"></script>
-    <script src="/static/vendor/EffectComposer.js"></script>
-    <script src="/static/vendor/RenderPass.js"></script>
-    <script src="/static/vendor/ShaderPass.js"></script>
-    <script src="/static/vendor/UnrealBloomPass.js"></script>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=6.0.1">
+    <link rel="stylesheet" href="/static/css/style.css?v=6.0.1">
+    <link rel="stylesheet" href="/static/css/command-map.css?v=6.0.1">
+    <script src="/static/vendor/three.min.js?v=6.0.1"></script>
+    <script src="/static/vendor/CopyShader.js?v=6.0.1"></script>
+    <script src="/static/vendor/LuminosityHighPassShader.js?v=6.0.1"></script>
+    <script src="/static/vendor/EffectComposer.js?v=6.0.1"></script>
+    <script src="/static/vendor/RenderPass.js?v=6.0.1"></script>
+    <script src="/static/vendor/ShaderPass.js?v=6.0.1"></script>
+    <script src="/static/vendor/UnrealBloomPass.js?v=6.0.1"></script>
 </head>
 <body>
     <div id="app">
@@ -20,60 +21,69 @@
         <!-- ===== UNIFIED DASHBOARD ===== -->
         <div id="dashboard">
 
-            <!-- LEFT NAV PANEL -->
+            <!-- LEFT NAV: Workspace-based navigation -->
             <nav id="left-nav">
                 <div class="nav-logo">
                     <div class="logo-ring"></div>
                     <span class="logo-text">J</span>
                 </div>
                 <div class="nav-items">
-                    <button class="nav-btn active" data-panel="core" title="Neural Core">
+                    <button class="nav-btn" data-workspace="core" title="Neural Core">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4m-9-9h4m14 0h4"/>
                         </svg>
                         <span>Core</span>
                     </button>
-                    <button class="nav-btn" data-panel="agents" title="Agent Hierarchy">
+                    <button class="nav-btn active" data-workspace="chat" title="Chat">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/>
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
-                        <span>Agents</span>
+                        <span>Chat</span>
                     </button>
-                    <button class="nav-btn" data-panel="graph" title="Knowledge Graph">
+                    <button class="nav-btn" data-workspace="engineering" title="Engineering">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/>
                             <line x1="8" y1="6" x2="16" y2="6"/><line x1="7" y1="8" x2="11" y2="16"/><line x1="17" y1="8" x2="13" y2="16"/>
                         </svg>
-                        <span>Graph</span>
+                        <span>Agents</span>
                     </button>
-                    <button class="nav-btn" data-panel="health" title="System Health">
+                    <button class="nav-btn" data-workspace="research" title="Research">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
                         </svg>
-                        <span>Health</span>
+                        <span>Research</span>
                     </button>
-                    <button class="nav-btn" data-panel="settings" title="Settings (Ctrl+,)">
+                    <button class="nav-btn" data-workspace="memory" title="Memory">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                        </svg>
+                        <span>Memory</span>
+                    </button>
+                </div>
+                <div class="nav-footer">
+                    <button class="nav-btn nav-settings-btn" data-workspace="settings" title="Settings (Ctrl+,)">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="12" cy="12" r="3"/>
                             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                         </svg>
                         <span>Settings</span>
                     </button>
-                </div>
-                <div class="nav-footer">
                     <div class="version-badge" title="System Status">
                         <span class="version-dot"></span>
-                        <span class="version-text">v5.5.0</span>
+                        <span class="version-text">v6.0.0</span>
                     </div>
                 </div>
             </nav>
 
-            <!-- CENTER PANEL: Core + Mission + Chat/Response -->
+            <!-- CENTER PANEL: Workspace content -->
             <main id="center-panel">
                 <div id="center-core">
-                    <div id="jarvis-canvas"></div>
-                    <div id="graph-container" style="display:none;">
-                        <!-- Agent Command Map (embedded) -->
+
+                    <!-- WORKSPACE: Core (3D Golden Neural Core) -->
+                    <div id="golden-core-container" class="workspace-view"></div>
+
+                    <!-- WORKSPACE: Engineering (Agent Command Map) -->
+                    <div id="graph-container" class="workspace-view" style="display:none;">
                         <div id="command-map" style="width:100%;height:100%;position:relative;">
                             <canvas id="bg-canvas"></canvas>
                             <svg id="hierarchy-svg" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
@@ -145,20 +155,33 @@
                         </div>
                     </div>
 
+                    <!-- WORKSPACE: Research (Knowledge Graph) -->
+                    <div id="research-container" class="workspace-view" style="display:none;"></div>
+
+                    <!-- WORKSPACE: Memory (Memory Galaxy) -->
+                    <div id="memory-container" class="workspace-view" style="display:none;"></div>
+
+                    <!-- WORKSPACE: Chat (Modern AI Assistant) -->
+                    <div id="chat-container" class="workspace-view" style="display:none;">
+                        <div id="chat-sidebar">
+                            <div id="chat-sidebar-header">
+                                <span>Conversations</span>
+                                <button id="new-chat-btn" title="New conversation">+</button>
+                            </div>
+                            <div id="session-list"></div>
+                        </div>
+                        <div id="chat-main">
+                            <div id="chat-messages"></div>
+                        </div>
+                    </div>
+
+                    <!-- Overlays (always present) -->
                     <div id="core-label">
                         <div id="core-state">IDLE</div>
                     </div>
-
                     <div id="thought-stream"></div>
-
                     <div id="department-badges"></div>
-
                     <div id="response-display"></div>
-
-                    <!-- Chat mode: scrollable conversation -->
-                    <div id="chat-container" style="display:none;">
-                        <div id="chat-messages"></div>
-                    </div>
                 </div>
 
                 <div id="mission-bar">
@@ -188,11 +211,11 @@
                 </div>
             </main>
 
-            <!-- RIGHT PANEL: Thoughts + Agent Conversations + Health -->
+            <!-- RIGHT PANEL: Activity + Health -->
             <aside id="right-panel">
                 <div class="right-section" id="right-thoughts">
                     <div class="right-header">
-                        <span class="right-title">THOUGHT STREAM</span>
+                        <span class="right-title">ACTIVITY</span>
                         <span class="right-status" id="thought-count">0</span>
                     </div>
                     <div id="agent-conversation-stream"></div>
@@ -202,7 +225,7 @@
 
                 <div class="right-section" id="right-health">
                     <div class="right-header">
-                        <span class="right-title">SYSTEM HEALTH</span>
+                        <span class="right-title">SYSTEM</span>
                         <span class="right-status health-ok" id="health-status">OK</span>
                     </div>
                     <div id="health-panel">
@@ -221,10 +244,6 @@
                         <div class="health-row">
                             <span class="health-label">Uptime</span>
                             <span class="health-value" id="health-uptime">0s</span>
-                        </div>
-                        <div class="health-row">
-                            <span class="health-label">Missions</span>
-                            <span class="health-value" id="health-missions">0</span>
                         </div>
                     </div>
                 </div>
@@ -336,25 +355,13 @@
                         <h3>Interface</h3>
                         <div class="setting-row">
                             <div class="setting-info">
-                                <div class="setting-name">View Mode</div>
-                                <div class="setting-desc">Neural Core or 3D Knowledge Graph</div>
-                            </div>
-                            <div class="setting-control">
-                                <select name="view_mode" id="view-mode" onchange="setViewMode(this.value)">
-                                    <option value="core">Neural Core</option>
-                                    <option value="graph">3D Graph</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
                                 <div class="setting-name">Chat Mode</div>
-                                <div class="setting-desc">Popup bubble or scrollable history</div>
+                                <div class="setting-desc">Scrollable history or popup bubble</div>
                             </div>
                             <div class="setting-control">
-                                <select name="chat_mode" id="chat-mode" onchange="setChatMode(this.value)">
-                                    <option value="popup">Popup Bubble</option>
+                                <select name="chat_mode" id="chat-mode">
                                     <option value="chat">Normal Chat</option>
+                                    <option value="popup">Popup Bubble</option>
                                 </select>
                             </div>
                         </div>
@@ -417,23 +424,23 @@
         <!-- Mission DAG container (hidden by default) -->
         <div id="mission-dag-container" class="hidden"></div>
 
-        <!-- v3.2.0: Explainability Overlay -->
+        <!-- Explainability Overlay -->
         <div id="explain-overlay"></div>
         <div id="explain-panel"></div>
     </div>
 
-    <script src="/static/js/jarvis-core.js"></script>
-    <script src="/static/js/state-machine.js"></script>
-    <script src="/static/js/audio-analyzer.js"></script>
-    <script src="/static/js/living-interface.js"></script>
-    <script src="/static/js/knowledge-graph.js"></script>
-    <script src="/static/js/graph-3d.js"></script>
-    <script src="/static/js/command-map.js"></script>
-    <script src="/static/js/department-identity.js"></script>
-    <script src="/static/js/explainability.js"></script>
-    <script src="/static/js/mission-dag.js"></script>
-    <script src="/static/js/memory-galaxy.js"></script>
-    <script src="/static/js/app.js"></script>
-    <script src="/static/js/voice.js"></script>
+    <script src="/static/js/jarvis-core.js?v=6.0.1"></script>
+    <script src="/static/js/state-machine.js?v=6.0.1"></script>
+    <script src="/static/js/audio-analyzer.js?v=6.0.1"></script>
+    <script src="/static/js/living-interface.js?v=6.0.1"></script>
+    <script src="/static/js/knowledge-graph.js?v=6.0.1"></script>
+    <script src="/static/js/graph-3d.js?v=6.0.1"></script>
+    <script src="/static/js/command-map.js?v=6.0.1"></script>
+    <script src="/static/js/department-identity.js?v=6.0.1"></script>
+    <script src="/static/js/explainability.js?v=6.0.1"></script>
+    <script src="/static/js/mission-dag.js?v=6.0.1"></script>
+    <script src="/static/js/memory-galaxy.js?v=6.0.1"></script>
+    <script src="/static/js/app.js?v=6.0.1"></script>
+    <script src="/static/js/voice.js?v=6.0.1"></script>
 </body>
 </html>

@@ -74,7 +74,7 @@ class ExplainabilityOverlay {
     }
 
     _buildHeader(type, data) {
-        const icons = { agent: '\U0001f916', task: '\U0001f4cb', decision: '\U0001f50d' };
+        const icons = { agent: '\uD83E\uDD16', task: '\uD83D\uDCCB', decision: '\uD83D\uDD0D' };
         const colors = {
             engineering: 'var(--color-engineering)',
             research: 'var(--color-research)',

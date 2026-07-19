@@ -209,9 +209,21 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     
-    # Mount static files
+    # Mount static files (no-cache for development)
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.responses import Response
+    
     static_dir = Path(__file__).parent / "static"
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    
+    @app.middleware("http")
+    async def no_cache_static(request, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
     
     # Include routers
     from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system, engineering, world

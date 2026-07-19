@@ -217,6 +217,8 @@ class JarvisCore {
     }
 
     _createWaveform(ns) {
+        this.waveGroup.setAttribute('transform', 'translate(0, 180)');
+
         this.wavePath = document.createElementNS(ns, 'path');
         this.wavePath.setAttribute('fill', 'none');
         this.wavePath.setAttribute('stroke', '#00f0ff');
@@ -254,7 +256,6 @@ class JarvisCore {
         this.aura.setAttribute('transform', `scale(${1 + auraBreath})`);
 
         if (this.audioVolume > 0) {
-            const glow = 0.3 + this.audioVolume * 0.7;
             this.coreSphere.setAttribute('filter', 'url(#glow-strong)');
         }
 

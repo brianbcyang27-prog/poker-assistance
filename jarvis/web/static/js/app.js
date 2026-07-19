@@ -1,17 +1,17 @@
 /**
- * JARVIS — Unified Dashboard Application v5.5.0
- * LEFT nav | CENTER core | RIGHT conversations + health | BOTTOM terminal + input
+ * JARVIS — Unified Dashboard Application v6.0.0
+ * LEFT nav (workspace-based) | CENTER core | RIGHT conversations + health | BOTTOM input
  */
 
 let currentSessionId = null;
-let selectedVoiceId = null;
-let graph3d = null;
+let goldenCore = null;
 let commandMap = null;
-let currentViewMode = 'core';
-let currentChatMode = 'popup';
+let knowledgeGraph = null;
+let memoryGalaxy = null;
+let currentWorkspace = 'core';
+let currentChatMode = 'chat';
 let _startTime = Date.now();
 let _eventCount = 0;
-let _missionCount = 0;
 
 /* ---- Settings overlay ---- */
 
@@ -40,6 +40,7 @@ async function loadVoiceModels() {
         const data = await res.json();
         const prov = document.getElementById('tts-provider');
         const voice = document.getElementById('tts-voice');
+        if (!prov || !voice) return;
         prov.innerHTML = '';
         for (const p of data.providers) {
             const o = document.createElement('option');
@@ -56,6 +57,7 @@ async function loadVoiceModels() {
 
 function updateVoiceList(voices, provider) {
     const sel = document.getElementById('tts-voice');
+    if (!sel) return;
     const cur = document.querySelector('[name="tts_voice"]')?.value || '';
     sel.innerHTML = '<option value="">Default</option>';
     for (const v of (voices[provider] || [])) {
@@ -106,11 +108,13 @@ function resetSettings() {
         if (el.type === 'checkbox') el.checked = v;
         else el.value = v;
     }
-    form.elements['nvidia_api_key'].value = '';
+    const apiKey = form.elements['nvidia_api_key'];
+    if (apiKey) apiKey.value = '';
 }
 
 function showToast(msg) {
     const t = document.getElementById('toast');
+    if (!t) return;
     t.textContent = msg;
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 2500);
@@ -130,25 +134,17 @@ function sendMessageStreaming() {
     if (!message) return;
     input.value = '';
 
-    if (currentChatMode === 'chat') {
-        addChatMessage('user', message);
-    }
-
+    addChatMessage('user', message);
     _addTerminalLine(`> ${message}`, 'info');
 
     if (window.jarvisState) window.jarvisState.startThinking();
     if (window.livingUI) window.livingUI.setState('thinking');
-    if (graph3d) graph3d.setState('thinking');
+    if (goldenCore) goldenCore.setState('thinking');
 
     const params = new URLSearchParams({ message });
     if (currentSessionId) params.set('session_id', currentSessionId);
 
-    // Create a streaming assistant bubble in chat mode
-    let bubble = null;
-    if (currentChatMode === 'chat') {
-        bubble = addChatMessage('assistant', '');
-    }
-
+    let bubble = addChatMessage('assistant', '');
     let fullText = '';
     let firstToken = true;
 
@@ -159,49 +155,52 @@ function sendMessageStreaming() {
             const decoder = new TextDecoder();
             let buffer = '';
 
+            function processBuffer() {
+                const frames = buffer.split('\n\n');
+                buffer = frames.pop();
+                for (const frame of frames) {
+                    const trimmed = frame.trim();
+                    if (!trimmed) continue;
+                    for (const rawLine of trimmed.split('\n')) {
+                        const line = rawLine.trim();
+                        if (!line.startsWith('data: ')) continue;
+                        try {
+                            const evt = JSON.parse(line.slice(6));
+                            if (evt.type === 'token') {
+                                if (firstToken) {
+                                    firstToken = false;
+                                    if (window.jarvisState) window.jarvisState.startSpeaking();
+                                    if (window.livingUI) window.livingUI.setState('speaking');
+                                    if (goldenCore) goldenCore.setState('speaking');
+                                }
+                                fullText += evt.content;
+                                if (bubble) {
+                                    bubble.innerHTML = _md(fullText);
+                                    bubble.parentElement.scrollTop = bubble.parentElement.scrollHeight;
+                                }
+                            } else if (evt.type === 'done') {
+                                currentSessionId = evt.session_id || currentSessionId;
+                                setErrorState(false);
+                                if (bubble && fullText) {
+                                    bubble.innerHTML = _md(fullText);
+                                }
+                                if (window.jarvisState) window.jarvisState.set('idle');
+                                if (window.livingUI) window.livingUI.setState('idle');
+                                if (goldenCore) goldenCore.setState('idle');
+                            }
+                        } catch (_) {}
+                    }
+                }
+            }
+
             function read() {
                 reader.read().then(({ done, value }) => {
-                    if (done) return;
-                    buffer += decoder.decode(value, { stream: true });
-
-                    // Split on double-newline (SSE frame boundary)
-                    const frames = buffer.split('\n\n');
-                    buffer = frames.pop(); // incomplete frame stays in buffer
-
-                    for (const frame of frames) {
-                        const trimmed = frame.trim();
-                        if (!trimmed) continue;
-
-                        // Parse one or more "data:" lines
-                        for (const rawLine of trimmed.split('\n')) {
-                            const line = rawLine.trim();
-                            if (!line.startsWith('data: ')) continue;
-                            try {
-                                const evt = JSON.parse(line.slice(6));
-                                if (evt.type === 'token') {
-                                    if (firstToken) {
-                                        firstToken = false;
-                                        if (window.jarvisState) window.jarvisState.startSpeaking();
-                                        if (window.livingUI) window.livingUI.setState('speaking');
-                                        if (graph3d) graph3d.setState('speaking');
-                                    }
-                                    fullText += evt.content;
-                                    if (bubble) {
-                                        bubble.innerHTML = _md(fullText);
-                                        bubble.parentElement.scrollTop = bubble.parentElement.scrollHeight;
-                                    }
-                                } else if (evt.type === 'done') {
-                                    currentSessionId = evt.session_id || currentSessionId;
-                                    setErrorState(false);
-                                    if (window.jarvisState) window.jarvisState.set('idle');
-                                    if (window.livingUI) window.livingUI.setState('idle');
-                                    if (graph3d) graph3d.setState('idle');
-                                } else if (evt.type === 'state') {
-                                    // handled above
-                                }
-                            } catch (_) {}
-                        }
+                    if (done) {
+                        processBuffer();
+                        return;
                     }
+                    buffer += decoder.decode(value, { stream: true });
+                    processBuffer();
                     read();
                 });
             }
@@ -212,35 +211,18 @@ function sendMessageStreaming() {
             _addTerminalLine(`ERROR: ${err.message}`, 'error');
             if (bubble) {
                 bubble.innerHTML = _md('Error: ' + err.message);
-            } else if (currentChatMode === 'chat') {
+            } else {
                 addChatMessage('assistant', 'Error: ' + err.message);
-            } else if (window.livingUI) {
-                window.livingUI.showResponse('Error: ' + err.message);
             }
             if (window.jarvisState) window.jarvisState.set('idle');
             if (window.livingUI) window.livingUI.setState('idle');
-            if (graph3d) graph3d.setState('idle');
+            if (goldenCore) goldenCore.setState('idle');
         });
-}
-
-/* ---- Chat Mode Switching ---- */
-
-function setChatMode(mode) {
-    currentChatMode = mode;
-    const chatContainer = document.getElementById('chat-container');
-    const responseDisplay = document.getElementById('response-display');
-
-    if (mode === 'chat') {
-        chatContainer.style.display = 'flex';
-        responseDisplay.style.display = 'none';
-    } else {
-        chatContainer.style.display = 'none';
-        responseDisplay.style.display = '';
-    }
 }
 
 function addChatMessage(role, text) {
     const container = document.getElementById('chat-messages');
+    if (!container) return null;
     const msg = document.createElement('div');
     msg.className = `chat-msg ${role}`;
     msg.innerHTML = role === 'assistant' ? _md(text) : _escHtml(text);
@@ -273,10 +255,6 @@ function setErrorState(isError) {
     document.body.classList.toggle('system-error', isError);
 }
 
-function clearErrorState() {
-    setErrorState(false);
-}
-
 /* ---- Knowledge Graph ---- */
 
 let graphViz = null;
@@ -289,28 +267,130 @@ async function toggleGraph() {
     await graphViz.toggle();
 }
 
-/* ---- View Mode Switching ---- */
+/* ---- Workspace Switching ---- */
 
-async function setViewMode(mode) {
-    currentViewMode = mode;
-    const coreCanvas = document.getElementById('jarvis-canvas');
+async function switchWorkspace(workspace) {
+    currentWorkspace = workspace;
+
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.workspace === workspace);
+    });
+
+    const coreCanvas = document.getElementById('golden-core-container');
     const graphContainer = document.getElementById('graph-container');
+    const chatContainer = document.getElementById('chat-container');
+    const responseDisplay = document.getElementById('response-display');
+    const terminalLog = document.getElementById('terminal-log');
 
-    if (mode === 'graph') {
-        coreCanvas.style.display = 'none';
-        graphContainer.style.display = 'block';
+    // Hide all workspace-specific panels
+    if (graphContainer) graphContainer.style.display = 'none';
+    if (terminalLog) terminalLog.classList.remove('visible');
 
-        // Initialize Command Map (agent hierarchy) instead of 3D graph
-        if (!commandMap) {
-            try {
-                commandMap = new CommandMap();
-            } catch (e) {
-                console.warn('CommandMap init:', e);
+    switch (workspace) {
+        case 'core':
+            if (coreCanvas) coreCanvas.style.display = 'block';
+            if (chatContainer) chatContainer.style.display = 'none';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            break;
+
+        case 'chat':
+            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'flex';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            currentChatMode = 'chat';
+            await loadChatHistory();
+            break;
+
+        case 'engineering':
+            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            if (graphContainer) {
+                graphContainer.style.display = 'block';
+                if (!commandMap) {
+                    try { commandMap = new CommandMap(); } catch (e) { console.warn('CommandMap:', e); }
+                }
             }
+            break;
+
+        case 'research':
+            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            await showKnowledgeGraph();
+            break;
+
+        case 'memory':
+            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            await showMemoryGalaxy();
+            break;
+
+        case 'settings':
+            toggleSettings();
+            break;
+    }
+}
+
+/* ---- Chat History ---- */
+
+async function loadChatHistory() {
+    if (!currentSessionId) {
+        try {
+            const res = await fetch('/api/chat/sessions?limit=1');
+            const data = await res.json();
+            if (data.sessions && data.sessions.length > 0) {
+                currentSessionId = data.sessions[0].session_id;
+            }
+        } catch (_) {}
+    }
+
+    if (!currentSessionId) return;
+
+    try {
+        const res = await fetch(`/api/chat/history/${currentSessionId}`);
+        const messages = await res.json();
+        const container = document.getElementById('chat-messages');
+        if (!container) return;
+        container.innerHTML = '';
+        for (const msg of messages) {
+            addChatMessage(msg.role, msg.content);
         }
-    } else {
-        coreCanvas.style.display = 'block';
-        graphContainer.style.display = 'none';
+    } catch (_) {}
+}
+
+/* ---- Knowledge Graph Workspace ---- */
+
+async function showKnowledgeGraph() {
+    const container = document.getElementById('research-container');
+    if (!container) return;
+    container.style.display = 'block';
+    container.innerHTML = '';
+
+    if (!knowledgeGraph) {
+        try {
+            knowledgeGraph = new KnowledgeGraphViz();
+            knowledgeGraph.container = container;
+            await knowledgeGraph.init();
+        } catch (e) { console.warn('KnowledgeGraph:', e); }
+    }
+}
+
+/* ---- Memory Galaxy Workspace ---- */
+
+async function showMemoryGalaxy() {
+    const container = document.getElementById('memory-container');
+    if (!container) return;
+    container.style.display = 'block';
+
+    if (!memoryGalaxy) {
+        try {
+            memoryGalaxy = new MemoryGalaxy(container);
+            memoryGalaxy.init();
+            memoryGalaxy.start();
+            await memoryGalaxy.loadMemories();
+        } catch (e) { console.warn('MemoryGalaxy:', e); }
     }
 }
 
@@ -333,40 +413,6 @@ function _addTerminalLine(text, type) {
     entries.parentElement.scrollTop = entries.parentElement.scrollHeight;
 }
 
-/* ---- Nav Panel Switching ---- */
-
-function switchNavPanel(panelId) {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.panel === panelId);
-    });
-
-    const terminalLog = document.getElementById('terminal-log');
-
-    switch (panelId) {
-        case 'core':
-            setViewMode('core');
-            terminalLog.classList.remove('visible');
-            break;
-        case 'agents':
-            setViewMode('core');
-            terminalLog.classList.remove('visible');
-            // Could show agent hierarchy overlay
-            break;
-        case 'graph':
-            setViewMode('graph');
-            terminalLog.classList.remove('visible');
-            break;
-        case 'health':
-            setViewMode('core');
-            terminalLog.classList.add('visible');
-            _refreshHealth();
-            break;
-        case 'settings':
-            toggleSettings();
-            break;
-    }
-}
-
 /* ---- Health Panel ---- */
 
 function _refreshHealth() {
@@ -384,21 +430,28 @@ function _refreshHealth() {
                 }
             }
 
-            document.getElementById('health-agents').textContent = `${activeWorkers}/${totalWorkers}`;
-            document.getElementById('health-kings').textContent = `${totalKings}/4`;
-            document.getElementById('health-events').textContent = _eventCount;
-            document.getElementById('health-uptime').textContent = _formatUptime(Date.now() - _startTime);
-            document.getElementById('health-missions').textContent = _missionCount;
+            const el = document.getElementById('health-agents');
+            if (el) el.textContent = `${activeWorkers}/${totalWorkers}`;
+            const kel = document.getElementById('health-kings');
+            if (kel) kel.textContent = `${totalKings}/4`;
+            const eel = document.getElementById('health-events');
+            if (eel) eel.textContent = _eventCount;
+            const uel = document.getElementById('health-uptime');
+            if (uel) uel.textContent = _formatUptime(Date.now() - _startTime);
 
             const statusEl = document.getElementById('health-status');
-            statusEl.textContent = 'OK';
-            statusEl.className = 'right-status health-ok';
+            if (statusEl) {
+                statusEl.textContent = 'OK';
+                statusEl.className = 'right-status health-ok';
+            }
         })
         .catch(() => {
             const statusEl = document.getElementById('health-status');
-            statusEl.textContent = 'DOWN';
-            statusEl.className = 'right-status';
-            statusEl.style.color = '#ff3366';
+            if (statusEl) {
+                statusEl.textContent = 'DOWN';
+                statusEl.className = 'right-status';
+                statusEl.style.color = '#ff3366';
+            }
         });
 }
 
@@ -422,9 +475,21 @@ function _addAgentConversation(data) {
 
     const header = document.createElement('div');
     header.className = 'agent-msg-header';
-    header.innerHTML = `<span class="agent-card">${data.card_id || '?'}</span> <span class="agent-name">${data.title || data.sender || '?'}</span>`;
+    const cardSpan = document.createElement('span');
+    cardSpan.className = 'agent-card';
+    cardSpan.textContent = data.card_id || '?';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'agent-name';
+    nameSpan.textContent = data.title || data.sender || '?';
+    header.appendChild(cardSpan);
+    header.appendChild(nameSpan);
     if (data.receiver) {
-        header.innerHTML += ` → <span class="agent-recv">${data.receiver}</span>`;
+        const arrow = document.createTextNode(' → ');
+        const recvSpan = document.createElement('span');
+        recvSpan.className = 'agent-recv';
+        recvSpan.textContent = data.receiver;
+        header.appendChild(arrow);
+        header.appendChild(recvSpan);
     }
 
     const body = document.createElement('div');
@@ -444,46 +509,93 @@ function _addAgentConversation(data) {
     }
 }
 
+/* ---- Session List ---- */
+
+async function loadSessionList() {
+    try {
+        const res = await fetch('/api/chat/sessions?limit=20');
+        const data = await res.json();
+        const list = document.getElementById('session-list');
+        if (!list || !data.sessions) return;
+        list.innerHTML = '';
+        for (const session of data.sessions) {
+            const item = document.createElement('div');
+            item.className = 'session-item';
+            item.dataset.sessionId = session.session_id;
+            const preview = document.createElement('div');
+            preview.className = 'session-preview';
+            preview.textContent = session.preview || 'New conversation';
+            const meta = document.createElement('div');
+            meta.className = 'session-meta';
+            meta.textContent = `${session.message_count} messages`;
+            item.appendChild(preview);
+            item.appendChild(meta);
+            item.addEventListener('click', () => {
+                currentSessionId = session.session_id;
+                loadChatHistory();
+                document.querySelectorAll('.session-item').forEach(s => s.classList.remove('active'));
+                item.classList.add('active');
+            });
+            list.appendChild(item);
+        }
+    } catch (_) {}
+}
+
 /* ---- Init ---- */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        window.jarvisCore = new JarvisCore(document.getElementById('jarvis-canvas'));
-    } catch (e) { console.warn('JarvisCore:', e); }
-
+    // Initialize state machine
     try {
         window.jarvisState = new JarvisState();
     } catch (e) { console.warn('JarvisState:', e); }
 
+    // Initialize 3D Golden Neural Core (the centerpiece)
+    try {
+        const container = document.getElementById('golden-core-container');
+        if (container && window.Graph3D) {
+            goldenCore = new Graph3D(container);
+            goldenCore.init();
+            goldenCore.start();
+            goldenCore.loadData();
+        }
+    } catch (e) { console.warn('GoldenCore:', e); }
+
+    // Initialize audio analyzer
     try {
         window.audioAnalyzer = new AudioAnalyzer();
     } catch (e) { console.warn('AudioAnalyzer:', e); }
 
+    // Initialize living interface (WebSocket events)
     try {
         window.livingUI = new LivingInterface();
     } catch (e) { console.warn('LivingInterface:', e); }
 
+    // Initialize department identity badges
     try {
         window.deptIdentity = new DepartmentIdentity();
         window.deptIdentity.renderAll();
     } catch (e) { console.warn('DepartmentIdentity:', e); }
 
+    // Initialize explainability overlay
     try {
         window.explainability = new ExplainabilityOverlay();
     } catch (e) { console.warn('ExplainabilityOverlay:', e); }
 
+    // Initialize mission DAG
     try {
         window.missionDAG = new MissionDAG(document.getElementById('mission-dag-container'));
         window.missionDAG.init();
     } catch (e) { console.warn('MissionDAG:', e); }
 
+    // Wire up state changes to all visual systems
     if (window.jarvisState) {
         window.jarvisState.onStateChange(state => {
-            if (window.jarvisCore) window.jarvisCore.setState(state);
+            if (goldenCore) goldenCore.setState(state);
             if (window.livingUI) window.livingUI.setState(state);
         });
     }
 
+    // Set initial state
     if (window.jarvisState) window.jarvisState.set('idle');
     if (window.livingUI) {
         window.livingUI.setState('idle');
@@ -491,31 +603,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.livingUI.connectEvents();
     }
 
-    // Wire up nav panel switching
+    // Wire up workspace navigation
     document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchNavPanel(btn.dataset.panel));
+        btn.addEventListener('click', () => switchWorkspace(btn.dataset.workspace));
     });
 
-    loadSettings();
-
-    // Apply view mode and chat mode from settings
+    // Load settings and apply modes
+    await loadSettings();
     try {
         const res = await fetch('/api/settings');
         const settings = await res.json();
-        if (settings.view_mode) {
-            setViewMode(settings.view_mode);
-        }
         if (settings.chat_mode) {
-            setChatMode(settings.chat_mode);
+            currentChatMode = settings.chat_mode;
         }
     } catch (_) {}
+
+    // Set default workspace to chat (modern AI assistant mode)
+    switchWorkspace('chat');
 
     // Health polling
     setInterval(_refreshHealth, 10000);
     _refreshHealth();
 
-    // Intercept WS messages for right panel
-    const origHandleWS = window.livingUI?._handleWSMessage;
+    // Load session list for chat sidebar
+    loadSessionList();
+
+    // Intercept WebSocket messages for right panel
     if (window.livingUI) {
         const orig = window.livingUI._handleWSMessage.bind(window.livingUI);
         window.livingUI._handleWSMessage = function(data) {
@@ -523,7 +636,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (data.type === 'event') {
                 _eventCount++;
                 const ev = data.data;
-                if (ev.event_type) {
+                if (ev && ev.event_type) {
                     _addTerminalLine(`${ev.icon || '•'} ${ev.label || ev.event_type}`, '');
                 }
             }
@@ -536,6 +649,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
     }
 
+    // Keyboard shortcuts
     document.addEventListener('keydown', e => {
         if ((e.ctrlKey || e.metaKey) && e.key === ',') {
             e.preventDefault();
@@ -547,7 +661,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if (e.key === 'Escape') {
             const ov = document.getElementById('settings-overlay');
-            if (!ov.classList.contains('hidden')) toggleSettings();
+            if (ov && !ov.classList.contains('hidden')) toggleSettings();
             else if (graphViz && graphViz.visible) graphViz.hide();
         }
     });

@@ -28,6 +28,7 @@ class MemoryGalaxy {
 
         const w = this.container.clientWidth;
         const h = this.container.clientHeight;
+        if (w === 0 || h === 0) return;
 
         // Scene
         this.scene = new THREE.Scene();
@@ -217,7 +218,7 @@ class MemoryGalaxy {
             // Find nearest neighbor
             let nearest = null;
             let minDist = Infinity;
-            for (let j = i + 1; j < Math.min(count, 50); j++) {
+            for (let j = i + 1; j < Math.min(memCount, 50); j++) {
                 const b = this.stars[j];
                 if (!b) continue;
                 const d = a.position.distanceTo(b.position);
