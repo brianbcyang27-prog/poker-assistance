@@ -1,15 +1,19 @@
-"""Unified LLM interface for JARVIS.
+"""Unified LLM interface for JARVIS (v6.1.0).
 
 Uses httpx directly instead of the openai library to avoid dependency issues.
 NVIDIA API is OpenAI-compatible, so we hit /chat/completions directly.
+Timeouts and retries are configurable via jarvis.core.reliability.
 """
 
 import json
+import logging
 import subprocess
 import httpx
 from typing import Optional, Dict, Any, List
 
 from ..core.config import get_config
+
+logger = logging.getLogger(__name__)
 
 
 class LLM:
@@ -23,8 +27,23 @@ class LLM:
         model: Optional[str] = None,
         api_base: Optional[str] = None,
         api_key: Optional[str] = None,
+        timeout: Optional[float] = None,
     ):
         config = get_config()
+
+        try:
+            from ..core.reliability import config as reliability
+            self._timeout = timeout or reliability.llm_timeout
+            self._max_retries = reliability.max_retries
+            self._retry_base_delay = reliability.retry_base_delay
+            self._retry_max_delay = reliability.retry_max_delay
+            self._retry_backoff = reliability.retry_backoff_factor
+        except ImportError:
+            self._timeout = timeout or 60.0
+            self._max_retries = 3
+            self._retry_base_delay = 1.0
+            self._retry_max_delay = 30.0
+            self._retry_backoff = 2.0
         
         self.api_key = api_key or config.nvidia_api_key
         self.api_base = (api_base or config.nvidia_api_base).rstrip("/")
@@ -39,7 +58,7 @@ class LLM:
         self.conversation_history: list[dict] = []
         self._current_session_id: Optional[str] = None
         
-        self._http = httpx.Client(timeout=60.0)
+        self._http = httpx.Client(timeout=self._timeout)
     
     def _init_ollama(self):
         """Initialize Ollama client if available."""
@@ -76,7 +95,7 @@ class LLM:
         temperature: float = 0.7,
         max_tokens: int = 4096,
     ) -> str:
-        """Call /chat/completions endpoint via httpx."""
+        """Call /chat/completions endpoint with retry logic."""
         url = f"{base_url}/chat/completions"
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -88,12 +107,34 @@ class LLM:
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
-        
-        response = self._http.post(url, json=payload, headers=headers)
-        response.raise_for_status()
-        
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+
+        last_error = None
+        for attempt in range(self._max_retries + 1):
+            try:
+                response = self._http.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                if e.response.status_code >= 500 and attempt < self._max_retries:
+                    import time
+                    delay = min(self._retry_base_delay * (self._retry_backoff ** attempt), self._retry_max_delay)
+                    logger.warning(f"LLM HTTP {e.response.status_code}, retrying in {delay:.1f}s (attempt {attempt + 1}/{self._max_retries})")
+                    time.sleep(delay)
+                    continue
+                raise
+            except (httpx.ConnectError, httpx.ReadTimeout) as e:
+                last_error = e
+                if attempt < self._max_retries:
+                    import time
+                    delay = min(self._retry_base_delay * (self._retry_backoff ** attempt), self._retry_max_delay)
+                    logger.warning(f"LLM connection error: {e}, retrying in {delay:.1f}s (attempt {attempt + 1}/{self._max_retries})")
+                    time.sleep(delay)
+                    continue
+                raise
+
+        raise last_error or RuntimeError("LLM request failed after retries")
     
     def switch_to_ollama(self):
         """Switch to Ollama backend."""

@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS Developer Dashboard</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=6.1.0">
+    <style>
+        /* ============================================
+           JARVIS Developer Dashboard — v6.1.0
+           Design system tokens from style.css
+           ============================================ */
+        :root {
+            --bg-primary: #050b14;
+            --bg-secondary: #0a1420;
+            --bg-panel: rgba(8, 16, 28, 0.92);
+            --bg-hover: rgba(0, 240, 255, 0.06);
+            --bg-active: rgba(0, 240, 255, 0.1);
+            --border: rgba(0, 240, 255, 0.08);
+            --border-focus: rgba(0, 240, 255, 0.3);
+            --text-primary: rgba(180, 230, 245, 0.9);
+            --text-secondary: rgba(80, 140, 170, 0.6);
+            --text-muted: rgba(80, 140, 170, 0.35);
+            --accent: #00f0ff;
+            --accent-dim: rgba(0, 240, 255, 0.15);
+            --accent-glow: rgba(0, 240, 255, 0.4);
+            --gold: #ffaa00;
+            --gold-dim: rgba(255, 170, 0, 0.2);
+            --success: #00cc66;
+            --danger: #ff3366;
+            --warning: #ffaa00;
+            --spades: #00f0ff;
+            --hearts: #ff3366;
+            --diamonds: #ffaa00;
+            --clubs: #00cc66;
+            --font-sans: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-mono: 'SF Mono', 'Fira Code', monospace;
+            --text-xs: 9px;
+            --text-sm: 11px;
+            --text-base: 13px;
+            --text-md: 14px;
+            --text-lg: 16px;
+            --text-xl: 20px;
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 20px;
+            --space-6: 24px;
+            --space-8: 32px;
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+            --duration-fast: 0.15s;
+            --duration-base: 0.25s;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            font-size: var(--text-base);
+            line-height: 1.5;
+        }
+
+        /* ---- Top Bar ---- */
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-3) var(--space-6);
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .top-bar-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1.5px solid var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .top-bar-title {
+            font-size: var(--text-lg);
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: 0.5px;
+        }
+
+        .top-bar-subtitle {
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .top-bar-status {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .status-dot.warning { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+        .status-dot.error { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+        .version-badge {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            background: rgba(0, 240, 255, 0.06);
+            border: 1px solid var(--border);
+            padding: var(--space-1) var(--space-2);
+            border-radius: var(--radius-sm);
+        }
+
+        /* ---- Dashboard Grid ---- */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: auto auto auto;
+            gap: var(--space-4);
+            padding: var(--space-4) var(--space-6);
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        /* ---- Panel Shared ---- */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: border-color var(--duration-base) var(--ease-out);
+        }
+
+        .panel:hover {
+            border-color: var(--border-focus);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: var(--space-3) var(--space-4);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-title {
+            font-size: var(--text-sm);
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .panel-badge {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            background: rgba(0, 240, 255, 0.06);
+            padding: 2px var(--space-2);
+            border-radius: var(--radius-sm);
+        }
+
+        .panel-body {
+            padding: var(--space-3) var(--space-4);
+        }
+
+        .panel-full {
+            grid-column: 1 / -1;
+        }
+
+        /* ---- Health Row ---- */
+        .health-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-2);
+        }
+
+        .health-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: var(--space-2);
+            border-radius: var(--radius-sm);
+            background: rgba(0, 240, 255, 0.03);
+            border: 1px solid transparent;
+        }
+
+        .health-label {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .health-value {
+            font-family: var(--font-mono);
+            font-size: var(--text-md);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .health-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .health-indicator.green { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .health-indicator.yellow { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+        .health-indicator.red { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+        .health-uptime {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: var(--space-2);
+            font-family: var(--font-mono);
+            font-size: var(--text-xl);
+            color: var(--accent);
+            letter-spacing: 2px;
+        }
+
+        /* ---- Workspace List ---- */
+        .workspace-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .workspace-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-sm);
+            background: rgba(0, 240, 255, 0.03);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all var(--duration-fast);
+        }
+
+        .workspace-item:hover {
+            border-color: var(--border-focus);
+            background: var(--bg-hover);
+        }
+
+        .workspace-item-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .workspace-name {
+            font-size: var(--text-sm);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .workspace-status {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            padding: 1px var(--space-2);
+            border-radius: var(--radius-sm);
+        }
+
+        .workspace-status.active { color: var(--success); background: rgba(0, 204, 102, 0.1); }
+        .workspace-status.paused { color: var(--warning); background: rgba(255, 170, 0, 0.1); }
+        .workspace-status.idle { color: var(--text-muted); background: rgba(80, 140, 170, 0.1); }
+        .workspace-status.error { color: var(--danger); background: rgba(255, 51, 102, 0.1); }
+
+        .progress-bar {
+            width: 100%;
+            height: 3px;
+            background: rgba(0, 240, 255, 0.08);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: width var(--duration-base) var(--ease-out);
+        }
+
+        .progress-fill.success { background: var(--success); }
+        .progress-fill.warning { background: var(--warning); }
+        .progress-fill.danger { background: var(--danger); }
+
+        .workspace-tasks {
+            display: none;
+            padding-top: var(--space-1);
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        .workspace-tasks.expanded { display: block; }
+
+        .workspace-task {
+            padding: 2px 0;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* ---- Agent Grid ---- */
+        .agent-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: var(--space-2);
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .agent-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-2);
+            border-radius: var(--radius-sm);
+            background: rgba(0, 240, 255, 0.03);
+            border: 1px solid transparent;
+            transition: all var(--duration-fast);
+            text-align: center;
+        }
+
+        .agent-card:hover {
+            border-color: var(--border-focus);
+        }
+
+        .agent-card.working {
+            border-color: var(--accent);
+            box-shadow: 0 0 12px rgba(0, 240, 255, 0.1);
+        }
+
+        .agent-card.error {
+            border-color: var(--danger);
+        }
+
+        .agent-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--text-xs);
+            font-weight: 700;
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid var(--border);
+        }
+
+        .agent-card.king .agent-icon {
+            background: var(--gold-dim);
+            color: var(--gold);
+            border-color: rgba(255, 170, 0, 0.2);
+        }
+
+        .agent-card.jarvis .agent-icon {
+            background: rgba(0, 240, 255, 0.25);
+            color: #fff;
+            border-color: var(--accent);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .agent-name {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .agent-state {
+            font-family: var(--font-mono);
+            font-size: 8px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .agent-state.idle { color: var(--text-muted); background: rgba(80, 140, 170, 0.1); }
+        .agent-state.working { color: var(--accent); background: rgba(0, 240, 255, 0.1); }
+        .agent-state.error { color: var(--danger); background: rgba(255, 51, 102, 0.1); }
+
+        .agent-task {
+            font-size: 8px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        /* ---- Event Stream ---- */
+        .event-controls {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+
+        .event-filter-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: var(--text-xs);
+            font-family: var(--font-mono);
+            padding: 2px var(--space-2);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--duration-fast);
+        }
+
+        .event-filter-btn:hover,
+        .event-filter-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+
+        .event-stream {
+            height: 240px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            line-height: 1.6;
+            scroll-behavior: smooth;
+        }
+
+        .event-stream::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .event-stream::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .event-stream::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .event-entry {
+            display: flex;
+            gap: var(--space-2);
+            padding: 2px var(--space-2);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.03);
+            animation: eventFadeIn 0.3s var(--ease-out);
+        }
+
+        .event-entry:hover {
+            background: var(--bg-hover);
+        }
+
+        @keyframes eventFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .event-time {
+            color: var(--text-muted);
+            white-space: nowrap;
+            min-width: 65px;
+        }
+
+        .event-type {
+            padding: 0 var(--space-1);
+            border-radius: 3px;
+            white-space: nowrap;
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .event-type.agent { color: var(--accent); background: rgba(0, 240, 255, 0.1); }
+        .event-type.system { color: var(--success); background: rgba(0, 204, 102, 0.1); }
+        .event-type.task { color: var(--gold); background: rgba(255, 170, 0, 0.1); }
+        .event-type.error { color: var(--danger); background: rgba(255, 51, 102, 0.1); }
+        .event-type.memory { color: #c084fc; background: rgba(192, 132, 252, 0.1); }
+
+        .event-message {
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ---- Stats Row ---- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-2);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: var(--space-2);
+            border-radius: var(--radius-sm);
+            background: rgba(0, 240, 255, 0.03);
+        }
+
+        .stat-label {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: var(--text-lg);
+            color: var(--accent);
+        }
+
+        .stat-value.gold { color: var(--gold); }
+        .stat-value.green { color: var(--success); }
+
+        /* ---- API Perf ---- */
+        .api-log {
+            max-height: 280px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+        }
+
+        .api-entry {
+            display: grid;
+            grid-template-columns: 50px 1fr 50px 40px;
+            gap: var(--space-2);
+            padding: 3px var(--space-2);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.03);
+            align-items: center;
+        }
+
+        .api-entry:hover {
+            background: var(--bg-hover);
+        }
+
+        .api-method {
+            font-weight: 600;
+        }
+
+        .api-method.get { color: var(--accent); }
+        .api-method.post { color: var(--success); }
+        .api-method.put { color: var(--gold); }
+        .api-method.delete { color: var(--danger); }
+
+        .api-path {
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .api-latency {
+            text-align: right;
+            color: var(--text-secondary);
+        }
+
+        .api-latency.fast { color: var(--success); }
+        .api-latency.medium { color: var(--warning); }
+        .api-latency.slow { color: var(--danger); }
+
+        .api-status {
+            text-align: right;
+        }
+
+        .api-status.ok { color: var(--success); }
+        .api-status.err { color: var(--danger); }
+
+        /* ---- Tool Table ---- */
+        .tool-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .tool-table th {
+            text-align: left;
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: var(--space-1) var(--space-2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tool-table td {
+            padding: var(--space-2);
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.03);
+        }
+
+        .tool-table tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        .tool-name {
+            color: var(--accent);
+            font-family: var(--font-mono);
+            font-weight: 500;
+        }
+
+        .tool-success-rate {
+            font-family: var(--font-mono);
+        }
+
+        .tool-success-rate.good { color: var(--success); }
+        .tool-success-rate.warn { color: var(--warning); }
+        .tool-success-rate.bad { color: var(--danger); }
+
+        .tool-latency {
+            font-family: var(--font-mono);
+        }
+
+        .tool-call-count {
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+        }
+
+        /* ---- Empty State ---- */
+        .empty-state {
+            text-align: center;
+            padding: var(--space-6);
+            color: var(--text-muted);
+            font-size: var(--text-sm);
+        }
+
+        /* ---- WebSocket Indicator ---- */
+        .ws-indicator {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+        }
+
+        .ws-indicator .status-dot {
+            width: 6px;
+            height: 6px;
+        }
+
+        /* ---- Responsive ---- */
+        @media (max-width: 1200px) {
+            .dashboard {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .panel-full {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                padding: var(--space-3);
+            }
+            .panel-full {
+                grid-column: 1;
+            }
+            .top-bar {
+                padding: var(--space-2) var(--space-3);
+            }
+            .agent-grid {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            }
+        }
+
+        /* ---- Scrollbar global ---- */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <div class="top-bar-logo">J</div>
+            <div>
+                <div class="top-bar-title">Developer Dashboard</div>
+                <div class="top-bar-subtitle">System Health &amp; Observability</div>
+            </div>
+        </div>
+        <div class="top-bar-right">
+            <div class="ws-indicator">
+                <span class="status-dot" id="ws-dot"></span>
+                <span id="ws-status">Connecting...</span>
+            </div>
+            <div class="top-bar-status">
+                <span class="status-dot" id="api-health-dot"></span>
+                <span id="api-health-label">Checking...</span>
+            </div>
+            <div class="version-badge">v6.1.0</div>
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <!-- 1. System Health Panel -->
+        <div class="panel" id="health-panel">
+            <div class="panel-header">
+                <span class="panel-title">System Health</span>
+                <span class="panel-badge" id="health-refresh">--</span>
+            </div>
+            <div class="panel-body">
+                <div class="health-grid">
+                    <div class="health-uptime" id="uptime-value">00:00:00</div>
+                    <div class="health-item">
+                        <span class="health-label">API Health</span>
+                        <span class="health-value"><span class="health-indicator" id="health-api-dot"></span><span id="health-api">--</span></span>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">Database</span>
+                        <span class="health-value"><span class="health-indicator" id="health-db-dot"></span><span id="health-db">--</span></span>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">LLM</span>
+                        <span class="health-value"><span class="health-indicator" id="health-llm-dot"></span><span id="health-llm">--</span></span>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">Memory</span>
+                        <span class="health-value" id="health-memory">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Active Workspaces Panel -->
+        <div class="panel" id="workspaces-panel">
+            <div class="panel-header">
+                <span class="panel-title">Workspaces</span>
+                <span class="panel-badge" id="workspace-count">0</span>
+            </div>
+            <div class="panel-body">
+                <div class="workspace-list" id="workspace-list">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Worker Status Panel -->
+        <div class="panel" id="agents-panel">
+            <div class="panel-header">
+                <span class="panel-title">Workers</span>
+                <span class="panel-badge" id="agent-count">0</span>
+            </div>
+            <div class="panel-body">
+                <div class="agent-grid" id="agent-grid">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Event Stream Panel -->
+        <div class="panel panel-full" id="events-panel">
+            <div class="panel-header">
+                <span class="panel-title">Event Stream</span>
+                <div class="event-controls">
+                    <button class="event-filter-btn active" data-filter="all">All</button>
+                    <button class="event-filter-btn" data-filter="agent">Agent</button>
+                    <button class="event-filter-btn" data-filter="system">System</button>
+                    <button class="event-filter-btn" data-filter="task">Task</button>
+                    <button class="event-filter-btn" data-filter="error">Error</button>
+                    <button class="event-filter-btn" data-filter="memory">Memory</button>
+                    <span class="panel-badge" id="event-count">0</span>
+                </div>
+            </div>
+            <div class="panel-body" style="padding: 0;">
+                <div class="event-stream" id="event-stream"></div>
+            </div>
+        </div>
+
+        <!-- 5. Memory & Knowledge Stats Panel -->
+        <div class="panel" id="memory-panel">
+            <div class="panel-header">
+                <span class="panel-title">Memory &amp; Knowledge</span>
+                <span class="panel-badge">live</span>
+            </div>
+            <div class="panel-body">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Nodes</span>
+                        <span class="stat-value" id="mem-nodes">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Edges</span>
+                        <span class="stat-value gold" id="mem-edges">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Episodes</span>
+                        <span class="stat-value green" id="mem-episodes">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Size</span>
+                        <span class="stat-value" id="mem-size">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. API Performance Panel -->
+        <div class="panel" id="api-perf-panel">
+            <div class="panel-header">
+                <span class="panel-title">API Performance</span>
+                <span class="panel-badge" id="api-error-rate">0% err</span>
+            </div>
+            <div class="panel-body" style="padding: var(--space-2) 0;">
+                <div class="api-log" id="api-log">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 7. Tool Usage Panel -->
+        <div class="panel" id="tools-panel">
+            <div class="panel-header">
+                <span class="panel-title">Tool Usage</span>
+                <span class="panel-badge" id="tool-count">0</span>
+            </div>
+            <div class="panel-body" style="padding: var(--space-2) 0;">
+                <div class="api-log" id="tool-log">
+                    <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        /* ---- State ---- */
+        const state = {
+            events: [],
+            eventFilter: 'all',
+            eventPaused: false,
+            serverStart: null,
+            ws: null,
+            refreshInterval: 10000,
+        };
+
+        const $ = (id) => document.getElementById(id);
+
+        /* ---- Formatting ---- */
+        function formatUptime(ms) {
+            const s = Math.floor(ms / 1000);
+            const h = String(Math.floor(s / 3600)).padStart(2, '0');
+            const m = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+            const sec = String(s % 60).padStart(2, '0');
+            return `${h}:${m}:${sec}`;
+        }
+
+        function formatTime(ts) {
+            const d = new Date(ts);
+            return d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function formatNumber(n) {
+            if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+            if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+            return String(n);
+        }
+
+        function setIndicator(dotId, level) {
+            const dot = $(dotId);
+            if (!dot) return;
+            dot.className = 'health-indicator ' + level;
+        }
+
+        /* ---- 1. System Health ---- */
+        async function fetchHealth() {
+            try {
+                const res = await fetch('/api/system/diagnostics');
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+
+                state.serverStart = data.server_start || data.started_at || state.serverStart;
+
+                const apiOk = data.api_health !== false && data.status !== 'error';
+                setIndicator('health-api-dot', apiOk ? 'green' : 'red');
+                $('health-api').textContent = apiOk ? 'Healthy' : 'Degraded';
+
+                const dbOk = data.database !== false && data.database !== 'disconnected';
+                setIndicator('health-db-dot', typeof dbOk === 'boolean' ? (dbOk ? 'green' : 'red') : 'green');
+                $('health-db').textContent = typeof data.database === 'string' ? data.database : (dbOk ? 'Connected' : 'Error');
+
+                const llmOk = data.llm !== false && data.llm !== 'disconnected';
+                setIndicator('health-llm-dot', typeof llmOk === 'boolean' ? (llmOk ? 'green' : 'yellow') : 'green');
+                $('health-llm').textContent = typeof data.llm === 'string' ? data.llm : (llmOk ? 'Connected' : 'Unknown');
+
+                if (data.memory_usage) {
+                    $('health-memory').textContent = data.memory_usage;
+                } else if (data.process_memory) {
+                    $('health-memory').textContent = data.process_memory;
+                }
+
+                const healthDot = $('api-health-dot');
+                const healthLabel = $('api-health-label');
+                if (healthDot && healthLabel) {
+                    healthDot.className = 'status-dot' + (apiOk ? '' : ' error');
+                    healthLabel.textContent = apiOk ? 'All Systems Nominal' : 'Degraded';
+                }
+
+                $('health-refresh').textContent = 'updated ' + formatTime(Date.now());
+            } catch (e) {
+                setIndicator('health-api-dot', 'red');
+                $('health-api').textContent = 'Error';
+                $('health-refresh').textContent = 'error';
+            }
+        }
+
+        /* ---- 2. Workspaces ---- */
+        async function fetchWorkspaces() {
+            try {
+                const res = await fetch('/api/workspace');
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+                const list = Array.isArray(data) ? data : (data.workspaces || []);
+                const container = $('workspace-list');
+                $('workspace-count').textContent = list.length;
+
+                if (!list.length) {
+                    container.innerHTML = '<div class="empty-state">No active workspaces</div>';
+                    return;
+                }
+
+                container.innerHTML = list.map((ws, i) => {
+                    const name = ws.name || ws.id || `Workspace ${i}`;
+                    const status = (ws.status || 'idle').toLowerCase();
+                    const progress = ws.progress != null ? ws.progress : (status === 'active' ? 0 : (status === 'completed' ? 100 : -1));
+                    const progressColor = status === 'error' ? 'danger' : (status === 'active' ? '' : (progress >= 100 ? 'success' : ''));
+                    const tasks = ws.tasks || [];
+                    const taskHtml = tasks.length
+                        ? tasks.map(t => `<div class="workspace-task"><span>${t.name || t}</span><span>${t.status || ''}</span></div>`).join('')
+                        : '<div class="workspace-task"><span>No tasks</span></div>';
+
+                    return `<div class="workspace-item" onclick="this.querySelector('.workspace-tasks').classList.toggle('expanded')">
+                        <div class="workspace-item-header">
+                            <span class="workspace-name">${name}</span>
+                            <span class="workspace-status ${status}">${status}</span>
+                        </div>
+                        ${progress >= 0 ? `<div class="progress-bar"><div class="progress-fill ${progressColor}" style="width:${progress}%"></div></div>` : ''}
+                        <div class="workspace-tasks">${taskHtml}</div>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                $('workspace-list').innerHTML = '<div class="empty-state">Unavailable</div>';
+            }
+        }
+
+        /* ---- 3. Agents ---- */
+        async function fetchAgents() {
+            try {
+                const res = await fetch('/api/agents/hierarchy');
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+                const agents = flattenAgents(data);
+                const grid = $('agent-grid');
+                $('agent-count').textContent = agents.length;
+
+                if (!agents.length) {
+                    grid.innerHTML = '<div class="empty-state">No agents</div>';
+                    return;
+                }
+
+                grid.innerHTML = agents.map(a => {
+                    const stateClass = (a.state || 'idle').toLowerCase();
+                    const isJarvis = (a.id === 'jarvis' || a.name === 'JARVIS');
+                    const isKing = ['king_spades', 'king_hearts', 'king_diamonds', 'king_clubs'].includes(a.id) || (a.tier === 'king');
+                    const cardClass = isJarvis ? 'jarvis' : (isKing ? 'king' : '');
+                    const initials = (a.name || a.id || '??').slice(0, 2).toUpperCase();
+
+                    return `<div class="agent-card ${cardClass} ${stateClass}">
+                        <div class="agent-icon">${initials}</div>
+                        <span class="agent-name" title="${a.name || a.id}">${a.name || a.id}</span>
+                        <span class="agent-state ${stateClass}">${stateClass}</span>
+                        ${a.current_task ? `<span class="agent-task" title="${a.current_task}">${a.current_task}</span>` : ''}
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                $('agent-grid').innerHTML = '<div class="empty-state">Unavailable</div>';
+            }
+        }
+
+        function flattenAgents(data, result) {
+            result = result || [];
+            if (Array.isArray(data)) {
+                data.forEach(a => {
+                    result.push(a);
+                    if (a.children) flattenAgents(a.children, result);
+                });
+            } else if (data && typeof data === 'object') {
+                if (data.agents) flattenAgents(data.agents, result);
+                if (data.kings) flattenAgents(data.kings, result);
+                if (data.workers) flattenAgents(data.workers, result);
+                if (data.jarvis) { result.push(data.jarvis); }
+                Object.keys(data).forEach(k => {
+                    if (k === 'children' || k === 'agents' || k === 'kings' || k === 'workers' || k === 'jarvis') return;
+                    const v = data[k];
+                    if (v && typeof v === 'object' && !Array.isArray(v) && (v.state || v.role || v.name)) {
+                        result.push({ id: k, ...v });
+                    }
+                });
+            }
+            return result;
+        }
+
+        /* ---- 4. Event Stream ---- */
+        function addEvent(evt) {
+            const type = (evt.type || evt.event || 'system').toLowerCase();
+            const msg = evt.message || evt.data || evt.text || JSON.stringify(evt);
+            const ts = evt.timestamp || evt.ts || Date.now();
+            const entry = { type, message: msg, timestamp: ts };
+            state.events.unshift(entry);
+            if (state.events.length > 50) state.events.pop();
+            renderEvents();
+        }
+
+        function renderEvents() {
+            const container = $('event-stream');
+            const filtered = state.eventFilter === 'all'
+                ? state.events
+                : state.events.filter(e => e.type === state.eventFilter);
+            $('event-count').textContent = filtered.length;
+
+            container.innerHTML = filtered.map(e => {
+                const typeClass = ['agent', 'system', 'task', 'error', 'memory'].includes(e.type) ? e.type : 'system';
+                return `<div class="event-entry">
+                    <span class="event-time">${formatTime(e.timestamp)}</span>
+                    <span class="event-type ${typeClass}">${e.type}</span>
+                    <span class="event-message">${escapeHtml(e.message)}</span>
+                </div>`;
+            }).join('');
+
+            if (!state.eventPaused) {
+                container.scrollTop = 0;
+            }
+        }
+
+        function escapeHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = String(str);
+            return d.innerHTML;
+        }
+
+        /* ---- 5. Memory Stats ---- */
+        async function fetchMemoryStats() {
+            try {
+                const res = await fetch('/api/memory/stats');
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+                $('mem-nodes').textContent = formatNumber(data.nodes || data.node_count || 0);
+                $('mem-edges').textContent = formatNumber(data.edges || data.edge_count || 0);
+                $('mem-episodes').textContent = formatNumber(data.episodes || data.episode_count || 0);
+                $('mem-size').textContent = data.total_size || data.size || '--';
+            } catch (e) {
+                $('mem-nodes').textContent = '--';
+                $('mem-edges').textContent = '--';
+                $('mem-episodes').textContent = '--';
+            }
+        }
+
+        /* ---- 6. API Performance ---- */
+        async function fetchApiStats() {
+            try {
+                const res = await fetch('/api/system/events/stats');
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+
+                const errorRate = data.error_rate != null ? data.error_rate : 0;
+                $('api-error-rate').textContent = (typeof errorRate === 'number' ? errorRate.toFixed(1) : errorRate) + '% err';
+
+                const calls = data.recent_calls || data.calls || data.events || [];
+                const log = $('api-log');
+
+                if (!calls.length) {
+                    log.innerHTML = '<div class="empty-state">No recent calls</div>';
+                    return;
+                }
+
+                log.innerHTML = calls.slice(0, 30).map(c => {
+                    const method = (c.method || 'GET').toUpperCase();
+                    const methodClass = method.toLowerCase();
+                    const latency = c.latency_ms != null ? c.latency_ms : c.duration;
+                    const latencyClass = latency < 100 ? 'fast' : (latency < 500 ? 'medium' : 'slow');
+                    const status = c.status_code || c.status || 200;
+                    const statusClass = status < 400 ? 'ok' : 'err';
+
+                    return `<div class="api-entry">
+                        <span class="api-method ${methodClass}">${method}</span>
+                        <span class="api-path" title="${c.path || c.endpoint || ''}">${c.path || c.endpoint || '/'}</span>
+                        <span class="api-latency ${latencyClass}">${latency != null ? Math.round(latency) + 'ms' : '--'}</span>
+                        <span class="api-status ${statusClass}">${status}</span>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                $('api-log').innerHTML = '<div class="empty-state">Unavailable</div>';
+            }
+        }
+
+        /* ---- 7. Tool Usage ---- */
+        async function fetchToolUsage() {
+            try {
+                const res = await fetch('/api/tools/availability');
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+                const tools = data.tools || data || [];
+                const arr = Array.isArray(tools) ? tools : Object.entries(tools).map(([name, info]) => ({ name, ...info }));
+                $('tool-count').textContent = arr.length;
+
+                const log = $('tool-log');
+                if (!arr.length) {
+                    log.innerHTML = '<div class="empty-state">No tools registered</div>';
+                    return;
+                }
+
+                const rows = arr.map(t => {
+                    const name = t.name || t.id || '--';
+                    const calls = t.call_count || t.calls || 0;
+                    const successRate = t.success_rate != null ? t.success_rate : (t.success_rate_pct != null ? t.success_rate_pct : null);
+                    const rateClass = successRate != null ? (successRate >= 95 ? 'good' : (successRate >= 80 ? 'warn' : 'bad')) : '';
+                    const rateText = successRate != null ? successRate.toFixed(1) + '%' : '--';
+                    const latency = t.avg_latency_ms != null ? t.avg_latency_ms : t.avg_latency;
+                    const latencyText = latency != null ? Math.round(latency) + 'ms' : '--';
+
+                    return `<div class="api-entry" style="grid-template-columns: 1fr 55px 60px 55px;">
+                        <span class="tool-name">${name}</span>
+                        <span class="tool-call-count">${calls}</span>
+                        <span class="tool-success-rate ${rateClass}">${rateText}</span>
+                        <span class="tool-latency">${latencyText}</span>
+                    </div>`;
+                }).join('');
+
+                log.innerHTML = `<div class="api-entry" style="grid-template-columns: 1fr 55px 60px 55px;border-bottom:1px solid var(--border);opacity:0.5;font-size:8px;text-transform:uppercase;letter-spacing:1px;">
+                    <span>Tool</span><span>Calls</span><span>Success</span><span>Latency</span>
+                </div>` + rows;
+            } catch (e) {
+                $('tool-log').innerHTML = '<div class="empty-state">Unavailable</div>';
+            }
+        }
+
+        /* ---- WebSocket ---- */
+        function connectWebSocket() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const url = `${proto}//${location.host}/ws/agents`;
+            state.ws = new WebSocket(url);
+
+            state.ws.onopen = () => {
+                $('ws-dot').className = 'status-dot';
+                $('ws-status').textContent = 'Connected';
+            };
+
+            state.ws.onmessage = (ev) => {
+                try {
+                    const data = JSON.parse(ev.data);
+                    addEvent(data);
+                } catch (e) {
+                    addEvent({ type: 'system', message: ev.data, timestamp: Date.now() });
+                }
+            };
+
+            state.ws.onclose = () => {
+                $('ws-dot').className = 'status-dot error';
+                $('ws-status').textContent = 'Disconnected';
+                setTimeout(connectWebSocket, 5000);
+            };
+
+            state.ws.onerror = () => {
+                state.ws.close();
+            };
+        }
+
+        /* ---- Event Filter Buttons ---- */
+        document.querySelectorAll('.event-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.event-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.eventFilter = btn.dataset.filter;
+                renderEvents();
+            });
+        });
+
+        /* ---- Pause auto-scroll on manual scroll ---- */
+        $('event-stream').addEventListener('mouseenter', () => { state.eventPaused = true; });
+        $('event-stream').addEventListener('mouseleave', () => { state.eventPaused = false; });
+        $('event-stream').addEventListener('scroll', () => {
+            const el = $('event-stream');
+            state.eventPaused = el.scrollTop > 10;
+        });
+
+        /* ---- Uptime ticker ---- */
+        function tickUptime() {
+            if (state.serverStart) {
+                const elapsed = Date.now() - new Date(state.serverStart).getTime();
+                $('uptime-value').textContent = formatUptime(Math.max(0, elapsed));
+            }
+        }
+
+        /* ---- Refresh all data ---- */
+        async function refreshAll() {
+            await Promise.allSettled([
+                fetchHealth(),
+                fetchWorkspaces(),
+                fetchAgents(),
+                fetchMemoryStats(),
+                fetchApiStats(),
+                fetchToolUsage(),
+            ]);
+        }
+
+        /* ---- Init ---- */
+        refreshAll();
+        connectWebSocket();
+        setInterval(refreshAll, state.refreshInterval);
+        setInterval(tickUptime, 1000);
+    });
+    </script>
+</body>
+</html>

@@ -117,16 +117,40 @@ class Task(BaseModel):
 
 
 class Workspace(BaseModel):
-    """A mission workspace tracking a user request."""
+    """A unified mission workspace — the single source of truth for all user work."""
     id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
     goal: str
     owner: str  # Agent card_id (e.g., "♠K")
+    user_request: str = ""
     tasks: list[Task] = Field(default_factory=list)
     status: AgentState = AgentState.PLANNING
+    current_stage: str = "understand"
     progress: float = 0.0
+    priority: str = "normal"
     created_at: datetime = Field(default_factory=datetime.now)
+    started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
-    
+    duration_ms: float = 0.0
+
+    # Research & planning
+    research_findings: list[dict] = Field(default_factory=list)
+    tool_candidates: list[dict] = Field(default_factory=list)
+    architecture_plan: Optional[dict] = None
+
+    # Execution & verification
+    execution_results: list[dict] = Field(default_factory=list)
+    verification_results: list[dict] = Field(default_factory=list)
+    review_items: list[dict] = Field(default_factory=list)
+
+    # Memory & reporting
+    memory_record: Optional[dict] = None
+    final_report: str = ""
+
+    # Timeline & errors
+    timeline_events: list[dict] = Field(default_factory=list)
+    stage_history: list[dict] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+
     def update_progress(self):
         """Calculate progress based on task completion."""
         if not self.tasks:
@@ -134,3 +158,38 @@ class Workspace(BaseModel):
             return
         completed = sum(1 for t in self.tasks if t.status == AgentState.COMPLETED)
         self.progress = (completed / len(self.tasks)) * 100
+
+    def add_timeline_event(self, event_type: str, source: str, description: str, **extra):
+        """Add a timestamped event to the unified timeline."""
+        from datetime import datetime as _dt
+        event = {
+            "type": event_type,
+            "source": source,
+            "description": description,
+            "timestamp": _dt.now().isoformat(),
+            **extra,
+        }
+        self.timeline_events.append(event)
+
+    def stage_start(self, stage: str):
+        """Record pipeline stage start."""
+        self.current_stage = stage
+        from datetime import datetime as _dt
+        self.stage_history.append({
+            "stage": stage,
+            "action": "start",
+            "timestamp": _dt.now().isoformat(),
+        })
+
+    def stage_complete(self, stage: str):
+        """Record pipeline stage completion."""
+        from datetime import datetime as _dt
+        self.stage_history.append({
+            "stage": stage,
+            "action": "complete",
+            "timestamp": _dt.now().isoformat(),
+        })
+
+    def add_error(self, error: str):
+        """Add an error with stage context."""
+        self.errors.append(f"[{self.current_stage}] {error}")

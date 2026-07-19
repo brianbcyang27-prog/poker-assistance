@@ -80,15 +80,31 @@ class Database:
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             
-            -- Workspaces
+            -- Workspaces (unified mission workspace)
             CREATE TABLE IF NOT EXISTS workspaces (
                 id TEXT PRIMARY KEY,
                 goal TEXT NOT NULL,
                 owner TEXT NOT NULL,
+                user_request TEXT DEFAULT '',
                 status TEXT DEFAULT 'planning',
+                current_stage TEXT DEFAULT 'understand',
                 progress REAL DEFAULT 0.0,
+                priority TEXT DEFAULT 'normal',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                completed_at TIMESTAMP
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP,
+                duration_ms REAL DEFAULT 0.0,
+                research_findings TEXT DEFAULT '[]',
+                tool_candidates TEXT DEFAULT '[]',
+                architecture_plan TEXT,
+                execution_results TEXT DEFAULT '[]',
+                verification_results TEXT DEFAULT '[]',
+                review_items TEXT DEFAULT '[]',
+                memory_record TEXT,
+                final_report TEXT DEFAULT '',
+                timeline_events TEXT DEFAULT '[]',
+                stage_history TEXT DEFAULT '[]',
+                errors TEXT DEFAULT '[]'
             );
             
             -- Tasks
@@ -308,6 +324,33 @@ class Database:
         
         # FTS5 full-text search tables
         await self._init_fts_tables()
+
+        # Upgrade workspaces table — add unified mission columns (v6.1.0)
+        for col, default in [
+            ("user_request", "''"),
+            ("current_stage", "'understand'"),
+            ("priority", "'normal'"),
+            ("started_at", "NULL"),
+            ("duration_ms", "0.0"),
+            ("research_findings", "'[]'"),
+            ("tool_candidates", "'[]'"),
+            ("architecture_plan", "NULL"),
+            ("execution_results", "'[]'"),
+            ("verification_results", "'[]'"),
+            ("review_items", "'[]'"),
+            ("memory_record", "NULL"),
+            ("final_report", "''"),
+            ("timeline_events", "'[]'"),
+            ("stage_history", "'[]'"),
+            ("errors", "'[]'"),
+        ]:
+            try:
+                await self._db.execute(
+                    f"ALTER TABLE workspaces ADD COLUMN {col} DEFAULT {default}"
+                )
+            except Exception:
+                pass
+        await self._db.commit()
         
         # Upgrade projects table — add columns if missing (idempotent)
         for col, default in [
@@ -530,17 +573,36 @@ class Database:
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
     
-    # Workspaces
+    # Workspaces (unified mission workspace)
     async def save_workspace(self, workspace: dict):
         await self._db.execute(
             """INSERT OR REPLACE INTO workspaces 
-               (id, goal, owner, status, progress, created_at, completed_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+               (id, goal, owner, user_request, status, current_stage, progress, priority,
+                created_at, started_at, completed_at, duration_ms,
+                research_findings, tool_candidates, architecture_plan,
+                execution_results, verification_results, review_items,
+                memory_record, final_report, timeline_events, stage_history, errors)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 workspace["id"], workspace["goal"], workspace["owner"],
-                workspace["status"], workspace["progress"],
+                workspace.get("user_request", ""),
+                workspace["status"], workspace.get("current_stage", "understand"),
+                workspace["progress"], workspace.get("priority", "normal"),
                 workspace.get("created_at", datetime.now().isoformat()),
-                workspace.get("completed_at")
+                workspace.get("started_at"),
+                workspace.get("completed_at"),
+                workspace.get("duration_ms", 0.0),
+                json.dumps(workspace.get("research_findings", [])),
+                json.dumps(workspace.get("tool_candidates", [])),
+                json.dumps(workspace.get("architecture_plan")) if workspace.get("architecture_plan") else None,
+                json.dumps(workspace.get("execution_results", [])),
+                json.dumps(workspace.get("verification_results", [])),
+                json.dumps(workspace.get("review_items", [])),
+                json.dumps(workspace.get("memory_record")) if workspace.get("memory_record") else None,
+                workspace.get("final_report", ""),
+                json.dumps(workspace.get("timeline_events", [])),
+                json.dumps(workspace.get("stage_history", [])),
+                json.dumps(workspace.get("errors", [])),
             )
         )
         await self._db.commit()
@@ -549,7 +611,22 @@ class Database:
         cursor = await self._db.execute("SELECT * FROM workspaces WHERE id = ?", (workspace_id,))
         row = await cursor.fetchone()
         if row:
-            return dict(row)
+            d = dict(row)
+            for key in ("research_findings", "tool_candidates", "execution_results",
+                        "verification_results", "review_items", "timeline_events",
+                        "stage_history", "errors"):
+                if d.get(key) and isinstance(d[key], str):
+                    try:
+                        d[key] = json.loads(d[key])
+                    except (json.JSONDecodeError, TypeError):
+                        d[key] = []
+            for key in ("architecture_plan", "memory_record"):
+                if d.get(key) and isinstance(d[key], str):
+                    try:
+                        d[key] = json.loads(d[key])
+                    except (json.JSONDecodeError, TypeError):
+                        d[key] = None
+            return d
         return None
     
     async def get_all_workspaces(self, status: Optional[str] = None, limit: int = 500) -> list[dict]:
@@ -561,7 +638,25 @@ class Database:
         else:
             cursor = await self._db.execute("SELECT * FROM workspaces ORDER BY created_at DESC LIMIT ?", (limit,))
         rows = await cursor.fetchall()
-        return [dict(row) for row in rows]
+        results = []
+        for row in rows:
+            d = dict(row)
+            for key in ("research_findings", "tool_candidates", "execution_results",
+                        "verification_results", "review_items", "timeline_events",
+                        "stage_history", "errors"):
+                if d.get(key) and isinstance(d[key], str):
+                    try:
+                        d[key] = json.loads(d[key])
+                    except (json.JSONDecodeError, TypeError):
+                        d[key] = []
+            for key in ("architecture_plan", "memory_record"):
+                if d.get(key) and isinstance(d[key], str):
+                    try:
+                        d[key] = json.loads(d[key])
+                    except (json.JSONDecodeError, TypeError):
+                        d[key] = None
+            results.append(d)
+        return results
     
     # Tasks
     async def save_task(self, task: dict, workspace_id: str):

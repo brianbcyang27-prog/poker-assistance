@@ -35,3 +35,9 @@ audio_cache/
 # Graphify generated files
 graphify-out/
 graphify-out/cost.json
+.playwright-mcp/
+
+# Generated data
+screenshots/
+memory_store/
+jarvis_missions.json

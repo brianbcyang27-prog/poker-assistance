@@ -1,4 +1,4 @@
-"""Pages router - HTML templates."""
+"""Pages router — HTML templates (v6.1.0)."""
 
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
@@ -31,3 +31,9 @@ async def settings_page(request: Request):
 async def history_page(request: Request):
     """Task History page."""
     return templates.TemplateResponse("history.html", {"request": request})
+
+
+@router.get("/dashboard")
+async def developer_dashboard(request: Request):
+    """Developer Dashboard — live system health."""
+    return templates.TemplateResponse("developer_dashboard.html", {"request": request})

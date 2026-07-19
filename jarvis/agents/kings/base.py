@@ -214,13 +214,14 @@ Respond with JSON:
     async def _delegate_to_workers(
         self, task: Task, plan: dict, team: list[CardAgent]
     ) -> list[AgentMessage]:
-        """Delegate subtasks to workers and collect results."""
+        """Delegate subtasks to workers, passing peer context for collaboration."""
         results = []
-        
+        completed_context = []
+
         for subtask in plan.get("subtasks", []):
             worker_id = subtask.get("assigned_worker", "")
             worker = self._resolve_worker(worker_id)
-            
+
             if worker is None:
                 results.append(AgentMessage(
                     sender=self.card_id,
@@ -230,20 +231,29 @@ Respond with JSON:
                     status="error",
                 ))
                 continue
-            
-            # Create subtask
+
             subtask_obj = Task(
                 name=subtask.get("name", "Subtask"),
                 description=subtask.get("description", ""),
                 assigned_to=worker_id,
                 priority=subtask.get("priority", 5),
+                dependencies=subtask.get("dependencies", []),
             )
-            
-            # Worker executes (workers manage their own state)
-            result = await worker.execute_task(subtask_obj)
-            
+
+            # Build peer context from completed workers
+            peer_context = ""
+            if completed_context:
+                peer_context = "\n".join(
+                    f"Worker {r.sender} completed '{r.task_id}': {r.content[:300]}"
+                    for r in completed_context[-3:]
+                )
+
+            result = await worker.execute_task(subtask_obj, peer_context=peer_context)
             results.append(result)
-        
+
+            if result.status == "completed":
+                completed_context.append(result)
+
         return results
     
     async def _review_results(self, task: Task, results: list[AgentMessage]) -> AgentMessage:

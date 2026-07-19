@@ -2,7 +2,7 @@
 
 > **Single source of truth for the future of JARVIS.**
 > This document is maintained automatically after every release.
-> Last updated: v5.2.1
+> Last updated: v6.1.0
 
 ---
 
@@ -490,6 +490,54 @@ graph TB
 - Command Center UI: unified single-page dashboard with 3D golden core
 - Mission Replay API: 14 REST endpoints for brain/missions/agents/tools
 - 227 new tests (954+ total)
+
+### v6.0.0 — Visual & Design System Rewrite
+
+> JARVIS becomes premium.
+
+- Complete UI rewrite (base.html, style.css, app.js)
+- Gold particle sphere (Graph3D) — 800 particles, bloom post-processing, mouse parallax, neural pulses
+- Workspace-based UI (Core, Chat, Engineering, Research, Memory, Settings)
+- Agent Command Map — SVG hierarchy visualization
+- Knowledge Graph — canvas-based force-directed layout
+- Memory Galaxy — Three.js star field
+- Cache-busting static assets
+- No-cache middleware for development
+
+### v6.0.1 — Browser Cache Fix
+
+- Root-caused Graph3D pulsePool error (stale browser cache)
+- Added `?v=6.0.1` cache-busting to all 23 static assets
+- Added `Cache-Control: no-cache` middleware
+- Defensive pulsePool guard in graph-3d.js
+
+### v6.0.2 — Resource Leak Fixes & Rate Limiting
+
+> Production hardening.
+
+- Full codebase resource audit (56 issues: 4 critical, 23 high, 19 medium, 10 low)
+- Database: busy_timeout, 8 new indexes, LIMIT guards, singleton Lock
+- WebSocket: 30s heartbeat, dead-client cleanup, task tracking
+- Agents: background task tracking with cleanup callbacks
+- Events: 50-handler cap per type, efficient trim
+- Frontend: GPU cleanup in destroy(), stored listener references
+- Rate limiting: global 30/min POST middleware + per-endpoint decorators
+
+### v6.1.0 — System Integration & Engineering Workspace
+
+> JARVIS becomes one unified operating system.
+
+- **Unified Workspace**: Merged Workspace + Mission into single persistent model (24 fields, SQLite-backed)
+- **Cross-Agent Collaboration**: Workers can request help, share results, broadcast discoveries via event bus
+- **Peer Context Passing**: King passes previous worker results to subsequent workers
+- **Unified Mission Timeline**: Live event stream UI with filters, search, export
+- **Developer Dashboard**: `/dashboard` — 7 panels (System Health, Workspaces, Workers, Event Stream, Memory, API Performance, Tools)
+- **Reliability Config**: Centralized timeouts, retry logic, backoff, safe_execute
+- **LLM Retry**: Exponential backoff with configurable retries on connection/HTTP errors
+- **Workspace Search**: `GET /api/workspace/search?q=query`
+- **Workspace Timeline API**: `GET /api/workspace/{id}/timeline`
+- **Stage Tracking API**: `POST /api/workspace/{id}/stage`
+- **Realtime Collaboration Events**: `worker.help_request`, `worker.help_response`, `worker.result_shared`, `worker.broadcast.*`
 
 ---
 
