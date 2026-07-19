@@ -183,14 +183,14 @@ async def lifespan(app: FastAPI):
         from jarvis.core.events import event_bus, Event
         await event_bus.emit(Event(
             type="system.started",
-            data={"version": "4.2.0", "host": config.host, "port": config.port},
+            data={"version": __version__, "host": config.host, "port": config.port},
             source="system",
         ))
     except Exception:
         pass
 
     elapsed = time.time() - startup_start
-    print(f"  ✓ JARVIS v4.2.0 ready ({elapsed:.1f}s)\n")
+    print(f"  ✓ JARVIS v{__version__} ready ({elapsed:.1f}s)\n")
 
     yield
 

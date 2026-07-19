@@ -2,7 +2,7 @@
 
 > **Single source of truth for the future of JARVIS.**
 > This document is maintained automatically after every release.
-> Last updated: v5.2.0
+> Last updated: v5.2.1
 
 ---
 
@@ -310,7 +310,7 @@ graph TB
 | `jarvis/voice/` | 3 | Voice I/O (STT, TTS) |
 | `jarvis/web/` | 20 | Web interface (FastAPI, WebSocket, Templates) |
 | `jarvis/workspace/` | 2 | Workspace management |
-| **Total** | **197** | **38,062 lines of Python** |
+| **Total** | **197** | **38,057 lines of Python** |
 
 ---
 
@@ -429,6 +429,19 @@ graph TB
 - Plugin SDK (11 plugin types)
 - Self Monitoring (health, latency, memory)
 - 12 CLI commands
+
+### v5.2.1 — Stability & Integration Update
+
+> Production-quality stabilization pass.
+
+- Full system audit (imports, circular deps, dead code)
+- Removed broken legacy `main.py` (imported non-existent modules)
+- Removed orphaned `web/routers/` directory (7 unused router files)
+- Fixed hardcoded version strings (v4.2.0 → using `__version__`)
+- Fixed stale version in `run.py` (v4.0.0 → using `__version__`)
+- Cleaned unused imports in `mission/pipeline.py`
+- Updated `.env.example` with missing fields (TTS, OpenAI, UI config)
+- 225 tests passing, 0 failures
 
 ---
 
@@ -790,7 +803,7 @@ python3 -m jarvis.cli_v2 dashboard . # Update metrics
 |--------|-------|
 | **Current Version** | 5.2.0 |
 | **Python Files** | 197 |
-| **Total Lines** | 38,062 |
+| **Total Lines** | 38,057 |
 | **Test Files** | 18 |
 | **Test Lines** | 5,193 |
 | **Total Tests** | 450+ |

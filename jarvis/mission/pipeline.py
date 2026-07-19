@@ -15,16 +15,11 @@ The pipeline orchestrates all 10 stages of a mission:
 Never jump to coding. Research first.
 """
 
-import asyncio
-import time
 import logging
-from typing import Optional, Dict, Any, Callable, List
 from datetime import datetime
 
 from .mission import (
     Mission, MissionStatus, MissionStage,
-    ResearchFinding, ToolCandidate, ArchitecturePlan,
-    VerificationResult, ReviewItem, MissionMemory,
 )
 
 log = logging.getLogger("jarvis.mission")
