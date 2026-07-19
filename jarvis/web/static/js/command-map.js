@@ -751,42 +751,55 @@ class CommandMap {
         const cardId = `${suitSymbols[agent.suit] || ''}${agent.card_id?.replace(/[♠♥♦♣]/, '') || ''}`;
         const color = suitColors[agent.suit] || '#00d4ff';
         
-        document.getElementById('detail-card-id').textContent = cardId;
-        document.getElementById('detail-card-id').style.color = color;
-        document.getElementById('detail-name').textContent = agent.name || '';
-        document.getElementById('detail-role').textContent = agent.role || '';
+        const cardIdEl = document.getElementById('detail-card-id');
+        if (cardIdEl) {
+            cardIdEl.textContent = cardId;
+            cardIdEl.style.color = color;
+        }
+        const nameEl = document.getElementById('detail-name');
+        if (nameEl) nameEl.textContent = agent.name || '';
+        const roleEl = document.getElementById('detail-role');
+        if (roleEl) roleEl.textContent = agent.role || '';
         
         // State
         const stateEl = document.getElementById('detail-state');
-        stateEl.textContent = (agent.state || 'idle').toUpperCase();
-        // Remove all state classes
-        stateEl.className = 'detail-state-badge';
-        // Add the appropriate state class
-        const stateClass = agent.state || 'idle';
-        const validStates = ['idle', 'thinking', 'planning', 'working', 'reviewing', 'waiting', 'completed', 'error'];
-        if (validStates.includes(stateClass)) {
-            stateEl.classList.add(`state-${stateClass}`);
+        if (stateEl) {
+            stateEl.textContent = (agent.state || 'idle').toUpperCase();
+            // Remove all state classes
+            stateEl.className = 'detail-state-badge';
+            // Add the appropriate state class
+            const stateClass = agent.state || 'idle';
+            const validStates = ['idle', 'thinking', 'planning', 'working', 'reviewing', 'waiting', 'completed', 'error'];
+            if (validStates.includes(stateClass)) {
+                stateEl.classList.add(`state-${stateClass}`);
+            }
         }
         
         // Thinking process
-        document.getElementById('detail-thinking').textContent = agent.thinking || 'Awaiting input...';
+        const thinkingEl = document.getElementById('detail-thinking');
+        if (thinkingEl) thinkingEl.textContent = agent.thinking || 'Awaiting input...';
         
         // Current task
-        document.getElementById('detail-task').textContent = agent.currentTask || 'No active task';
+        const taskEl = document.getElementById('detail-task');
+        if (taskEl) taskEl.textContent = agent.currentTask || 'No active task';
         
         // Abilities
         const abilitiesList = document.getElementById('detail-abilities');
-        abilitiesList.innerHTML = (agent.abilities || []).map(a => 
-            `<li>${a}</li>`
-        ).join('');
+        if (abilitiesList) {
+            abilitiesList.innerHTML = (agent.abilities || []).map(a => 
+                `<li>${a}</li>`
+            ).join('');
+        }
         
         // Personality (for JARVIS and Kings)
         const personalityEl = document.getElementById('detail-personality');
-        if (agent.personality) {
-            personalityEl.textContent = agent.personality;
-            personalityEl.parentElement.style.display = 'block';
-        } else {
-            personalityEl.parentElement.style.display = 'none';
+        if (personalityEl) {
+            if (agent.personality) {
+                personalityEl.textContent = agent.personality;
+                personalityEl.parentElement.style.display = 'block';
+            } else {
+                personalityEl.parentElement.style.display = 'none';
+            }
         }
     }
     
@@ -817,7 +830,8 @@ class CommandMap {
     }
     
     hideTooltip() {
-        document.getElementById('agent-tooltip').classList.add('hidden');
+        const tooltip = document.getElementById('agent-tooltip');
+        if (tooltip) tooltip.classList.add('hidden');
     }
     
     // ============ STATUS ============
@@ -839,8 +853,10 @@ class CommandMap {
             });
         });
         
-        document.getElementById('agent-count').textContent = `${activeAgents}/${totalAgents}`;
-        document.getElementById('system-status').textContent = 
+        const agentCountEl = document.getElementById('agent-count');
+        if (agentCountEl) agentCountEl.textContent = `${activeAgents}/${totalAgents}`;
+        const statusEl = document.getElementById('system-status');
+        if (statusEl) statusEl.textContent = 
             this.hierarchy.jarvis?.state?.toUpperCase() || 'READY';
     }
     
@@ -877,11 +893,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (workspaces.length === 0) {
                 content.innerHTML = '<div class="mission-empty">No active missions</div>';
-                document.getElementById('mission-count').textContent = '0';
+                const mcEl = document.getElementById('mission-count');
+                if (mcEl) mcEl.textContent = '0';
                 return;
             }
             
-            document.getElementById('mission-count').textContent = workspaces.length;
+            const mcEl2 = document.getElementById('mission-count');
+            if (mcEl2) mcEl2.textContent = workspaces.length;
             
             content.innerHTML = workspaces.map(w => `
                 <div class="mission-card">

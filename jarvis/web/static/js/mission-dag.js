@@ -32,7 +32,7 @@ class MissionDAG {
         const defs = this._createEl('defs');
         defs.innerHTML = `
             <marker id="dag-arrow" viewBox="0 0 10 10" refX="9" refY="5"
-                    markerWidth="6" markerHeight="6" orient="auto-start-auto">
+                    markerWidth="6" markerHeight="6" orient="auto">
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-primary)"/>
             </marker>
             <linearGradient id="dag-edge-active" x1="0" y1="0" x2="1" y2="0">
