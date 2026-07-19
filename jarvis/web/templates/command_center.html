@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS v5.5.0 — Command Center</title>
+    <script src="/static/vendor/three.min.js"></script>
+    <script src="/static/vendor/CopyShader.js"></script>
+    <script src="/static/vendor/LuminosityHighPassShader.js"></script>
+    <script src="/static/vendor/EffectComposer.js"></script>
+    <script src="/static/vendor/RenderPass.js"></script>
+    <script src="/static/vendor/ShaderPass.js"></script>
+    <script src="/static/vendor/UnrealBloomPass.js"></script>
+    <style>
+        /* ═══════════════════════════════════════════════════════
+           JARVIS v5.5.0 Command Center — Gold Theme
+           ═══════════════════════════════════════════════════════ */
+
+        :root {
+            --bg: #0a0a0f;
+            --bg-glass: rgba(10, 10, 15, 0.82);
+            --bg-panel: rgba(12, 12, 20, 0.92);
+            --bg-panel-hover: rgba(18, 18, 30, 0.95);
+            --gold: #d4af37;
+            --gold-bright: #f5d76e;
+            --gold-dim: #8b7220;
+            --gold-glow: rgba(212, 175, 55, 0.35);
+            --gold-subtle: rgba(212, 175, 55, 0.08);
+            --border: rgba(212, 175, 55, 0.1);
+            --border-active: rgba(212, 175, 55, 0.35);
+            --text: rgba(230, 220, 190, 0.92);
+            --text-dim: rgba(160, 145, 100, 0.5);
+            --text-muted: rgba(120, 110, 80, 0.4);
+            --success: #4ecb71;
+            --danger: #e74c6f;
+            --warning: #d4af37;
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Status Bar ── */
+        #status-bar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid var(--border);
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .status-brand {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--gold);
+            text-shadow: 0 0 16px rgba(212, 175, 55, 0.3);
+        }
+
+        .status-version {
+            font-size: 9px;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            padding: 2px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .status-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-health {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+        }
+
+        .health-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px rgba(78, 203, 113, 0.5);
+            animation: pulse-dot 3s ease-in-out infinite;
+        }
+
+        .health-dot.degraded { background: var(--warning); box-shadow: 0 0 8px rgba(212, 175, 55, 0.5); }
+        .health-dot.offline { background: var(--danger); box-shadow: 0 0 8px rgba(231, 76, 111, 0.5); animation: none; }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+
+        .status-time {
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: var(--text-dim);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Main Grid ── */
+        #command-center {
+            display: grid;
+            grid-template-columns: 280px 1fr 280px;
+            grid-template-rows: 1fr;
+            height: 100vh;
+            padding-top: 44px;
+            padding-bottom: 56px;
+        }
+
+        /* ── Satellite Panels ── */
+        .panel-column {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            background: var(--border);
+            border-right: 1px solid var(--border);
+        }
+
+        .panel-column.right { border-right: none; border-left: 1px solid var(--border); }
+
+        .panel {
+            flex: 1;
+            background: var(--bg-panel);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: background 0.3s ease;
+            position: relative;
+        }
+
+        .panel:hover { background: var(--bg-panel-hover); }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px 10px;
+            flex-shrink: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .panel-header:hover .panel-title { color: var(--gold); }
+
+        .panel-title {
+            font-size: 9px;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            transition: color 0.3s ease;
+        }
+
+        .panel-badge {
+            font-size: 9px;
+            letter-spacing: 1px;
+            color: var(--gold);
+            padding: 2px 7px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--gold-subtle);
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 14px 14px;
+        }
+
+        .panel.expanded .panel-body {
+            position: fixed;
+            top: 44px;
+            bottom: 56px;
+            left: 0;
+            right: 0;
+            z-index: 90;
+            background: var(--bg);
+            padding: 20px 24px;
+            border: 1px solid var(--border-active);
+            border-radius: 0;
+        }
+
+        .panel-divider {
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ── Panel Items ── */
+        .panel-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            border: 1px solid transparent;
+        }
+
+        .panel-item:hover {
+            background: var(--gold-subtle);
+            border-color: var(--border);
+        }
+
+        .panel-item-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+            background: var(--gold-subtle);
+            color: var(--gold);
+            border: 1px solid var(--border);
+        }
+
+        .panel-item-content { flex: 1; min-width: 0; }
+
+        .panel-item-name {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .panel-item-sub {
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-top: 1px;
+        }
+
+        .panel-item-status {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .panel-item-status.ok { background: var(--success); box-shadow: 0 0 6px rgba(78,203,113,0.4); }
+        .panel-item-status.busy { background: var(--gold); box-shadow: 0 0 6px var(--gold-glow); animation: pulse-dot 2s ease-in-out infinite; }
+        .panel-item-status.error { background: var(--danger); box-shadow: 0 0 6px rgba(231,76,111,0.4); }
+        .panel-item-status.idle { background: var(--text-muted); }
+
+        /* ── Center Column ── */
+        #center-column {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #golden-core-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: var(--bg);
+        }
+
+        #golden-core-container canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+
+        #core-label {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #core-state-text {
+            font-size: 10px;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            color: var(--gold);
+            opacity: 0.4;
+            transition: all 0.8s ease;
+            text-shadow: 0 0 12px rgba(212, 175, 55, 0.2);
+        }
+
+        #core-state-text.active {
+            opacity: 0.85;
+            letter-spacing: 8px;
+            text-shadow: 0 0 24px rgba(212, 175, 55, 0.5);
+        }
+
+        /* ── Command Input ── */
+        #command-bar {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 20px;
+            background: rgba(10, 10, 15, 0.95);
+            border-top: 1px solid var(--border);
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        #command-bar:focus-within {
+            border-top-color: var(--border-active);
+            box-shadow: 0 -4px 24px rgba(212, 175, 55, 0.04);
+        }
+
+        .cmd-prompt {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--gold);
+            opacity: 0.6;
+            flex-shrink: 0;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+
+        #cmd-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            outline: none;
+            min-width: 200px;
+            padding: 8px 0;
+        }
+
+        #cmd-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .cmd-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.25s ease;
+            flex-shrink: 0;
+        }
+
+        .cmd-btn:hover {
+            color: var(--gold);
+            background: var(--gold-subtle);
+        }
+
+        .cmd-btn.send {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dim));
+            color: var(--bg);
+        }
+
+        .cmd-btn.send:hover {
+            box-shadow: 0 0 20px var(--gold-glow);
+            transform: scale(1.06);
+        }
+
+        .cmd-btn.send:active { transform: scale(0.94); }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+
+        /* ── Animations ── */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .panel-item { animation: fadeInUp 0.35s ease forwards; }
+        .panel-item:nth-child(2) { animation-delay: 0.04s; }
+        .panel-item:nth-child(3) { animation-delay: 0.08s; }
+        .panel-item:nth-child(4) { animation-delay: 0.12s; }
+        .panel-item:nth-child(5) { animation-delay: 0.16s; }
+
+        /* ── Breathing Border ── */
+        .panel-column { animation: breathe 8s ease-in-out infinite; }
+        @keyframes breathe {
+            0%, 100% { border-color: rgba(212, 175, 55, 0.06); }
+            50% { border-color: rgba(212, 175, 55, 0.14); }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1100px) {
+            #command-center {
+                grid-template-columns: 220px 1fr 220px;
+            }
+        }
+
+        @media (max-width: 800px) {
+            #command-center {
+                grid-template-columns: 1fr;
+            }
+            .panel-column { display: none; }
+            .panel-column.right { display: none; }
+        }
+
+        /* ── Empty State ── */
+        .panel-empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* ── Toast ── */
+        #toast {
+            position: fixed;
+            top: 56px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-10px);
+            background: var(--bg-panel);
+            border: 1px solid rgba(78, 203, 113, 0.3);
+            color: var(--success);
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            backdrop-filter: blur(12px);
+        }
+
+        #toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ── Stat Row ── */
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 7px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+        }
+
+        .stat-row:last-child { border-bottom: none; }
+
+        .stat-label {
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 11px;
+            font-family: 'SF Mono', monospace;
+            color: var(--gold);
+        }
+
+        /* ── WS Indicator ── */
+        .ws-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: background 0.4s;
+        }
+
+        .ws-dot.connected { background: var(--success); box-shadow: 0 0 6px rgba(78,203,113,0.5); }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════ STATUS BAR ═══════════════ -->
+<div id="status-bar">
+    <div class="status-left">
+        <span class="status-brand">JARVIS</span>
+        <span class="status-version">v5.5.0</span>
+        <div class="ws-dot" id="ws-indicator" title="WebSocket"></div>
+    </div>
+    <div class="status-right">
+        <div class="status-health">
+            <span class="health-dot" id="health-dot"></span>
+            <span id="health-label">Systems nominal</span>
+        </div>
+        <span class="status-time" id="status-time"></span>
+    </div>
+</div>
+
+<!-- ═══════════════ COMMAND CENTER GRID ═══════════════ -->
+<div id="command-center">
+
+    <!-- LEFT COLUMN: Memory + Agents -->
+    <div class="panel-column" id="left-panels">
+
+        <!-- MEMORY PANEL -->
+        <div class="panel" id="panel-memory" data-api="/api/memory/stats">
+            <div class="panel-header" onclick="togglePanel('memory')">
+                <span class="panel-title">Memory</span>
+                <span class="panel-badge" id="memory-count">0</span>
+            </div>
+            <div class="panel-body" id="memory-body">
+                <div class="panel-empty">Loading...</div>
+            </div>
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <!-- AGENTS PANEL -->
+        <div class="panel" id="panel-agents" data-api="/api/agents/personas">
+            <div class="panel-header" onclick="togglePanel('agents')">
+                <span class="panel-title">Agents</span>
+                <span class="panel-badge" id="agents-count">0</span>
+            </div>
+            <div class="panel-body" id="agents-body">
+                <div class="panel-empty">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CENTER: Golden Core + Input -->
+    <div id="center-column">
+        <div id="golden-core-container">
+            <div id="core-label">
+                <div id="core-state-text">IDLE</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Missions + Projects -->
+    <div class="panel-column right" id="right-panels">
+
+        <!-- MISSIONS PANEL -->
+        <div class="panel" id="panel-missions" data-api="/api/missions">
+            <div class="panel-header" onclick="togglePanel('missions')">
+                <span class="panel-title">Missions</span>
+                <span class="panel-badge" id="missions-count">0</span>
+            </div>
+            <div class="panel-body" id="missions-body">
+                <div class="panel-empty">Loading...</div>
+            </div>
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <!-- PROJECTS + TOOLS PANEL -->
+        <div class="panel" id="panel-projects" data-api="/api/tools/availability">
+            <div class="panel-header" onclick="togglePanel('projects')">
+                <span class="panel-title">Projects &amp; Tools</span>
+                <span class="panel-badge" id="projects-count">0</span>
+            </div>
+            <div class="panel-body" id="projects-body">
+                <div class="panel-empty">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ COMMAND INPUT ═══════════════ -->
+<div id="command-bar">
+    <span class="cmd-prompt">&gt;</span>
+    <input type="text" id="cmd-input" placeholder="Speak to JARVIS..."
+           onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendCommand()}">
+    <button class="cmd-btn" onclick="refreshAll()" title="Refresh">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+    </button>
+    <button class="cmd-btn send" onclick="sendCommand()" title="Send">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+    </button>
+</div>
+
+<!-- ═══════════════ TOAST ═══════════════ -->
+<div id="toast"></div>
+
+<!-- ═══════════════ GOLDEN CORE — Three.js ═══════════════ -->
+<script>
+(function() {
+    const container = document.getElementById('golden-core-container');
+    const W = () => container.clientWidth || 800;
+    const H = () => container.clientHeight || 600;
+
+    let scene, camera, renderer, composer, bloomPass;
+    let particles, lines, ringGroup, coreGlow, aperture;
+    let particlePositions, linePositions, lineColors, nodePhases;
+    let time = 0, running = true;
+    let mouseX = 0, mouseY = 0, mouseTX = 0, mouseTY = 0;
+    let orbit = { theta: 0, phi: Math.PI / 2, radius: 28 };
+    let orbitDamping = { theta: 0, phi: 0 };
+    let dragging = false;
+
+    const GOLD = 0xd4af37;
+    const GOLD_BRIGHT = 0xf5d76e;
+    const GOLD_DIM = 0x8b7220;
+    const NODE_COUNT = 600;
+    const SPACE_RADIUS = 12;
+    const CONNECT_DIST = 3.0;
+    const MAX_EDGES = 2000;
+
+    let linePosArr, lineColArr, edgeCount = 0;
+
+    function init() {
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0a0a0f, 0.012);
+
+        camera = new THREE.PerspectiveCamera(50, W() / H(), 0.1, 200);
+        camera.position.set(0, 0, 28);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(W(), H());
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setClearColor(0x0a0a0f, 1);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        container.insertBefore(renderer.domElement, container.firstChild);
+
+        const renderPass = new THREE.RenderPass(scene, camera);
+        bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(W(), H()), 2.0, 0.6, 0.12);
+        composer = new THREE.EffectComposer(renderer);
+        composer.addPass(renderPass);
+        composer.addPass(bloomPass);
+
+        createParticles();
+        createLines();
+        createRings();
+        createCoreGlow();
+
+        window.addEventListener('resize', onResize);
+        window.addEventListener('mousemove', e => {
+            mouseTX = (e.clientX / window.innerWidth - 0.5) * 2;
+            mouseTY = -(e.clientY / window.innerHeight - 0.5) * 2;
+        });
+        container.addEventListener('wheel', e => {
+            e.preventDefault();
+            orbit.radius = Math.max(14, Math.min(50, orbit.radius + e.deltaY * 0.02));
+        }, { passive: false });
+        container.addEventListener('mousedown', () => dragging = true);
+        window.addEventListener('mouseup', () => dragging = false);
+        window.addEventListener('mousemove', e => {
+            if (dragging) {
+                orbitDamping.theta -= e.movementX * 0.004;
+                orbitDamping.phi = Math.max(0.3, Math.min(Math.PI - 0.3,
+                    orbitDamping.phi - e.movementY * 0.004));
+            }
+        });
+
+        animate();
+    }
+
+    function createParticles() {
+        const count = NODE_COUNT;
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const sizes = new Float32Array(count);
+        nodePhases = new Float32Array(count);
+
+        for (let i = 0; i < count; i++) {
+            const r = SPACE_RADIUS * Math.cbrt(Math.random());
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+            positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+            positions[i * 3 + 2] = r * Math.cos(phi);
+
+            const t = Math.random();
+            const c = new THREE.Color(t < 0.7 ? GOLD : t < 0.92 ? GOLD_BRIGHT : GOLD_DIM);
+            c.multiplyScalar(0.5 + Math.random() * 0.5);
+            colors[i * 3]     = c.r;
+            colors[i * 3 + 1] = c.g;
+            colors[i * 3 + 2] = c.b;
+
+            sizes[i] = 1.5 + Math.random() * 2.5;
+            nodePhases[i] = Math.random() * Math.PI * 2;
+        }
+
+        particlePositions = positions;
+
+        const texCanvas = document.createElement('canvas');
+        texCanvas.width = 64; texCanvas.height = 64;
+        const ctx = texCanvas.getContext('2d');
+        const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+        grad.addColorStop(0, 'rgba(255,255,255,1)');
+        grad.addColorStop(0.15, 'rgba(245,215,110,0.8)');
+        grad.addColorStop(0.4, 'rgba(212,175,55,0.3)');
+        grad.addColorStop(1, 'rgba(212,175,55,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 64, 64);
+        const glowTex = new THREE.CanvasTexture(texCanvas);
+
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+        const mat = new THREE.ShaderMaterial({
+            uniforms: { uTime: { value: 0 }, uTexture: { value: glowTex } },
+            vertexShader: `
+                attribute float size;
+                attribute vec3 color;
+                varying vec3 vColor;
+                uniform float uTime;
+                void main() {
+                    vColor = color;
+                    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+                    gl_PointSize = size * (250.0 / -mv.z);
+                    gl_Position = projectionMatrix * mv;
+                }
+            `,
+            fragmentShader: `
+                uniform sampler2D uTexture;
+                varying vec3 vColor;
+                void main() {
+                    vec4 tex = texture2D(uTexture, gl_PointCoord);
+                    gl_FragColor = vec4(vColor * tex.rgb, tex.a * 0.85);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        });
+
+        particles = new THREE.Points(geo, mat);
+        const group = new THREE.Group();
+        group.add(particles);
+        scene.add(group);
+        particles._group = group;
+    }
+
+    function createLines() {
+        linePosArr = new Float32Array(MAX_EDGES * 6);
+        lineColArr = new Float32Array(MAX_EDGES * 6);
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(linePosArr, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(lineColArr, 3));
+        const mat = new THREE.LineBasicMaterial({
+            vertexColors: true, transparent: true, opacity: 0.3,
+            blending: THREE.AdditiveBlending, depthWrite: false,
+        });
+        lines = new THREE.LineSegments(geo, mat);
+        lines.geometry.setDrawRange(0, 0);
+        particles._group.add(lines);
+    }
+
+    function updateLines() {
+        const pos = particlePositions;
+        const lp = linePosArr;
+        const lc = lineColArr;
+        let idx = 0;
+        const step = Math.max(1, Math.floor(NODE_COUNT / 150));
+
+        for (let i = 0; i < NODE_COUNT && idx < MAX_EDGES; i += step) {
+            const ax = pos[i*3], ay = pos[i*3+1], az = pos[i*3+2];
+            for (let j = i+1; j < NODE_COUNT && idx < MAX_EDGES; j++) {
+                const dx = pos[j*3]-ax, dy = pos[j*3+1]-ay, dz = pos[j*3+2]-az;
+                const d = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                if (d < CONNECT_DIST) {
+                    const k = idx * 6;
+                    const a = 1.0 - d / CONNECT_DIST;
+                    const b = 0.12 + a * 0.5;
+                    lp[k]   = pos[i*3];   lp[k+1] = pos[i*3+1]; lp[k+2] = pos[i*3+2];
+                    lp[k+3] = pos[j*3];   lp[k+4] = pos[j*3+1]; lp[k+5] = pos[j*3+2];
+                    lc[k] = 0.83*b; lc[k+1] = 0.65*b; lc[k+2] = 0.0;
+                    lc[k+3] = 0.83*b; lc[k+4] = 0.65*b; lc[k+5] = 0.0;
+                    idx++;
+                }
+            }
+        }
+        lines.geometry.attributes.position.needsUpdate = true;
+        lines.geometry.attributes.color.needsUpdate = true;
+        lines.geometry.setDrawRange(0, idx * 2);
+        edgeCount = idx;
+    }
+
+    function createRings() {
+        ringGroup = new THREE.Group();
+        const defs = [
+            { r: 14, segs: 120, dash: 3, gap: 4, spd: 0.08, ax: 'y' },
+            { r: 17, segs: 160, dash: 5, gap: 6, spd: -0.05, ax: 'x' },
+            { r: 20, segs: 200, dash: 2, gap: 8, spd: 0.03, ax: 'y' },
+        ];
+
+        for (const d of defs) {
+            const pts = [];
+            for (let i = 0; i <= d.segs; i++) {
+                const a = (i / d.segs) * Math.PI * 2;
+                pts.push(new THREE.Vector3(Math.cos(a)*d.r, 0, Math.sin(a)*d.r));
+            }
+            const geo = new THREE.BufferGeometry().setFromPoints(pts);
+            const mat = new THREE.LineDashedMaterial({
+                color: GOLD, dashSize: d.dash, gapSize: d.gap,
+                transparent: true, opacity: 0.25,
+                blending: THREE.AdditiveBlending, depthWrite: false,
+            });
+            const ring = new THREE.Line(geo, mat);
+            ring.computeLineDistances();
+            ring.userData = { spd: d.spd, ax: d.ax, baseOp: 0.25 };
+            ringGroup.add(ring);
+        }
+
+        aperture = new THREE.Mesh(
+            new THREE.RingGeometry(2.5, 3.5, 64),
+            new THREE.MeshBasicMaterial({
+                color: GOLD, transparent: true, opacity: 0.06,
+                side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false,
+            })
+        );
+        aperture.position.z = 0.5;
+        ringGroup.add(aperture);
+
+        const chMat = new THREE.LineBasicMaterial({
+            color: GOLD_BRIGHT, transparent: true, opacity: 0.12,
+            blending: THREE.AdditiveBlending,
+        });
+        ringGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-4,0,0.5), new THREE.Vector3(4,0,0.5)
+        ]), chMat));
+        ringGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0,-4,0.5), new THREE.Vector3(0,4,0.5)
+        ]), chMat));
+
+        scene.add(ringGroup);
+    }
+
+    function createCoreGlow() {
+        const geo = new THREE.SphereGeometry(1.5, 32, 32);
+        const mat = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uColor: { value: new THREE.Color(GOLD) },
+            },
+            vertexShader: `
+                varying vec3 vNormal;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float uTime;
+                uniform vec3 uColor;
+                varying vec3 vNormal;
+                void main() {
+                    float i = pow(0.55 - dot(vNormal, vec3(0,0,1)), 2.5);
+                    float p = 1.0 + sin(uTime * 1.5) * 0.15;
+                    gl_FragColor = vec4(uColor * i * p * 1.2, i * 0.5);
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            side: THREE.BackSide,
+            depthWrite: false,
+        });
+        coreGlow = new THREE.Mesh(geo, mat);
+        scene.add(coreGlow);
+    }
+
+    function animate() {
+        if (!running) return;
+        requestAnimationFrame(animate);
+
+        const dt = 1/60;
+        time += dt;
+
+        mouseX += (mouseTX - mouseX) * 0.04;
+        mouseY += (mouseTY - mouseY) * 0.04;
+
+        orbit.theta += (orbitDamping.theta - orbit.theta) * 0.06;
+        orbit.phi += (orbitDamping.phi - orbit.phi) * 0.06;
+        orbitDamping.theta += 0.0006;
+
+        const r = orbit.radius;
+        camera.position.x = r * Math.sin(orbit.phi) * Math.sin(orbit.theta) + mouseX * 2;
+        camera.position.y = r * Math.cos(orbit.phi) + mouseY * 1.5;
+        camera.position.z = r * Math.sin(orbit.phi) * Math.cos(orbit.theta);
+        camera.lookAt(0, 0, 0);
+
+        particles._group.rotation.y += 0.0005;
+
+        for (const ring of ringGroup.children) {
+            if (!ring.userData || ring.userData.spd === undefined) continue;
+            const s = ring.userData.spd;
+            if (ring.userData.ax === 'y') ring.rotation.y += s * dt;
+            else { ring.rotation.x += s * dt; ring.rotation.z += s * dt * 0.3; }
+            ring.material.opacity = (ring.userData.baseOp + Math.sin(time * 0.8 + ring.rotation.y) * 0.04);
+        }
+
+        if (aperture) {
+            aperture.position.x = Math.sin(time * 0.3) * 0.3;
+            aperture.position.y = Math.cos(time * 0.4) * 0.2;
+            aperture.rotation.z = time * 0.05;
+        }
+
+        coreGlow.material.uniforms.uTime.value = time;
+        const pulse = 1.0 + Math.sin(time * 1.5) * 0.12;
+        coreGlow.scale.setScalar(pulse);
+
+        particles.material.uniforms.uTime.value = time;
+        lines.material.opacity = 0.3;
+
+        bloomPass.strength += (2.0 - bloomPass.strength) * 0.03;
+
+        updateLines();
+        composer.render();
+    }
+
+    function onResize() {
+        const w = W(), h = H();
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        renderer.setSize(w, h);
+        composer.setSize(w, h);
+    }
+
+    window.JarvisGoldenCore = { init };
+})();
+
+/* ═══════════════════════════════════════════════════════
+   WebSocket + Data Layer
+   ═══════════════════════════════════════════════════════ */
+
+let ws = null;
+let wsReconnectTimer = null;
+
+function connectWebSocket() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const url = `${proto}://${location.host}/ws`;
+
+    try {
+        ws = new WebSocket(url);
+        ws.onopen = () => {
+            document.getElementById('ws-indicator').classList.add('connected');
+            console.log('[WS] connected');
+        };
+        ws.onmessage = (e) => {
+            try {
+                const msg = JSON.parse(e.data);
+                handleWSMessage(msg);
+            } catch(err) { /* ignore parse errors */ }
+        };
+        ws.onclose = () => {
+            document.getElementById('ws-indicator').classList.remove('connected');
+            wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+        };
+        ws.onerror = () => ws.close();
+    } catch(e) {
+        wsReconnectTimer = setTimeout(connectWebSocket, 3000);
+    }
+}
+
+function handleWSMessage(msg) {
+    if (msg.type === 'state') {
+        const stateEl = document.getElementById('core-state-text');
+        stateEl.textContent = (msg.state || 'IDLE').toUpperCase();
+        stateEl.classList.toggle('active', msg.state !== 'idle');
+    }
+    if (msg.type === 'agent.delegation') {
+        refreshPanel('agents');
+    }
+    if (msg.type === 'mission.progress') {
+        refreshPanel('missions');
+    }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Panel Data Loading
+   ═══════════════════════════════════════════════════════ */
+
+async function fetchJSON(url) {
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return await res.json();
+    } catch(e) { return null; }
+}
+
+async function loadMemoryPanel() {
+    const data = await fetchJSON('/api/memory/stats');
+    const body = document.getElementById('memory-body');
+    const badge = document.getElementById('memory-count');
+    if (!data) { body.innerHTML = '<div class="panel-empty">Unavailable</div>'; return; }
+
+    const count = data.total_nodes || data.total || 0;
+    badge.textContent = count;
+
+    let html = '';
+    const stats = [
+        ['Nodes', data.total_nodes || data.total || 0],
+        ['Edges', data.total_edges || 0],
+        ['Memories', data.total_memories || 0],
+        ['Last Sync', data.last_sync || 'Never'],
+    ];
+    for (const [label, val] of stats) {
+        html += `<div class="stat-row"><span class="stat-label">${label}</span><span class="stat-value">${val}</span></div>`;
+    }
+    body.innerHTML = html;
+}
+
+async function loadAgentsPanel() {
+    const data = await fetchJSON('/api/agents/personas');
+    const body = document.getElementById('agents-body');
+    const badge = document.getElementById('agents-count');
+    if (!data || !data.personas) { body.innerHTML = '<div class="panel-empty">Unavailable</div>'; return; }
+
+    const personas = data.personas;
+    badge.textContent = personas.length;
+
+    let html = '';
+    for (const p of personas) {
+        const stateClass = p.state === 'idle' ? 'idle' : p.state === 'error' ? 'error' : 'ok';
+        const icon = p.type === 'core' ? '&#9670;' : p.type === 'king' ? '&#9813;' : '&#9823;';
+        html += `<div class="panel-item">
+            <div class="panel-item-icon">${icon}</div>
+            <div class="panel-item-content">
+                <div class="panel-item-name">${p.name}</div>
+                <div class="panel-item-sub">${p.role}</div>
+            </div>
+            <div class="panel-item-status ${stateClass}"></div>
+        </div>`;
+        if (p.workers) {
+            for (const w of p.workers) {
+                const wc = w.state === 'idle' ? 'idle' : w.state === 'error' ? 'error' : 'busy';
+                html += `<div class="panel-item" style="padding-left:32px;">
+                    <div class="panel-item-content">
+                        <div class="panel-item-name" style="font-size:11px;">${w.name}</div>
+                        <div class="panel-item-sub">${w.card_id}</div>
+                    </div>
+                    <div class="panel-item-status ${wc}"></div>
+                </div>`;
+            }
+        }
+    }
+    body.innerHTML = html;
+}
+
+async function loadMissionsPanel() {
+    const data = await fetchJSON('/api/missions?limit=20');
+    const body = document.getElementById('missions-body');
+    const badge = document.getElementById('missions-count');
+    if (!data || !data.missions) { body.innerHTML = '<div class="panel-empty">No missions</div>'; return; }
+
+    const missions = data.missions;
+    badge.textContent = missions.length;
+
+    if (missions.length === 0) {
+        body.innerHTML = '<div class="panel-empty">No missions yet</div>';
+        return;
+    }
+
+    let html = '';
+    for (const m of missions) {
+        const statusClass = m.status === 'completed' ? 'ok' : m.status === 'failed' ? 'error' : 'busy';
+        const label = m.goal ? (m.goal.length > 40 ? m.goal.slice(0, 40) + '...' : m.goal) : m.id;
+        html += `<div class="panel-item" onclick="window.open('/api/missions/${m.id}/replay','_blank')">
+            <div class="panel-item-content">
+                <div class="panel-item-name">${label}</div>
+                <div class="panel-item-sub">${m.status} &middot; ${m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}</div>
+            </div>
+            <div class="panel-item-status ${statusClass}"></div>
+        </div>`;
+    }
+    body.innerHTML = html;
+}
+
+async function loadProjectsPanel() {
+    const data = await fetchJSON('/api/tools/availability');
+    const body = document.getElementById('projects-body');
+    const badge = document.getElementById('projects-count');
+    if (!data || !data.tools) { body.innerHTML = '<div class="panel-empty">Unavailable</div>'; return; }
+
+    const tools = data.tools;
+    badge.textContent = tools.length;
+
+    let html = '';
+    for (const t of tools.slice(0, 15)) {
+        html += `<div class="panel-item">
+            <div class="panel-item-content">
+                <div class="panel-item-name">${t.name}</div>
+                <div class="panel-item-sub">${t.type} &middot; ${t.owner}</div>
+            </div>
+            <div class="panel-item-status ${t.available ? 'ok' : 'error'}"></div>
+        </div>`;
+    }
+    body.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Panel Expand/Collapse
+   ═══════════════════════════════════════════════════════ */
+
+function togglePanel(name) {
+    const panel = document.getElementById('panel-' + name);
+    if (!panel) return;
+    const wasExpanded = panel.classList.contains('expanded');
+    document.querySelectorAll('.panel.expanded').forEach(p => p.classList.remove('expanded'));
+    if (!wasExpanded) panel.classList.add('expanded');
+}
+
+/* ═══════════════════════════════════════════════════════
+   Command Input
+   ═══════════════════════════════════════════════════════ */
+
+async function sendCommand() {
+    const input = document.getElementById('cmd-input');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    showToast('Processing...');
+    const stateEl = document.getElementById('core-state-text');
+    stateEl.textContent = 'THINKING';
+    stateEl.classList.add('active');
+
+    try {
+        const res = await fetch('/api/brain/reason', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ goal: text }),
+        });
+        const data = await res.json();
+        if (data.conclusion) {
+            showToast(data.conclusion.slice(0, 80));
+        } else if (data.error) {
+            showToast('Error: ' + data.error);
+        }
+    } catch(e) {
+        showToast('Request failed');
+    }
+
+    stateEl.textContent = 'IDLE';
+    stateEl.classList.remove('active');
+}
+
+/* ═══════════════════════════════════════════════════════
+   Refresh + Utilities
+   ═══════════════════════════════════════════════════════ */
+
+function refreshPanel(name) {
+    const loaders = { memory: loadMemoryPanel, agents: loadAgentsPanel, missions: loadMissionsPanel, projects: loadProjectsPanel };
+    if (loaders[name]) loaders[name]();
+}
+
+function refreshAll() {
+    loadMemoryPanel();
+    loadAgentsPanel();
+    loadMissionsPanel();
+    loadProjectsPanel();
+}
+
+function showToast(text, duration) {
+    const toast = document.getElementById('toast');
+    toast.textContent = text;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), duration || 3000);
+}
+
+function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('status-time').textContent = `${h}:${m}:${s}`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Init
+   ═══════════════════════════════════════════════════════ */
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.JarvisGoldenCore.init();
+    connectWebSocket();
+    refreshAll();
+    updateClock();
+    setInterval(updateClock, 1000);
+    setInterval(refreshAll, 30000);
+});
+</script>
+</body>
+</html>

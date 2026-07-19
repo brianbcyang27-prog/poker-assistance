@@ -20,6 +20,11 @@ from .mission import (
     VerificationResult, ReviewItem,
 )
 from .manager import MissionManager
+from .loop import AutonomousLoop
+from .replay import (
+    MissionEvent, MissionReport, MissionReplayQuery, MissionEventType,
+    MissionRecorder, MissionReplay,
+)
 
 __all__ = [
     "MissionPipeline",
@@ -33,4 +38,11 @@ __all__ = [
     "ArchitecturePlan",
     "VerificationResult",
     "ReviewItem",
+    "AutonomousLoop",
+    "MissionEvent",
+    "MissionReport",
+    "MissionReplayQuery",
+    "MissionEventType",
+    "MissionRecorder",
+    "MissionReplay",
 ]

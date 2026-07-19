@@ -472,6 +472,25 @@ graph TB
 - Memory Privacy: pause, forget topics, private projects, audit log, full export
 - 312 new tests (727+ total)
 
+### v5.5.0 — Autonomous Agent Reliability Update
+
+> JARVIS becomes a reliable personal AI operating system.
+
+- System Audit: full v5.4.0 analysis, duplicate detection, dead code identification
+- Unified Brain: JARVISBrain facade (think, reason, decide, remember, recall, explain_why)
+- BrainContext: complete context for every agent (goal, preferences, memories, decisions, tools)
+- MemoryManager: unified interface over all memory sources
+- ReasoningEngine: evidence-based reasoning chains with risk assessment
+- BrainDecisionEngine: action decisions with explanations and learning
+- Agent Personas: 10 playing-card identities with personality, expertise, strengths/weaknesses
+- Tool Intelligence: 15 tool definitions with capabilities, failures, and fixes
+- Mission Replay: event recording, timeline views, mission reports
+- Autonomous Loop: 8-step cognitive cycle (observe→understand→plan→act→verify→reflect→remember→improve)
+- Self-Improvement: error memory, auto-recovery, lesson engine
+- Command Center UI: unified single-page dashboard with 3D golden core
+- Mission Replay API: 14 REST endpoints for brain/missions/agents/tools
+- 227 new tests (954+ total)
+
 ---
 
 ## 5 — Future Roadmap
@@ -508,15 +527,15 @@ graph TB
 
 > JARVIS helps plan and track goals.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Goals | Long-term goal tracking | High |
-| Milestones | Progress tracking with deadlines | High |
-| Dependencies | Task dependency management | High |
-| Adaptive Scheduling | Smart schedule optimization | Medium |
-| Daily Planner | Morning briefing and task list | High |
-| Weekly Planner | Weekly review and planning | Medium |
-| Priority Optimization | Dynamic priority adjustment | Medium |
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| Goals | Long-term goal tracking | High | ✅ |
+| Milestones | Progress tracking with deadlines | High | ✅ |
+| Dependencies | Task dependency management | High | ✅ |
+| Adaptive Scheduling | Smart schedule optimization | Medium | ✅ |
+| Daily Planner | Morning briefing and task list | High | ✅ |
+| Weekly Planner | Weekly review and planning | Medium | ✅ |
+| Priority Optimization | Dynamic priority adjustment | Medium | ✅ |
 
 ### v5.6 — Multi-Device Brain
 
@@ -830,14 +849,14 @@ python3 -m jarvis.cli_v2 dashboard . # Update metrics
 
 | Metric | Value |
 |--------|-------|
-| **Current Version** | 5.4.0 |
-| **Python Files** | 235 |
-| **Total Lines** | 45,219 |
-| **Test Files** | 33 |
-| **Test Lines** | 8,500+ |
-| **Total Tests** | 727+ |
-| **Modules** | 43 |
-| **Major Releases** | 12 |
+| **Current Version** | 5.5.0 |
+| **Python Files** | 264 |
+| **Total Lines** | 49,004 |
+| **Test Files** | 39 |
+| **Test Lines** | 10,500+ |
+| **Total Tests** | 954+ |
+| **Modules** | 53 |
+| **Major Releases** | 13 |
 | **Contributors** | 1 |
 | **License** | MIT |
 | **Python** | ≥ 3.9.6 |
@@ -860,7 +879,7 @@ subprocess, importlib, tracemalloc, time, abc, functools, operator
 
 Every release must include:
 
-- [ ] All tests passing (727+)
+- [ ] All tests passing (954+)
 - [ ] Version bumped in `jarvis/__init__.py`, `pyproject.toml`, `web/main.py`
 - [ ] Git commit with descriptive message
 - [ ] Git tag created

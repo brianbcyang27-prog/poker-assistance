@@ -215,6 +215,7 @@ def create_app() -> FastAPI:
     
     # Include routers
     from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system, engineering, world
+    from .api import mission_replay
     app.include_router(chat.router)
     app.include_router(agents.router)
     app.include_router(workspace.router)
@@ -227,6 +228,7 @@ def create_app() -> FastAPI:
     app.include_router(iot.router)
     app.include_router(system.router)
     app.include_router(engineering.router)
+    app.include_router(mission_replay.router)
     app.include_router(world.router)
     
     return app
