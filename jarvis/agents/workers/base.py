@@ -8,6 +8,7 @@ from typing import Optional
 
 from ..base import CardAgent
 from ...core.models import Suit, Rank, AgentState, AgentMessage, Task
+from ...core.reliability import config as reliability_config
 from ...brain.llm import LLM
 
 
@@ -74,7 +75,7 @@ class BaseWorker(CardAgent):
         ))
 
         try:
-            response = await asyncio.wait_for(future, timeout=15.0)
+            response = await asyncio.wait_for(future, timeout=reliability_config.worker_timeout / 20)
             return response
         except asyncio.TimeoutError:
             return None

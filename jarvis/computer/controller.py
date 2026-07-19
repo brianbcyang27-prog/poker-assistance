@@ -5,6 +5,8 @@ import tempfile
 import subprocess
 from typing import Optional
 
+from jarvis.core.reliability import config as reliability_config
+
 from .browser import browser
 from .mouse import mouse
 from .screen import screen
@@ -313,7 +315,7 @@ class ComputerController:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.browser_timeout)
             return {
                 "ok": proc.returncode == 0,
                 "stdout": stdout.decode("utf-8", errors="replace")[:4000],

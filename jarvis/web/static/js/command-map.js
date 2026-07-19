@@ -930,31 +930,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-/* v3.2.0: Open explainability panel for selected agent */
+/* v6.1.0: Open explainability panel with backend reasoning data */
 function openExplainPanel() {
     if (!window.commandMap || !window.commandMap.selectedAgent) return;
     const agent = window.commandMap.agentData.get(window.commandMap.selectedAgent);
     if (!agent) return;
 
+    const agentName = agent.name || agent.card_id;
+    const dept = agent.suit === 'spades' ? 'engineering' :
+                 agent.suit === 'hearts' ? 'research' :
+                 agent.suit === 'diamonds' ? 'personal' : 'system';
+
     // Build explanation data from agent info
     const explainData = {
-        name: agent.name || agent.card_id,
+        name: agentName,
         id: agent.card_id,
-        department: agent.suit === 'spades' ? 'engineering' :
-                    agent.suit === 'hearts' ? 'research' :
-                    agent.suit === 'diamonds' ? 'personal' : 'system',
+        department: dept,
         confidence: agent.confidence || 0.85,
         model: agent.model || 'meta/llama-3.1-8b-instruct',
         duration: agent.lastDuration || null,
         thoughts: agent.thoughts || [
-            { icon: '\u2022', text: agent.thinking || 'Awaiting task', confidence: agent.confidence || 0.5 }
+            { icon: '•', text: agent.thinking || 'Awaiting task', confidence: agent.confidence || 0.5 }
         ],
         capabilities: agent.abilities || [],
         memories: agent.relevantMemories || [],
         timeline: agent.timeline || [],
     };
 
-    if (window.explainability) {
-        window.explainability.show('agent', explainData, window.innerWidth / 2, window.innerHeight / 2);
-    }
+    // Fetch backend reasoning data for richer explanation
+    fetch(`/api/brain/context?goal=${encodeURIComponent(agentName)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(ctx => {
+            if (ctx) {
+                if (ctx.memories && ctx.memories.length) {
+                    explainData.memories = ctx.memories.map(m => ({
+                        source: m.source || 'memory',
+                        content: m.content || m.text || '',
+                    }));
+                }
+                if (ctx.decisions && ctx.decisions.length) {
+                    explainData.thoughts = ctx.decisions.map(d => ({
+                        icon: d.confidence > 0.7 ? '✓' : '?',
+                        text: d.reasoning || d.decision || d.summary || '',
+                        confidence: d.confidence || 0.5,
+                    }));
+                }
+                if (ctx.timeline_events && ctx.timeline_events.length) {
+                    explainData.timeline = ctx.timeline_events.map(e => ({
+                        timestamp: e.timestamp,
+                        icon: e.type === 'completed' ? '✓' : '•',
+                        text: e.description || e.event || '',
+                    }));
+                }
+                if (ctx.confidence != null) explainData.confidence = ctx.confidence;
+            }
+        })
+        .catch(() => {})
+        .finally(() => {
+            if (window.explainability) {
+                window.explainability.show('agent', explainData, window.innerWidth / 2, window.innerHeight / 2);
+            }
+        });
+}
 }

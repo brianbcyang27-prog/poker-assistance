@@ -5,6 +5,7 @@ import json
 import asyncio
 from typing import Optional, Set
 
+from jarvis.core.reliability import config as reliability_config
 import jarvis.web.main as web_main
 
 router = APIRouter(tags=["websocket"])
@@ -336,13 +337,13 @@ async def websocket_agents(websocket: WebSocket):
         # Keep connection alive, broadcast status every 5s, detect dead clients
         while True:
             try:
-                msg = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+                msg = await asyncio.wait_for(websocket.receive_text(), timeout=reliability_config.ws_timeout)
                 last_pong = asyncio.get_event_loop().time()
                 # Client heartbeat pong — if they send anything, they're alive
             except asyncio.TimeoutError:
                 now = asyncio.get_event_loop().time()
-                # If no pong in 30s, consider dead
-                if now - last_pong > 30:
+                # If no pong within dead_client_timeout, consider dead
+                if now - last_pong > reliability_config.dead_client_timeout:
                     break
                 status = _get_status_with_workers()
                 if status:

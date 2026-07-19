@@ -39,7 +39,7 @@ class CapType(str, Enum):
 
 @dataclass
 class Capability:
-    """A registered capability (tool, worker, skill, etc.)."""
+    """A registered capability with full metadata for intelligent selection."""
 
     name: str
     owner: str
@@ -56,6 +56,17 @@ class Capability:
     enabled: bool = True
     registered_at: float = field(default_factory=time.time)
     last_used: float = 0.0
+
+    # v6.1.0: Enhanced metadata for intelligent tool selection
+    failure_modes: list[str] = field(default_factory=list)
+    examples: list[str] = field(default_factory=list)
+    compatible_workers: list[str] = field(default_factory=list)
+    preferred_models: list[str] = field(default_factory=list)
+    required_context: list[str] = field(default_factory=list)
+    max_concurrent: int = 1
+    timeout_seconds: float = 30.0
+    retry_count: int = 3
+    category: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -74,6 +85,15 @@ class Capability:
             "enabled": self.enabled,
             "registered_at": self.registered_at,
             "last_used": self.last_used,
+            "failure_modes": self.failure_modes,
+            "examples": self.examples,
+            "compatible_workers": self.compatible_workers,
+            "preferred_models": self.preferred_models,
+            "required_context": self.required_context,
+            "max_concurrent": self.max_concurrent,
+            "timeout_seconds": self.timeout_seconds,
+            "retry_count": self.retry_count,
+            "category": self.category,
         }
 
     @classmethod

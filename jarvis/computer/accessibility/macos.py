@@ -11,6 +11,8 @@ import logging
 import time
 from typing import Optional
 
+from jarvis.core.reliability import config as reliability_config
+
 from .base import AccessibilityProvider
 from .element import UIElement, ElementType, ElementState
 
@@ -126,7 +128,7 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=10)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.http_timeout)
             if proc.returncode != 0:
                 err = stderr.decode().strip()
                 log.warning("AppleScript error: %s", err)

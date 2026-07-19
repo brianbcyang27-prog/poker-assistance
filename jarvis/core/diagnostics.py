@@ -11,6 +11,7 @@ from typing import List, Tuple, Optional
 from pathlib import Path
 
 from .config import get_config
+from .reliability import config as reliability_config
 
 
 class DiagnosticResult:
@@ -145,7 +146,7 @@ async def _check_llm() -> DiagnosticResult:
         base_url, api_key, model = llm._get_endpoint()
         url = f"{base_url}/models"
         import httpx
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=reliability_config.health_check_timeout) as client:
             resp = await client.get(url, headers={"Authorization": f"Bearer {api_key}"})
             if resp.status_code == 200:
                 return DiagnosticResult("llm", True, f"LLM API reachable ({model})")

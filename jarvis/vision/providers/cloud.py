@@ -13,6 +13,8 @@ import time
 import base64
 from typing import Optional
 
+from jarvis.core.reliability import config as reliability_config
+
 from .base import VisionProvider, VisionResult, DetectedObject
 
 log = logging.getLogger("jarvis.vision.providers.cloud")
@@ -102,7 +104,7 @@ class CloudVisionProvider(VisionProvider):
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=60)
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.llm_timeout)
         return json.loads(stdout.decode())
 
     async def analyze_image(

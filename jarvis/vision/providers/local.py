@@ -13,6 +13,8 @@ import asyncio
 import json
 import logging
 import time
+
+from jarvis.core.reliability import config as reliability_config
 from typing import Optional, List
 
 from .base import VisionProvider, VisionResult, DetectedObject
@@ -66,7 +68,7 @@ class OllamaVisionProvider(VisionProvider):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=5)
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.ws_timeout)
             data = json.loads(stdout.decode())
 
             models = [m.get("name", "") for m in data.get("models", [])]
@@ -147,7 +149,7 @@ class OllamaVisionProvider(VisionProvider):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=60)
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.llm_timeout)
             response = json.loads(stdout.decode())
             raw_text = response.get("response", "")
 
@@ -194,7 +196,7 @@ class OllamaVisionProvider(VisionProvider):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=3)
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.health_check_timeout)
             data = json.loads(stdout.decode())
             models = [m.get("name", "") for m in data.get("models", [])]
             return {
