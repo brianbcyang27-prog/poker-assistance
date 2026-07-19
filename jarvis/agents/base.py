@@ -18,6 +18,7 @@ class BaseAgent(ABC):
         self.state = AgentState.IDLE
         self._config = get_config()
         self._message_history: list[AgentMessage] = []
+        self._bg_tasks: set = set()
     
     @property
     @abstractmethod
@@ -61,15 +62,16 @@ class BaseAgent(ABC):
     def set_state(self, state: AgentState):
         """Update agent state and persist to database."""
         self.state = state
-        # Persist state change to database (fire and forget)
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                asyncio.ensure_future(self._persist_state(state))
+                task = asyncio.ensure_future(self._persist_state(state))
+                self._bg_tasks.add(task)
+                task.add_done_callback(self._bg_tasks.discard)
             else:
                 loop.run_until_complete(self._persist_state(state))
         except RuntimeError:
-            pass  # No event loop running, skip persistence
+            pass
     
     async def _persist_state(self, state: AgentState):
         """Persist agent state to database."""
@@ -78,16 +80,17 @@ class BaseAgent(ABC):
             db = await get_db()
             await db.save_agent_state(self.card_id, state.value)
         except Exception:
-            pass  # Don't fail on persistence errors
+            pass
     
     def receive_message(self, message: AgentMessage) -> Optional[AgentMessage]:
         """Receive a message from another agent."""
         self._message_history.append(message)
-        # Persist message to database (fire and forget)
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                asyncio.ensure_future(self._persist_message(message))
+                task = asyncio.ensure_future(self._persist_message(message))
+                self._bg_tasks.add(task)
+                task.add_done_callback(self._bg_tasks.discard)
             else:
                 loop.run_until_complete(self._persist_message(message))
         except RuntimeError:

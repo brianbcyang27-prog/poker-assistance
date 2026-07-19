@@ -195,6 +195,17 @@ async def lifespan(app: FastAPI):
     yield
 
     # === SHUTDOWN ===
+    # Cancel WebSocket bridge tasks
+    try:
+        from .routers.websocket import _bridge_tasks
+        for t in _bridge_tasks:
+            if not t.done():
+                t.cancel()
+        _bridge_tasks.clear()
+    except Exception:
+        pass
+    
+    # Close database
     await db.close()
 
 
@@ -224,6 +235,10 @@ def create_app() -> FastAPI:
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
         return response
+
+    # Global rate limiter for POST/PUT/PATCH
+    from jarvis.web.rate_limit_middleware import RateLimitMiddleware
+    app.add_middleware(RateLimitMiddleware, max_post=30, window=60)
     
     # Include routers
     from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system, engineering, world

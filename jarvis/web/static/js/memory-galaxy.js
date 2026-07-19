@@ -48,13 +48,15 @@ class MemoryGalaxy {
         this._createStarField();
 
         // Mouse interaction
-        this.container.addEventListener('mousemove', (e) => {
+        this._boundMouseMove = (e) => {
             const rect = this.container.getBoundingClientRect();
             this._mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
             this._mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        });
+        };
+        this.container.addEventListener('mousemove', this._boundMouseMove);
 
-        window.addEventListener('resize', () => this._resize());
+        this._boundResize = () => this._resize();
+        window.addEventListener('resize', this._boundResize);
     }
 
     _createStarField() {
@@ -97,10 +99,18 @@ class MemoryGalaxy {
     }
 
     _buildGalaxy(memories, graph) {
-        // Clear old stars
-        for (const s of this.stars) this.scene.remove(s);
+        // Dispose old Three.js objects properly
+        for (const s of this.stars) {
+            if (s.geometry) s.geometry.dispose();
+            if (s.material) s.material.dispose();
+            this.scene.remove(s);
+        }
         this.stars = [];
-        for (const c of this.connections) this.scene.remove(c);
+        for (const c of this.connections) {
+            if (c.geometry) c.geometry.dispose();
+            if (c.material) c.material.dispose();
+            this.scene.remove(c);
+        }
         this.connections = [];
 
         const graphNodes = graph?.nodes || [];
@@ -288,6 +298,40 @@ class MemoryGalaxy {
 
     destroy() {
         this.stop();
+        
+        // Remove event listeners
+        if (this._boundMouseMove) {
+            this.container.removeEventListener('mousemove', this._boundMouseMove);
+        }
+        if (this._boundResize) {
+            window.removeEventListener('resize', this._boundResize);
+        }
+
+        // Dispose all Three.js objects
+        for (const s of this.stars) {
+            if (s.geometry) s.geometry.dispose();
+            if (s.material) s.material.dispose();
+        }
+        for (const c of this.connections) {
+            if (c.geometry) c.geometry.dispose();
+            if (c.material) c.material.dispose();
+        }
+        this.stars = [];
+        this.connections = [];
+
+        if (this.scene) {
+            this.scene.traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) {
+                        obj.material.forEach(m => m.dispose());
+                    } else {
+                        obj.material.dispose();
+                    }
+                }
+            });
+        }
+
         if (this.renderer) {
             this.renderer.dispose();
             if (this.renderer.domElement && this.renderer.domElement.parentNode) {
@@ -297,8 +341,6 @@ class MemoryGalaxy {
         this.scene = null;
         this.camera = null;
         this.renderer = null;
-        this.stars = [];
-        this.connections = [];
     }
 }
 

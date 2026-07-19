@@ -1,7 +1,8 @@
 """Computer use API endpoints."""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
+from jarvis.web.rate_limit import rate_limit
 
 router = APIRouter(prefix="/api/computer", tags=["computer"])
 
@@ -12,7 +13,8 @@ class ActionRequest(BaseModel):
 
 
 @router.post("/action")
-async def execute_action(req: ActionRequest):
+@rate_limit(max_requests=5, window_seconds=30)
+async def execute_action(request: Request, req: ActionRequest):
     from jarvis.computer.controller import controller
     result = await controller.execute(req.action, **req.params)
     if not result.get("ok"):

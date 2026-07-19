@@ -96,18 +96,24 @@ class Graph3D {
         this._createCoreGlow();
 
         // ---- Events ----
-        window.addEventListener('resize', () => this._onResize());
-        window.addEventListener('mousemove', (e) => this._onMouseMove(e));
-        this.container.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
-        this.container.addEventListener('mousedown', () => this._dragging = true);
-        window.addEventListener('mouseup', () => this._dragging = false);
-        window.addEventListener('mousemove', (e) => {
+        this._boundResize = () => this._onResize();
+        this._boundMouseMove = (e) => this._onMouseMove(e);
+        this._boundWheel = (e) => this._onWheel(e);
+        this._boundMouseDown = () => { this._dragging = true; };
+        this._boundMouseUp = () => { this._dragging = false; };
+        window.addEventListener('resize', this._boundResize);
+        window.addEventListener('mousemove', this._boundMouseMove);
+        this.container.addEventListener('wheel', this._boundWheel, { passive: false });
+        this.container.addEventListener('mousedown', this._boundMouseDown);
+        window.addEventListener('mouseup', this._boundMouseUp);
+        this._boundDrag = (e) => {
             if (this._dragging) {
                 this.orbitDamping.theta -= e.movementX * 0.004;
                 this.orbitDamping.phi -= e.movementY * 0.004;
                 this.orbitDamping.phi = Math.max(0.3, Math.min(Math.PI - 0.3, this.orbitDamping.phi));
             }
-        });
+        };
+        window.addEventListener('mousemove', this._boundDrag);
     }
 
     _setupBloom() {
@@ -910,12 +916,53 @@ class Graph3D {
 
     destroy() {
         this.stop();
+
+        // Remove window/container event listeners
+        window.removeEventListener('resize', this._boundResize);
+        window.removeEventListener('mousemove', this._boundMouseMove);
+        if (this.container) {
+            this.container.removeEventListener('wheel', this._boundWheel);
+            this.container.removeEventListener('mousedown', this._boundMouseDown);
+        }
+        window.removeEventListener('mouseup', this._boundMouseUp);
+
+        // Dispose Three.js geometries and materials
+        if (this.scene) {
+            this.scene.traverse(obj => {
+                if (obj.geometry) obj.geometry.dispose();
+                if (obj.material) {
+                    if (Array.isArray(obj.material)) {
+                        obj.material.forEach(m => m.dispose());
+                    } else {
+                        obj.material.dispose();
+                    }
+                }
+            });
+        }
+
+        // Dispose composer and passes
+        if (this.composer) {
+            this.composer.dispose && this.composer.dispose();
+        }
+        if (this.bloomPass) {
+            this.bloomPass.dispose && this.bloomPass.dispose();
+        }
+
+        // Dispose renderer
         if (this.renderer) {
             this.renderer.dispose();
             if (this.renderer.domElement && this.renderer.domElement.parentNode) {
                 this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
             }
         }
+
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+        this.composer = null;
+        this.bloomPass = null;
+        this.particles = null;
+        this.lines = null;
     }
 }
 

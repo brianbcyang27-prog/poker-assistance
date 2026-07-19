@@ -5,9 +5,10 @@ Covers missions, brain, agents, tools, and self-reflection data.
 
 import time
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+from jarvis.web.rate_limit import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +246,8 @@ class ReasonRequest(BaseModel):
 
 
 @router.post("/brain/reason")
-async def brain_reason(req: ReasonRequest):
+@rate_limit(max_requests=5, window_seconds=60)
+async def brain_reason(request: Request, req: ReasonRequest):
     """Request a reasoning chain for a goal."""
     brain = _get_brain()
     ctx = await brain.think(req.goal, project_name=req.project)

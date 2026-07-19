@@ -397,7 +397,14 @@ class LivingInterface {
 
     startMissionPolling() {
         this._pollMissions();
-        setInterval(() => this._pollMissions(), 5000);
+        this._missionPollInterval = setInterval(() => this._pollMissions(), 5000);
+    }
+
+    stopMissionPolling() {
+        if (this._missionPollInterval) {
+            clearInterval(this._missionPollInterval);
+            this._missionPollInterval = null;
+        }
     }
 
     async _pollMissions() {

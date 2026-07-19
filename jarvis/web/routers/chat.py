@@ -11,6 +11,7 @@ import uuid
 import jarvis.web.main as web_main
 from jarvis.core.database import get_db
 from jarvis.core.config import get_config
+from jarvis.web.rate_limit import rate_limit
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -29,7 +30,8 @@ class ChatResponse(BaseModel):
 
 
 @router.post("", response_model=ChatResponse)
-async def chat(req: ChatRequest):
+@rate_limit(max_requests=15, window_seconds=60)
+async def chat(request: Request, req: ChatRequest):
     """Send a message to JARVIS and get a response."""
     session_id = req.session_id or str(uuid.uuid4())[:8]
     

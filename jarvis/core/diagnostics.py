@@ -112,13 +112,20 @@ async def _check_database() -> DiagnosticResult:
 
 
 async def _recover_database_lock() -> bool:
-    """Recover from SQLite WAL lock by removing stale SHM/WAL files."""
+    """Recover from SQLite WAL lock by removing stale SHM/WAL files.
+    
+    Safety: Only deletes files if no active database connection exists.
+    """
     try:
+        from .database import get_db, _db
+        # Don't delete if there's an active connection
+        if _db and _db._db:
+            return False
+        
         config = get_config()
-        db_path = Path(config.database_url.replace("sqlite+aiosqlite:///", "")).parent
-        # Remove stale lock files
+        db_path = Path(config.db_path)
         for suffix in ["-shm", "-wal"]:
-            lock_file = db_path.parent / f"jarvis.db{suffix}"
+            lock_file = db_path.parent / f"{db_path.name}{suffix}"
             if lock_file.exists():
                 lock_file.unlink()
         return True

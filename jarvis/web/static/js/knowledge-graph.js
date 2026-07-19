@@ -19,6 +19,7 @@ class KnowledgeGraphViz {
         this.transform = { x: 0, y: 0, scale: 1 };
         this._animFrame = null;
         this.visible = false;
+        this._nodeRadiusCache = new Map();
 
         this.typeColors = {
             concept: '#00f0ff',
@@ -45,11 +46,26 @@ class KnowledgeGraphViz {
         }
         this.ctx = this.canvas.getContext('2d');
         this._resize();
-        window.addEventListener('resize', () => this._resize());
-        this.canvas.addEventListener('mousedown', (e) => this._onMouseDown(e));
-        this.canvas.addEventListener('mousemove', (e) => this._onMouseMove(e));
-        this.canvas.addEventListener('mouseup', () => this._onMouseUp());
-        this.canvas.addEventListener('wheel', (e) => this._onWheel(e));
+        this._boundResize = () => this._resize();
+        this._boundMouseDown = (e) => this._onMouseDown(e);
+        this._boundMouseMove = (e) => this._onMouseMove(e);
+        this._boundMouseUp = () => this._onMouseUp();
+        this._boundWheel = (e) => this._onWheel(e);
+        window.addEventListener('resize', this._boundResize);
+        this.canvas.addEventListener('mousedown', this._boundMouseDown);
+        this.canvas.addEventListener('mousemove', this._boundMouseMove);
+        this.canvas.addEventListener('mouseup', this._boundMouseUp);
+        this.canvas.addEventListener('wheel', this._boundWheel);
+    }
+
+    destroy() {
+        this._stop();
+        if (this._boundResize) window.removeEventListener('resize', this._boundResize);
+        if (this._boundMouseDown) this.canvas.removeEventListener('mousedown', this._boundMouseDown);
+        if (this._boundMouseMove) this.canvas.removeEventListener('mousemove', this._boundMouseMove);
+        if (this._boundMouseUp) this.canvas.removeEventListener('mouseup', this._boundMouseUp);
+        if (this._boundWheel) this.canvas.removeEventListener('wheel', this._boundWheel);
+        this._hideNodeInfo();
     }
 
     _resize() {
@@ -110,6 +126,7 @@ class KnowledgeGraphViz {
             });
             this.edges = this.edges.filter(e => e.sourceNode && e.targetNode);
             this.alpha = 0.8;
+            this._nodeRadiusCache.clear();
         } catch (err) {
             console.warn('Failed to load graph data:', err);
         }
@@ -250,11 +267,15 @@ class KnowledgeGraphViz {
     }
 
     _nodeRadius(n) {
+        const cached = this._nodeRadiusCache.get(n.id);
+        if (cached !== undefined) return cached;
         const base = n.type === 'note' ? 7 : n.type === 'decision' ? 6 : 5;
         const connectionBonus = this.edges.filter(
             e => e.source === n.id || e.target === n.id
         ).length * 0.5;
-        return Math.min(base + connectionBonus, 15);
+        const radius = Math.min(base + connectionBonus, 15);
+        this._nodeRadiusCache.set(n.id, radius);
+        return radius;
     }
 
     _isConnected(a, b) {

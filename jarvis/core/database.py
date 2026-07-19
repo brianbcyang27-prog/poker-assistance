@@ -1,5 +1,6 @@
 """Unified async SQLite database for JARVIS."""
 
+import asyncio
 import aiosqlite
 from typing import Optional
 from pathlib import Path
@@ -22,13 +23,18 @@ class Database:
         self._db.row_factory = aiosqlite.Row
         await self._db.execute("PRAGMA journal_mode=WAL")
         await self._db.execute("PRAGMA foreign_keys=ON")
+        await self._db.execute("PRAGMA busy_timeout=5000")
         await self._init_schema()
     
     async def close(self):
         """Close the database connection."""
         if self._db:
-            await self._db.close()
-            self._db = None
+            try:
+                await self._db.close()
+            except Exception:
+                pass
+            finally:
+                self._db = None
     
     async def _init_schema(self):
         """Initialize database schema."""
@@ -288,6 +294,14 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_action_log_timestamp ON action_log(timestamp)",
             "CREATE INDEX IF NOT EXISTS idx_action_log_status ON action_log(status)",
             "CREATE INDEX IF NOT EXISTS idx_browser_sessions_last_used ON browser_sessions(last_used)",
+            "CREATE INDEX IF NOT EXISTS idx_event_log_type ON event_log(event_type)",
+            "CREATE INDEX IF NOT EXISTS idx_event_log_timestamp ON event_log(timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_task_history_plan_id ON task_history(plan_id)",
+            "CREATE INDEX IF NOT EXISTS idx_task_history_created ON task_history(created_at)",
+            "CREATE INDEX IF NOT EXISTS idx_conversations_session_ts ON conversations(session_id, timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_memory_access_type ON memory_access_log(memory_type)",
+            "CREATE INDEX IF NOT EXISTS idx_memory_access_id ON memory_access_log(memory_id)",
+            "CREATE INDEX IF NOT EXISTS idx_memory_access_at ON memory_access_log(accessed_at)",
         ]:
             await self._db.execute(idx_sql)
         await self._db.commit()
@@ -538,14 +552,14 @@ class Database:
             return dict(row)
         return None
     
-    async def get_all_workspaces(self, status: Optional[str] = None) -> list[dict]:
+    async def get_all_workspaces(self, status: Optional[str] = None, limit: int = 500) -> list[dict]:
         if status:
             cursor = await self._db.execute(
-                "SELECT * FROM workspaces WHERE status = ? ORDER BY created_at DESC",
-                (status,)
+                "SELECT * FROM workspaces WHERE status = ? ORDER BY created_at DESC LIMIT ?",
+                (status, limit)
             )
         else:
-            cursor = await self._db.execute("SELECT * FROM workspaces ORDER BY created_at DESC")
+            cursor = await self._db.execute("SELECT * FROM workspaces ORDER BY created_at DESC LIMIT ?", (limit,))
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
     
@@ -697,12 +711,17 @@ class Database:
 
 # Singleton instance
 _db: Optional[Database] = None
+_db_lock = asyncio.Lock()
 
 
 async def get_db() -> Database:
     """Get or create the global database instance."""
     global _db
-    if _db is None:
+    if _db is not None and _db._db is not None:
+        return _db
+    async with _db_lock:
+        if _db is not None and _db._db is not None:
+            return _db
         _db = Database()
         await _db.connect()
-    return _db
+        return _db

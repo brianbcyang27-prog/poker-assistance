@@ -45,10 +45,38 @@ class CommandMap {
         this.setupInteraction();
         this.animate();
         
-        window.addEventListener('resize', () => this.resizeCanvas());
+        this._boundResize = () => this.resizeCanvas();
+        this._boundMouseMove = (e) => {
+            if (!this.isDragging) return;
+            const dx = (e.clientX - this.dragStart.x) / this.zoom;
+            const dy = (e.clientY - this.dragStart.y) / this.zoom;
+            this.pan.x = this.dragPanStart.x - dx;
+            this.pan.y = this.dragPanStart.y - dy;
+            this.updateViewBox();
+        };
+        this._boundMouseUp = () => {
+            this.isDragging = false;
+            this.svg.style.cursor = 'grab';
+        };
+        this._boundKeyDown = (e) => {
+            if (e.key === 'Escape') this.deselectAgent();
+        };
+        window.addEventListener('resize', this._boundResize);
+        window.addEventListener('mousemove', this._boundMouseMove);
+        window.addEventListener('mouseup', this._boundMouseUp);
+        window.addEventListener('keydown', this._boundKeyDown);
         
-        // Start fetching data
         this.fetchHierarchy();
+    }
+    
+    destroy() {
+        if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
+        if (this._ws) { try { this._ws.close(); } catch(e) {} }
+        if (this._boundResize) window.removeEventListener('resize', this._boundResize);
+        if (this._boundMouseMove) window.removeEventListener('mousemove', this._boundMouseMove);
+        if (this._boundMouseUp) window.removeEventListener('mouseup', this._boundMouseUp);
+        if (this._boundKeyDown) window.removeEventListener('keydown', this._boundKeyDown);
+        if (this._missionInterval) clearInterval(this._missionInterval);
     }
     
     resizeCanvas() {
@@ -90,20 +118,6 @@ class CommandMap {
             this.svg.style.cursor = 'grabbing';
         });
         
-        window.addEventListener('mousemove', (e) => {
-            if (!this.isDragging) return;
-            const dx = (e.clientX - this.dragStart.x) / this.zoom;
-            const dy = (e.clientY - this.dragStart.y) / this.zoom;
-            this.pan.x = this.dragPanStart.x - dx;
-            this.pan.y = this.dragPanStart.y - dy;
-            this.updateViewBox();
-        });
-        
-        window.addEventListener('mouseup', () => {
-            this.isDragging = false;
-            this.svg.style.cursor = 'grab';
-        });
-        
         // Set default cursor
         this.svg.style.cursor = 'grab';
         
@@ -115,13 +129,6 @@ class CommandMap {
                 if (cardId && this.agentData.has(cardId)) {
                     this.selectAgent(cardId);
                 }
-            }
-        });
-        
-        // Escape to deselect
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.deselectAgent();
             }
         });
     }
@@ -891,6 +898,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const workspaces = await res.json();
             const content = document.getElementById('missions-content');
             
+            if (!content) return;
             if (workspaces.length === 0) {
                 content.innerHTML = '<div class="mission-empty">No active missions</div>';
                 const mcEl = document.getElementById('mission-count');
@@ -917,7 +925,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     loadMissions();
-    setInterval(loadMissions, 5000);
+    if (window.commandMap) {
+        window.commandMap._missionInterval = setInterval(loadMissions, 5000);
+    }
 });
 
 /* v3.2.0: Open explainability panel for selected agent */

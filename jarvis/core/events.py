@@ -66,12 +66,16 @@ class EventBus:
         self._emit_count = 0
         self._error_count = 0
         self._lock = asyncio.Lock()
+        self._max_handlers_per_type = 50
 
     async def on(self, event_type: str, handler: Handler) -> None:
         """Subscribe to an event type. Supports wildcards like 'task.*'."""
         async with self._lock:
             if event_type not in self._handlers:
                 self._handlers[event_type] = []
+            if len(self._handlers[event_type]) >= self._max_handlers_per_type:
+                log.warning(f"Handler limit reached for '{event_type}', dropping oldest")
+                self._handlers[event_type].pop(0)
             self._handlers[event_type].append(handler)
             log.debug(f"Subscribed to '{event_type}': {handler.__qualname__}")
 
@@ -101,8 +105,9 @@ class EventBus:
 
         # Record in history
         self._history.append(event)
-        if len(self._history) > self._history_size:
-            self._history = self._history[-self._history_size :]
+        overflow = len(self._history) - self._history_size
+        if overflow > 0:
+            del self._history[:overflow]
 
         # Find matching handlers
         handlers = self._get_matching_handlers(event.type)
@@ -194,6 +199,15 @@ class EventBus:
     def clear_history(self) -> None:
         """Clear event history."""
         self._history.clear()
+
+    def off_all(self, event_type: Optional[str] = None) -> None:
+        """Remove all handlers, optionally for a specific event type."""
+        if event_type:
+            self._handlers.pop(event_type, None)
+            self._once_handlers.pop(event_type, None)
+        else:
+            self._handlers.clear()
+            self._once_handlers.clear()
 
 
 # Module-level singleton
