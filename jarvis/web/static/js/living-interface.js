@@ -1,4 +1,4 @@
-/* JARVIS Living Interface v4.0.0 — Real-time Intelligence Display */
+/* JARVIS Living Interface v5.5.0 — Real-time Intelligence Display */
 
 class LivingInterface {
     constructor() {

@@ -1,5 +1,5 @@
 /**
- * JARVIS — Unified Dashboard Application v4.0.0
+ * JARVIS — Unified Dashboard Application v5.5.0
  * LEFT nav | CENTER core | RIGHT conversations + health | BOTTOM terminal + input
  */
 

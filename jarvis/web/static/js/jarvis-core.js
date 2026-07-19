@@ -1,4 +1,4 @@
-/* JARVIS Core — SVG Arc Reactor v4.0.0 Living Intelligence */
+/* JARVIS Core — SVG Arc Reactor v5.5.0 Living Intelligence */
 
 class JarvisCore {
     constructor(container) {

@@ -1,4 +1,4 @@
-/* JARVIS State Machine — v4.0.0 Living Intelligence */
+/* JARVIS State Machine — v5.5.0 Living Intelligence */
 
 class JarvisState {
     constructor() {
