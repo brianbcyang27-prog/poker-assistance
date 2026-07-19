@@ -443,23 +443,37 @@ graph TB
 - Updated `.env.example` with missing fields (TTS, OpenAI, UI config)
 - 225 tests passing, 0 failures
 
+### v5.3.0 — Living Intelligence
+
+> JARVIS becomes continuously aware.
+
+- LivingBrain: background observe→understand→predict→plan→assist cycle
+- ContextEngine: real-time context tracking (files, apps, missions)
+- SuggestionEngine: 10 smart suggestion rules with confidence scoring
+- ProjectManager: living project objects with context restore
+- JournalEngine: daily journals + weekly reviews
+- EngineeringIntel: 8 analyzers (duplication, naming, docs, complexity, dead code, stale API, missing tests, architecture drift)
+- LivingDashboard: unified WebSocket dashboard facade
+- Privacy: opt-in monitoring with audit log
+- 190 new tests (415+ total)
+
 ---
 
 ## 5 — Future Roadmap
 
-### v5.3 — Living Intelligence
+### v5.3 — Living Intelligence ✅
 
 > JARVIS becomes aware of its environment.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Continuous Observation | Background monitoring of user activity | High |
-| Context Awareness | Understand current project state | High |
-| Proactive Suggestions | Suggest improvements without being asked | High |
-| Background Thinking | Analyze problems during idle time | Medium |
-| Mission Monitoring | Watch running missions and intervene | High |
-| Environment Awareness | Detect changes in filesystem, browser, apps | Medium |
-| Adaptive Notifications | Smart notification timing and priority | Medium |
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| Continuous Observation | Background monitoring of user activity | High | ✅ |
+| Context Awareness | Understand current project state | High | ✅ |
+| Proactive Suggestions | Suggest improvements without being asked | High | ✅ |
+| Background Thinking | Analyze problems during idle time | Medium | ✅ |
+| Mission Monitoring | Watch running missions and intervene | High | ✅ |
+| Environment Awareness | Detect changes in filesystem, browser, apps | Medium | ✅ |
+| Adaptive Notifications | Smart notification timing and priority | Medium | ✅ |
 
 ### v5.4 — Personal Knowledge Graph
 
@@ -801,14 +815,14 @@ python3 -m jarvis.cli_v2 dashboard . # Update metrics
 
 | Metric | Value |
 |--------|-------|
-| **Current Version** | 5.2.0 |
-| **Python Files** | 197 |
-| **Total Lines** | 38,057 |
-| **Test Files** | 18 |
-| **Test Lines** | 5,193 |
-| **Total Tests** | 450+ |
-| **Modules** | 31 |
-| **Major Releases** | 10 |
+| **Current Version** | 5.3.0 |
+| **Python Files** | 210 |
+| **Total Lines** | 41,638 |
+| **Test Files** | 26 |
+| **Test Lines** | 6,500+ |
+| **Total Tests** | 415+ |
+| **Modules** | 35 |
+| **Major Releases** | 11 |
 | **Contributors** | 1 |
 | **License** | MIT |
 | **Python** | ≥ 3.9.6 |
@@ -831,7 +845,7 @@ subprocess, importlib, tracemalloc, time, abc, functools, operator
 
 Every release must include:
 
-- [ ] All tests passing (450+)
+- [ ] All tests passing (415+)
 - [ ] Version bumped in `jarvis/__init__.py`, `pyproject.toml`, `web/main.py`
 - [ ] Git commit with descriptive message
 - [ ] Git tag created
