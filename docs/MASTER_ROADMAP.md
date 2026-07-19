@@ -457,6 +457,21 @@ graph TB
 - Privacy: opt-in monitoring with audit log
 - 190 new tests (415+ total)
 
+### v5.4.0 — Second Brain & Personal Knowledge Graph
+
+> JARVIS builds a true personal knowledge system.
+
+- Knowledge Graph: 15 entity types (Person, Project, Organization, Technology, Skill, Concept, Decision, Goal, Task, Document, Codebase, Device, Location, Event, Resource)
+- Relationship Engine: 15 relation types, BFS path finding, cluster expansion, type-based suggestions
+- Memory Extraction: auto-detect facts, decisions, preferences, projects, technologies, people, lessons
+- Memory Consolidation: dedup, merge, strengthen, forget low-value memories
+- Personal Timeline: chronological events with date range queries, evolution tracking
+- Semantic Memory Search: hybrid keyword + graph traversal + recency + importance ranking
+- Preference Learning: coding, hardware, communication, tools, workflow, design, deployment
+- Decision Memory: record decisions with reasons, alternatives, impact, outcome tracking
+- Memory Privacy: pause, forget topics, private projects, audit log, full export
+- 312 new tests (727+ total)
+
 ---
 
 ## 5 — Future Roadmap
@@ -475,19 +490,19 @@ graph TB
 | Environment Awareness | Detect changes in filesystem, browser, apps | Medium | ✅ |
 | Adaptive Notifications | Smart notification timing and priority | Medium | ✅ |
 
-### v5.4 — Personal Knowledge Graph
+### v5.4 — Personal Knowledge Graph ✅
 
 > JARVIS builds a graph of everything it knows.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Graph Memory | Entity-relationship knowledge graph | High |
-| Timeline | Chronological event tracking | High |
-| Project Graph | Project dependency visualization | High |
-| Life Graph | Personal knowledge organization | Medium |
-| Decision Graph | Track decisions and outcomes | Medium |
-| Visualization | Interactive graph exploration | High |
-| Semantic Recall | Find related memories by context | High |
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| Graph Memory | Entity-relationship knowledge graph | High | ✅ |
+| Timeline | Chronological event tracking | High | ✅ |
+| Project Graph | Project dependency visualization | High | ✅ |
+| Life Graph | Personal knowledge organization | Medium | ✅ |
+| Decision Graph | Track decisions and outcomes | Medium | ✅ |
+| Visualization | Interactive graph exploration | High | ✅ |
+| Semantic Recall | Find related memories by context | High | ✅ |
 
 ### v5.5 — Long-Term Planning
 
@@ -815,14 +830,14 @@ python3 -m jarvis.cli_v2 dashboard . # Update metrics
 
 | Metric | Value |
 |--------|-------|
-| **Current Version** | 5.3.0 |
-| **Python Files** | 210 |
-| **Total Lines** | 41,638 |
-| **Test Files** | 26 |
-| **Test Lines** | 6,500+ |
-| **Total Tests** | 415+ |
-| **Modules** | 35 |
-| **Major Releases** | 11 |
+| **Current Version** | 5.4.0 |
+| **Python Files** | 235 |
+| **Total Lines** | 45,219 |
+| **Test Files** | 33 |
+| **Test Lines** | 8,500+ |
+| **Total Tests** | 727+ |
+| **Modules** | 43 |
+| **Major Releases** | 12 |
 | **Contributors** | 1 |
 | **License** | MIT |
 | **Python** | ≥ 3.9.6 |
@@ -845,7 +860,7 @@ subprocess, importlib, tracemalloc, time, abc, functools, operator
 
 Every release must include:
 
-- [ ] All tests passing (415+)
+- [ ] All tests passing (727+)
 - [ ] Version bumped in `jarvis/__init__.py`, `pyproject.toml`, `web/main.py`
 - [ ] Git commit with descriptive message
 - [ ] Git tag created
