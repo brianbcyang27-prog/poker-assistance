@@ -45,7 +45,7 @@ async def list_workspaces(status: Optional[str] = None):
 # === SEARCH ===
 
 @router.get("/search")
-async def search_workspaces(q: str = Query("", min_length=1), limit: int = 20):
+async def search_workspaces(q: str = Query(""), limit: int = 20):
     """Search workspaces by goal or user request."""
     return await web_main.workspace_manager.search_workspaces(q, limit)
 

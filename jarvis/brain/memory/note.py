@@ -9,7 +9,7 @@ from typing import Optional, List
 
 from .graph import graph, Node, Edge
 
-NOTES_DIR = Path("memory_store/notes")
+NOTES_DIR = Path(__file__).parent.parent.parent.parent / "memory_store" / "notes"
 NOTES_DIR.mkdir(parents=True, exist_ok=True)
 
 

@@ -71,12 +71,13 @@ class CommandMap {
     
     destroy() {
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
-        if (this._ws) { try { this._ws.close(); } catch(e) {} }
+        if (this.ws) { try { this.ws.close(); } catch(e) {} this.ws = null; }
         if (this._boundResize) window.removeEventListener('resize', this._boundResize);
         if (this._boundMouseMove) window.removeEventListener('mousemove', this._boundMouseMove);
         if (this._boundMouseUp) window.removeEventListener('mouseup', this._boundMouseUp);
         if (this._boundKeyDown) window.removeEventListener('keydown', this._boundKeyDown);
         if (this._missionInterval) clearInterval(this._missionInterval);
+        if (this._retryTimeout) clearTimeout(this._retryTimeout);
     }
     
     resizeCanvas() {
@@ -185,20 +186,26 @@ class CommandMap {
     // ============ WEBSOCKET ============
     
     connectWebSocket() {
+        if (this._wsDestroyed) return;
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/agents`;
         
         this.ws = new WebSocket(wsUrl);
         
         this.ws.onmessage = (event) => {
-            const msg = JSON.parse(event.data);
-            if (msg.type === 'status') {
-                this.updateHierarchy(msg.data);
-            }
+            try {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'status') {
+                    this.updateHierarchy(msg.data);
+                }
+            } catch(e) {}
         };
         
         this.ws.onclose = () => {
-            setTimeout(() => this.connectWebSocket(), 3000);
+            if (!this._wsDestroyed && this._wsReconnects < 50) {
+                this._wsReconnects = (this._wsReconnects || 0) + 1;
+                this._retryTimeout = setTimeout(() => this.connectWebSocket(), 3000);
+            }
         };
         
         this.ws.onerror = () => {

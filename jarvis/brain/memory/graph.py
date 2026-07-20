@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass, asdict
 
-MEMORY_DIR = Path("memory_store")
+MEMORY_DIR = Path(__file__).parent.parent.parent.parent / "memory_store"
 MEMORY_DIR.mkdir(exist_ok=True)
 
 

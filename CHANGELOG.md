@@ -1,5 +1,45 @@
 # JARVIS Changelog
 
+## v6.2.0 — Production Stability & System Integration (2026-07-19)
+
+> Priority shift: NO MORE FEATURES. Focus on reliability, stability, maintainability, and production readiness.
+
+### Startup Fixes
+- Fixed missing `app` module-level export in `main.py` (uvicorn couldn't find the ASGI app)
+- Fixed workspace search contradictory validation (`min_length=1` with default `""` caused 422 errors)
+- Added `/api/health` endpoint (frontend was fetching nonexistent `/api/memory/stats`)
+- Fixed frontend dead endpoint references (`/api/memory/stats` → `/api/system/memory/stats`)
+
+### Memory Subsystem Fixes
+- Fixed broken import paths in 6 memory modules (`..core` → `...core`): working.py, episodic.py, personal.py, consolidation.py, retrieval.py, journal.py
+- Fixed graph.py import-time side effect (relative `Path("memory_store")` → absolute project-relative path)
+- Fixed note.py same import-time side effect
+
+### Resource Leak Fixes
+- Added LLM `httpx.Client` close/del methods (connection pool leak)
+- Fixed command-map.js WebSocket destroy bug (`this._ws` → `this.ws`)
+- Fixed graph-3d.js missing `_boundDrag` listener removal in destroy()
+- Fixed audio-analyzer.js MediaStream leak (microphone stream never stopped)
+- Fixed knowledge-graph.js canvas leak in destroy()
+- Fixed mission-dag.js anonymous resize listener (now removable)
+- Fixed app.js duplicate voice provider event listener
+
+### Error Handling
+- Added JSON.parse safety + reconnect limit (50) to command-map.js WebSocket
+- Added FTS5 syntax error handling in database.py search_conversations
+- Added logging to 3 silent exception handlers in mission_executor.py
+- Fixed fire-and-forget task in mission_executor.py (now tracked in `_bg_tasks`)
+
+### Code Cleanup
+- Removed dead `command_center.py` router (all endpoints shadowed by `mission_replay.py`)
+- Removed orphaned `jarvis/agents/orchestration/` module (unused, not imported anywhere)
+- Removed `tests/test_orchestration.py` (referenced deleted module)
+
+### Performance
+- Server startup: 2.34s
+- API latency: 2-14ms average across all endpoints
+- 223 tests passing
+
 ## v6.1.0 — System Integration & Engineering Workspace (2026-07-19)
 
 > JARVIS becomes one unified operating system.

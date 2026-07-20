@@ -408,19 +408,22 @@ class Database:
     
     async def search_conversations(self, query: str, limit: int = 10) -> list[dict]:
         """Search conversations using FTS5 with snippet highlighting."""
-        cursor = await self._db.execute(
-            """SELECT c.session_id, c.role, c.content,
-                      snippet(conversations_fts, 2, '<b>', '</b>', '...', 32) as snippet,
-                      rank
-               FROM conversations_fts f
-               JOIN conversations c ON c.id = f.rowid
-               WHERE conversations_fts MATCH ?
-               ORDER BY rank
-               LIMIT ?""",
-            (query, limit)
-        )
-        rows = await cursor.fetchall()
-        return [dict(row) for row in rows]
+        try:
+            cursor = await self._db.execute(
+                """SELECT c.session_id, c.role, c.content,
+                          snippet(conversations_fts, 2, '<b>', '</b>', '...', 32) as snippet,
+                          rank
+                   FROM conversations_fts f
+                   JOIN conversations c ON c.id = f.rowid
+                   WHERE conversations_fts MATCH ?
+                   ORDER BY rank
+                   LIMIT ?""",
+                (query, limit)
+            )
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+        except Exception:
+            return []
     
     async def index_conversation(self, session_id: str, role: str, content: str):
         """Insert into both conversations table and conversations_fts."""

@@ -537,7 +537,7 @@
     <div class="panel-column" id="left-panels">
 
         <!-- MEMORY PANEL -->
-        <div class="panel" id="panel-memory" data-api="/api/memory/stats">
+        <div class="panel" id="panel-memory" data-api="/api/system/memory/stats">
             <div class="panel-header" onclick="togglePanel('memory')">
                 <span class="panel-title">Memory</span>
                 <span class="panel-badge" id="memory-count">0</span>
@@ -1021,7 +1021,7 @@ async function fetchJSON(url) {
 }
 
 async function loadMemoryPanel() {
-    const data = await fetchJSON('/api/memory/stats');
+    const data = await fetchJSON('/api/system/memory/stats');
     const body = document.getElementById('memory-body');
     const badge = document.getElementById('memory-count');
     if (!data) { body.innerHTML = '<div class="panel-empty">Unavailable</div>'; return; }

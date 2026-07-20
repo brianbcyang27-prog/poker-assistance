@@ -6,6 +6,7 @@ Every mission now auto-creates a workspace with file structure.
 
 import asyncio
 import json
+import logging
 import time
 import uuid
 from datetime import datetime
@@ -23,6 +24,7 @@ class MissionExecutor:
     def __init__(self):
         self._jarvis = None
         self._workspace_root = Path(__file__).parent.parent.parent / "workspaces"
+        self._bg_tasks = set()
 
     def set_jarvis(self, jarvis):
         self._jarvis = jarvis
@@ -256,8 +258,10 @@ class MissionExecutor:
                 ))
             dag_planner.create_mission(mission_id, nodes)
 
-        # Execute asynchronously
-        asyncio.create_task(self.execute_mission(mission_id, workspace_id))
+        # Execute asynchronously (track to prevent silent loss)
+        task = asyncio.create_task(self.execute_mission(mission_id, workspace_id))
+        self._bg_tasks.add(task)
+        task.add_done_callback(lambda t: self._bg_tasks.discard(t))
 
         return {
             "ok": True,
@@ -293,8 +297,8 @@ class MissionExecutor:
         try:
             from ..web.main import workspace_manager
             await workspace_manager.record_stage(workspace_id, stage, action)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to record workspace stage: {e}")
 
     async def _record_task_result(self, workspace_id: str, node: DAGNode, result: str):
         try:
@@ -311,15 +315,15 @@ class MissionExecutor:
                 from ..core.database import get_db
                 db = await get_db()
                 await db.save_workspace(ws.model_dump())
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to record task result: {e}")
 
     async def _add_timeline(self, workspace_id: str, event_type: str, source: str, description: str, **extra):
         try:
             from ..web.main import workspace_manager
             await workspace_manager.add_timeline_event(workspace_id, event_type, source, description, **extra)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to add timeline event: {e}")
 
     def get_status(self, mission_id: str) -> dict:
         return dag_planner.get_mission_status(mission_id)

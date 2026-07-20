@@ -920,6 +920,7 @@ class Graph3D {
         // Remove window/container event listeners
         window.removeEventListener('resize', this._boundResize);
         window.removeEventListener('mousemove', this._boundMouseMove);
+        window.removeEventListener('mousemove', this._boundDrag);
         if (this.container) {
             this.container.removeEventListener('wheel', this._boundWheel);
             this.container.removeEventListener('mousedown', this._boundMouseDown);

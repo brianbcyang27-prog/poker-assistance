@@ -61,10 +61,13 @@ class KnowledgeGraphViz {
     destroy() {
         this._stop();
         if (this._boundResize) window.removeEventListener('resize', this._boundResize);
-        if (this._boundMouseDown) this.canvas.removeEventListener('mousedown', this._boundMouseDown);
-        if (this._boundMouseMove) this.canvas.removeEventListener('mousemove', this._boundMouseMove);
-        if (this._boundMouseUp) this.canvas.removeEventListener('mouseup', this._boundMouseUp);
-        if (this._boundWheel) this.canvas.removeEventListener('wheel', this._boundWheel);
+        if (this.canvas) {
+            this.canvas.removeEventListener('mousedown', this._boundMouseDown);
+            this.canvas.removeEventListener('mousemove', this._boundMouseMove);
+            this.canvas.removeEventListener('mouseup', this._boundMouseUp);
+            this.canvas.removeEventListener('wheel', this._boundWheel);
+            this.canvas.remove();
+        }
         this._hideNodeInfo();
     }
 

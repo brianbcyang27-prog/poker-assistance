@@ -2,7 +2,7 @@
 
 > **Single source of truth for the future of JARVIS.**
 > This document is maintained automatically after every release.
-> Last updated: v6.1.0
+> Last updated: v6.2.0
 
 ---
 
@@ -522,6 +522,20 @@ graph TB
 - Events: 50-handler cap per type, efficient trim
 - Frontend: GPU cleanup in destroy(), stored listener references
 - Rate limiting: global 30/min POST middleware + per-endpoint decorators
+
+### v6.2.0 — Production Stability & System Integration
+
+> Priority shift: NO MORE FEATURES. Focus on reliability, stability, maintainability, and production readiness.
+
+- **Startup Fix**: Added missing `app` module-level export (uvicorn couldn't find ASGI app)
+- **Memory Import Fixes**: Fixed broken import paths in 6 memory modules (`..core` → `...core`)
+- **Import-Time Side Effects**: Fixed relative paths in graph.py and note.py (were creating dirs in CWD)
+- **Resource Leak Fixes**: LLM httpx.Client close/del, audio MediaStream stop, command-map WS destroy
+- **Frontend Stability**: graph-3d _boundDrag cleanup, knowledge-graph canvas removal, mission-dag removable listeners
+- **API Health**: Added `/api/health` endpoint, fixed dead `/api/memory/stats` references
+- **Error Handling**: FTS5 syntax error safety, mission_executor logging, JSON.parse safety in WS
+- **Code Cleanup**: Removed dead command_center.py, orchestration/ module, test_orchestration.py
+- **Performance**: 2.34s startup, 2-14ms API latency, 223 tests passing
 
 ### v6.1.0 — System Integration & Engineering Workspace
 

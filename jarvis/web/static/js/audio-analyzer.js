@@ -8,6 +8,7 @@ class AudioAnalyzer {
         this.audioContext = null;
         this.analyser = null;
         this.source = null;
+        this.stream = null;
         this.isActive = false;
         this.volume = 0;
         this.frequency = 0;
@@ -15,6 +16,7 @@ class AudioAnalyzer {
         this.smoothVolume = 0;
         this.smoothFrequency = 0;
         this.smoothPitch = 0;
+        this._animFrame = null;
 
         // dataArray for frequency analysis
         this.dataArray = null;
@@ -45,8 +47,8 @@ class AudioAnalyzer {
         }
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.source = this.audioContext.createMediaStreamSource(stream);
+            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.source = this.audioContext.createMediaStreamSource(this.stream);
             this.source.connect(this.analyser);
             this.isActive = true;
             this.analyze();
@@ -108,7 +110,7 @@ class AudioAnalyzer {
         this.smoothFrequency += (this.frequency - this.smoothFrequency) * 0.1;
         this.smoothPitch += (this.pitch - this.smoothPitch) * 0.15;
 
-        requestAnimationFrame(() => this.analyze());
+        this._animFrame = requestAnimationFrame(() => this.analyze());
     }
 
     getValues() {
@@ -125,6 +127,19 @@ class AudioAnalyzer {
             try { this.source.disconnect(); } catch (e) {}
         }
         this.isActive = false;
+    }
+
+    destroy() {
+        if (this._animFrame) cancelAnimationFrame(this._animFrame);
+        this.disconnect();
+        if (this.stream) {
+            this.stream.getTracks().forEach(t => t.stop());
+            this.stream = null;
+        }
+        if (this.audioContext) {
+            try { this.audioContext.close(); } catch (e) {}
+            this.audioContext = null;
+        }
     }
 }
 

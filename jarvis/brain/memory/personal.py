@@ -108,7 +108,7 @@ class PersonalMemoryManager:
         if self._initialized:
             return
         if self._db is None:
-            from ..core.database import get_db
+            from ...core.database import get_db
             self._db = await get_db()
         self._initialized = True
         await self._load_cache()

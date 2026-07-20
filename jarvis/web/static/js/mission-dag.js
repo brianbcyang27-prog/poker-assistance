@@ -53,7 +53,8 @@ class MissionDAG {
         this.svg.appendChild(this._nodeGroup);
 
         this._resize();
-        window.addEventListener('resize', () => this._resize());
+        this._boundResize = () => this._resize();
+        window.addEventListener('resize', this._boundResize);
     }
 
     _createEl(tag, attrs = {}) {
@@ -258,6 +259,7 @@ class MissionDAG {
 
     destroy() {
         this.stopPolling();
+        if (this._boundResize) window.removeEventListener('resize', this._boundResize);
         if (this.svg) this.svg.remove();
     }
 }

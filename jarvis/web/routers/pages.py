@@ -2,11 +2,19 @@
 
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse
 from pathlib import Path
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
 
 router = APIRouter(tags=["pages"])
+
+
+@router.get("/api/health")
+async def health_check():
+    """Simple health check endpoint."""
+    from jarvis import __version__
+    return JSONResponse({"status": "ok", "version": __version__, "service": "jarvis"})
 
 
 @router.get("/")

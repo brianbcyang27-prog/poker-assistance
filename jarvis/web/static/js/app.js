@@ -48,7 +48,9 @@ async function loadVoiceModels() {
             o.textContent = p.charAt(0).toUpperCase() + p.slice(1);
             prov.appendChild(o);
         }
-        prov.addEventListener('change', () => updateVoiceList(data.voices, prov.value));
+        if (window._voiceProviderHandler) prov.removeEventListener('change', window._voiceProviderHandler);
+        window._voiceProviderHandler = () => updateVoiceList(data.voices, prov.value);
+        prov.addEventListener('change', window._voiceProviderHandler);
         const cur = document.querySelector('[name="tts_provider"]')?.value || 'macos';
         prov.value = cur;
         updateVoiceList(data.voices, cur);

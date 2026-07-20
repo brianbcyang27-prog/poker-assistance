@@ -1,7 +1,7 @@
 # JARVIS Project Index
 
-**Version:** v6.1.0
-**Total Files:** 308 (270 Python, 38 non-Python: templates, static JS/CSS, Arduino library)
+**Version:** v6.2.0
+**Total Files:** 492 (321 Python, 171 non-Python: templates, static JS/CSS, Arduino library, docs)
 
 ---
 

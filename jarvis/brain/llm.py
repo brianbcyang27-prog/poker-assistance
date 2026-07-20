@@ -77,6 +77,17 @@ class LLM:
         """Check if an LLM backend is available."""
         return bool(self.api_key) or self._ollama_available
     
+    def close(self) -> None:
+        """Close the httpx client to release connections."""
+        if self._http:
+            try:
+                self._http.close()
+            except Exception:
+                pass
+    
+    def __del__(self):
+        self.close()
+    
     def _get_endpoint(self) -> tuple[str, str, str]:
         """Returns (base_url, api_key, model)."""
         if self.use_nvidia:
@@ -118,19 +129,17 @@ class LLM:
             except httpx.HTTPStatusError as e:
                 last_error = e
                 if e.response.status_code >= 500 and attempt < self._max_retries:
-                    import time
                     delay = min(self._retry_base_delay * (self._retry_backoff ** attempt), self._retry_max_delay)
                     logger.warning(f"LLM HTTP {e.response.status_code}, retrying in {delay:.1f}s (attempt {attempt + 1}/{self._max_retries})")
-                    time.sleep(delay)
+                    import time as _time; _time.sleep(delay)
                     continue
                 raise
             except (httpx.ConnectError, httpx.ReadTimeout) as e:
                 last_error = e
                 if attempt < self._max_retries:
-                    import time
                     delay = min(self._retry_base_delay * (self._retry_backoff ** attempt), self._retry_max_delay)
                     logger.warning(f"LLM connection error: {e}, retrying in {delay:.1f}s (attempt {attempt + 1}/{self._max_retries})")
-                    time.sleep(delay)
+                    import time as _time; _time.sleep(delay)
                     continue
                 raise
 

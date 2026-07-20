@@ -145,7 +145,7 @@ class MemoryRetrievalEngine:
             Ranked list of RetrievalResult
         """
         if self._db is None:
-            from ..core.database import get_db
+            from ...core.database import get_db
             self._db = await get_db()
 
         # 1. Detect intent
