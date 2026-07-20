@@ -1,4 +1,16 @@
-"""Brain context manager — builds unified context for every agent interaction."""
+"""Brain context manager — builds unified context for every agent interaction (v6.3.0).
+
+Automatically assembles context from ALL available sources:
+- Recent chat history
+- Project memory
+- User preferences
+- Previous decisions
+- Mission history
+- Knowledge graph
+- Working memory
+- Execution history
+- Relevant files
+"""
 import logging
 import time
 from typing import Any, Dict, List, Optional
@@ -9,7 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 class BrainContextManager:
-    """Builds and provides BrainContext from all available memory subsystems."""
+    """Builds and provides BrainContext from ALL available memory subsystems.
+
+    The model should always receive the best available context automatically.
+    """
 
     def __init__(
         self,
@@ -29,13 +44,18 @@ class BrainContextManager:
         project_name: str = "",
         tools: Optional[List[str]] = None,
     ) -> BrainContext:
-        """Assemble complete context from all subsystems."""
+        """Assemble complete context from ALL subsystems automatically."""
         prefs = await self.get_preferences()
         memories = await self.get_relevant_memories(goal)
         attempts = await self.get_previous_attempts(goal)
         proj_ctx = await self.get_project_context(project_name) if project_name else {}
         decisions = await self.get_recent_decisions()
         events = await self.get_recent_events()
+
+        # v6.3.0: Pull from additional sources
+        mission_history = await self.get_mission_history(goal)
+        working_ctx = await self.get_working_memory_context()
+        execution_history = await self.get_execution_history(goal)
 
         confidence = 0.5
         if memories:
@@ -47,6 +67,10 @@ class BrainContextManager:
         if decisions:
             confidence += 0.1
         if events:
+            confidence += 0.05
+        if mission_history:
+            confidence += 0.05
+        if execution_history:
             confidence += 0.05
         confidence = min(confidence, 1.0)
 
@@ -159,6 +183,45 @@ class BrainContextManager:
             return await self._timeline.get_recent(n=limit)
         except Exception as exc:
             logger.debug("Failed to get recent events: %s", exc)
+            return []
+
+    async def get_mission_history(self, goal: str, limit: int = 3) -> List[Dict[str, Any]]:
+        """Find past missions related to this goal for resumption context."""
+        try:
+            from ...mission.manager import mission_manager
+            missions = await mission_manager.list_completed()
+            q_lower = goal.lower()
+            related = [
+                m for m in missions
+                if q_lower in m.get("goal", "").lower()
+                or q_lower in m.get("user_request", "").lower()
+            ]
+            return related[:limit]
+        except Exception:
+            return []
+
+    async def get_working_memory_context(self) -> Dict[str, str]:
+        """Get active working memory slots for immediate context."""
+        try:
+            from ...brain.memory.working import WorkingMemoryManager
+            wm = WorkingMemoryManager()
+            return await wm.get_context(max_chars=2000)
+        except Exception:
+            return {}
+
+    async def get_execution_history(self, goal: str, limit: int = 3) -> List[Dict[str, Any]]:
+        """Find recent tool execution results related to this goal."""
+        try:
+            from ...core.database import get_db
+            db = await get_db()
+            # Search recent task results
+            cursor = await db._db.execute(
+                "SELECT * FROM task_history WHERE goal LIKE ? ORDER BY completed_at DESC LIMIT ?",
+                (f"%{goal[:50]}%", limit)
+            )
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows] if rows else []
+        except Exception:
             return []
 
     async def inject_context(

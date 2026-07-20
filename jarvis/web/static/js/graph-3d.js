@@ -17,7 +17,9 @@ class Graph3D {
         this.state = 'idle';
 
         // Particle count
-        this.NODE_COUNT = 800;
+        // Keep the neural field rich without making the UI compete with chat,
+        // WebSocket handling, or browser accessibility on everyday hardware.
+        this.NODE_COUNT = 320;
         this.SPACE_RADIUS = 12;
         this.CONNECT_DIST = 3.2;
 
@@ -68,7 +70,7 @@ class Graph3D {
         // ---- Renderer ----
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         this.renderer.setSize(this.W, this.H);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setPixelRatio(1);
         this.renderer.setClearColor(0x000000, 1);
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
         this.renderer.toneMappingExposure = 1.0;
@@ -117,18 +119,11 @@ class Graph3D {
     }
 
     _setupBloom() {
-        this.renderPass = new THREE.RenderPass(this.scene, this.camera);
-
-        this.bloomPass = new THREE.UnrealBloomPass(
-            new THREE.Vector2(this.W, this.H),
-            1.8,   // strength — intense glow
-            0.6,   // radius — soft spread
-            0.15   // threshold — let most gold through
-        );
-
-        this.composer = new THREE.EffectComposer(this.renderer);
-        this.composer.addPass(this.renderPass);
-        this.composer.addPass(this.bloomPass);
+        // The shader materials already provide the golden glow. Full-screen
+        // post-processing made the core unresponsive on integrated GPUs and
+        // consumed resources while the rest of the AI OS was active.
+        this.composer = null;
+        this.bloomPass = null;
     }
 
     /* ================================================================
@@ -884,9 +879,7 @@ class Graph3D {
         }
 
         // ---- Render with bloom ----
-        if (this.composer) {
-            this.composer.render();
-        } else if (this.renderer && this.scene && this.camera) {
+        if (this.renderer && this.scene && this.camera) {
             this.renderer.render(this.scene, this.camera);
         }
     }
@@ -901,7 +894,7 @@ class Graph3D {
         this.camera.aspect = this.W / this.H;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(this.W, this.H);
-        this.composer.setSize(this.W, this.H);
+        if (this.composer) this.composer.setSize(this.W, this.H);
     }
 
     _onMouseMove(e) {

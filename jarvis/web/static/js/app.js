@@ -13,6 +13,27 @@ let currentChatMode = 'chat';
 let _startTime = Date.now();
 let _eventCount = 0;
 
+/* ---- Golden Neural Core lifecycle ---- */
+
+function ensureGoldenCore() {
+    if (goldenCore) return goldenCore;
+
+    const container = document.getElementById('golden-core-container');
+    if (!container || !window.Graph3D) return null;
+
+    try {
+        goldenCore = new Graph3D(container);
+        goldenCore.init();
+        goldenCore.loadData();
+        goldenCore.start();
+        return goldenCore;
+    } catch (e) {
+        console.warn('GoldenCore:', e);
+        goldenCore = null;
+        return null;
+    }
+}
+
 /* ---- Settings overlay ---- */
 
 function toggleSettings() {
@@ -293,6 +314,7 @@ async function switchWorkspace(workspace) {
             if (coreCanvas) coreCanvas.style.display = 'block';
             if (chatContainer) chatContainer.style.display = 'none';
             if (responseDisplay) responseDisplay.style.display = 'none';
+            ensureGoldenCore()?.start();
             break;
 
         case 'chat':
@@ -333,6 +355,10 @@ async function switchWorkspace(workspace) {
             toggleSettings();
             break;
     }
+
+    // The renderer is expensive on laptops and should not keep animating behind
+    // another workspace. The core resumes without losing its visual state.
+    if (workspace !== 'core' && goldenCore) goldenCore.stop();
 }
 
 /* ---- Chat History ---- */
@@ -550,17 +576,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         window.jarvisState = new JarvisState();
     } catch (e) { console.warn('JarvisState:', e); }
-
-    // Initialize 3D Golden Neural Core (the centerpiece)
-    try {
-        const container = document.getElementById('golden-core-container');
-        if (container && window.Graph3D) {
-            goldenCore = new Graph3D(container);
-            goldenCore.init();
-            goldenCore.start();
-            goldenCore.loadData();
-        }
-    } catch (e) { console.warn('GoldenCore:', e); }
 
     // Initialize audio analyzer
     try {

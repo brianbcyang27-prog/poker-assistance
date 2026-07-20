@@ -25,6 +25,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     session_id: str
+    workspace_id: Optional[str] = None
     agents_active: list[dict] = []
     audio_url: Optional[str] = None
 
@@ -34,6 +35,19 @@ class ChatResponse(BaseModel):
 async def chat(request: Request, req: ChatRequest):
     """Send a message to JARVIS and get a response."""
     session_id = req.session_id or str(uuid.uuid4())[:8]
+    
+    # Auto-create workspace for every user request (v6.3.0)
+    workspace_id = None
+    try:
+        from jarvis.brain.mission_executor import mission_executor
+        ws = await web_main.workspace_manager.create_workspace(
+            goal=req.message[:200],
+            owner="user",
+            user_request=req.message,
+        )
+        workspace_id = ws.id if hasattr(ws, "id") else ws.get("id")
+    except Exception:
+        pass
     
     # Save user message
     db = await get_db()
@@ -103,6 +117,7 @@ async def chat(request: Request, req: ChatRequest):
     return ChatResponse(
         response=response,
         session_id=session_id,
+        workspace_id=workspace_id,
         agents_active=active_agents,
         audio_url=audio_url,
     )
