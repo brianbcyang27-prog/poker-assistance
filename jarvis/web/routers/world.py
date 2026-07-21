@@ -9,14 +9,14 @@ router = APIRouter(prefix="/api/world", tags=["world"])
 async def get_world():
     """Return full world model state."""
     from jarvis.brain.world_model import world_model
-    return world_model.to_dict()
+    return await world_model.to_dict()
 
 
 @router.get("/projects")
 async def get_projects():
     """Return scanned projects with git status."""
     from jarvis.brain.world_model import world_model
-    data = world_model.scan_environment()
+    data = await world_model.scan_environment()
     return {"projects": data["projects"], "total": len(data["projects"])}
 
 
@@ -24,7 +24,7 @@ async def get_projects():
 async def get_servers():
     """Return active servers (listening ports)."""
     from jarvis.brain.world_model import world_model
-    data = world_model.scan_environment()
+    data = await world_model.scan_environment()
     return {"servers": data["servers"], "total": len(data["servers"])}
 
 
@@ -32,7 +32,7 @@ async def get_servers():
 async def get_system():
     """Return system info (hostname, OS, disk, memory)."""
     from jarvis.brain.world_model import world_model
-    data = world_model.scan_environment()
+    data = await world_model.scan_environment()
     return data["system"]
 
 
@@ -40,4 +40,4 @@ async def get_system():
 async def force_scan():
     """Force a rescan of the environment."""
     from jarvis.brain.world_model import world_model
-    return world_model.force_scan()
+    return await world_model.force_scan()

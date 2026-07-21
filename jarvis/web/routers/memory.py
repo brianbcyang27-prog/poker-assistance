@@ -124,7 +124,7 @@ async def create_episode(req: EpisodeCreate):
 async def get_episode(episode_id: int):
     from ...brain.memory.episodic import get_episodic_memory
     em = get_episodic_memory()
-    ep = await em.get_episode(episode_id)
+    ep = await em.get(episode_id)
     if not ep:
         raise HTTPException(status_code=404, detail="Episode not found")
     return ep.to_dict()
@@ -178,8 +178,8 @@ async def get_profile():
 async def forget_personal_memory(category: str, key: str):
     from ...brain.memory.personal import get_personal_memory
     pm = get_personal_memory()
-    success = await pm.forget(category, key)
-    if not success:
+    result = await pm.forget(category=category, key=key)
+    if not result.get("ok"):
         raise HTTPException(status_code=404, detail="Memory not found")
     return {"status": "forgotten", "category": category, "key": key}
 

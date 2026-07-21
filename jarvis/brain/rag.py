@@ -89,13 +89,13 @@ class RAGMemory:
         chunks: list[ContextChunk] = []
         sources_filter = set(query.sources) if query.sources else None
 
-        # 1. Conversation history (from FTS5)
+        # 1. Conversation history (LIKE search, not FTS5)
         if db and (not sources_filter or "conversation" in sources_filter):
             try:
                 cursor = await db._db.execute(
                     """SELECT content, timestamp FROM conversations
-                       WHERE content MATCH ? ORDER BY timestamp DESC LIMIT ?""",
-                    (query.text, query.max_chunks),
+                       WHERE content LIKE ? ORDER BY timestamp DESC LIMIT ?""",
+                    (f"%{query.text}%", query.max_chunks),
                 )
                 rows = await cursor.fetchall()
                 for row in rows:
@@ -148,21 +148,21 @@ class RAGMemory:
         if db and (not sources_filter or "task_history" in sources_filter):
             try:
                 cursor = await db._db.execute(
-                    """SELECT task_name, result, confidence, created_at FROM task_history
-                       WHERE task_name LIKE ? OR result LIKE ?
+                    """SELECT user_request, summary, duration_ms, created_at FROM task_history
+                       WHERE user_request LIKE ? OR summary LIKE ?
                        ORDER BY created_at DESC LIMIT ?""",
                     (f"%{query.text}%", f"%{query.text}%", query.max_chunks),
                 )
                 rows = await cursor.fetchall()
                 for row in rows:
-                    content = f"Task: {row[0]} — {row[1][:200]}"
+                    content = f"Task: {row[0]} — {(row[1] or '')[:200]}"
                     score = self._score(query_tokens, content, "task_history")
                     if score >= query.min_relevance:
                         chunks.append(ContextChunk(
                             source="task_history",
                             content=content,
                             relevance=score,
-                            metadata={"confidence": row[2]},
+                            metadata={"duration_ms": row[2]},
                             timestamp=row[3] or 0,
                         ))
             except Exception:

@@ -24,7 +24,7 @@ class GraphAnalyzer:
 
     async def shortest_path(self, source_id: str, target_id: str, max_depth: int = 6) -> Optional[list[str]]:
         """BFS shortest path between two nodes."""
-        conn = self._graph._get_conn()
+        conn = await self._graph._get_conn()
 
         visited = {source_id}
         queue = deque([(source_id, [source_id])])
@@ -37,11 +37,12 @@ class GraphAnalyzer:
                 continue
 
             # Get neighbors (both directions)
-            rows = conn.execute(
+            cursor = await conn.execute(
                 "SELECT target FROM edges WHERE source = ? UNION "
                 "SELECT source FROM edges WHERE target = ?",
                 (current, current),
-            ).fetchall()
+            )
+            rows = await cursor.fetchall()
 
             for row in rows:
                 neighbor = row[0]
@@ -53,8 +54,9 @@ class GraphAnalyzer:
 
     async def connected_components(self) -> list[list[str]]:
         """Find connected components (communities)."""
-        conn = self._graph._get_conn()
-        nodes = conn.execute("SELECT id FROM nodes").fetchall()
+        conn = await self._graph._get_conn()
+        cursor = await conn.execute("SELECT id FROM nodes")
+        nodes = await cursor.fetchall()
         node_ids = {r[0] for r in nodes}
 
         visited = set()
@@ -73,11 +75,12 @@ class GraphAnalyzer:
                 visited.add(current)
                 component.append(current)
 
-                rows = conn.execute(
+                cursor = await conn.execute(
                     "SELECT target FROM edges WHERE source = ? UNION "
                     "SELECT source FROM edges WHERE target = ?",
                     (current, current),
-                ).fetchall()
+                )
+                rows = await cursor.fetchall()
                 for row in rows:
                     if row[0] not in visited:
                         queue.append(row[0])
@@ -88,8 +91,9 @@ class GraphAnalyzer:
 
     async def pagerank(self, damping: float = 0.85, iterations: int = 20) -> dict[str, float]:
         """Compute PageRank importance scores for all nodes."""
-        conn = self._graph._get_conn()
-        nodes = conn.execute("SELECT id FROM nodes").fetchall()
+        conn = await self._graph._get_conn()
+        cursor = await conn.execute("SELECT id FROM nodes")
+        nodes = await cursor.fetchall()
         node_ids = [r[0] for r in nodes]
         n = len(node_ids)
         if n == 0:
@@ -101,19 +105,21 @@ class GraphAnalyzer:
 
         # Get out-degrees
         for nid in node_ids:
-            rows = conn.execute(
+            cursor = await conn.execute(
                 "SELECT COUNT(*) FROM edges WHERE source = ?", (nid,)
-            ).fetchone()
-            out_degree[nid] = max(1, rows[0])
+            )
+            row = await cursor.fetchone()
+            out_degree[nid] = max(1, row[0])
 
         # Iterate
         for _ in range(iterations):
             new_scores = {}
             for nid in node_ids:
                 # Sum contributions from incoming edges
-                incoming = conn.execute(
+                cursor = await conn.execute(
                     "SELECT source FROM edges WHERE target = ?", (nid,)
-                ).fetchall()
+                )
+                incoming = await cursor.fetchall()
                 rank_sum = 0.0
                 for row in incoming:
                     src = row[0]
@@ -126,7 +132,7 @@ class GraphAnalyzer:
 
     async def get_ego_graph(self, node_id: str, radius: int = 2) -> dict:
         """Get the ego graph (neighborhood) of a node up to given radius."""
-        conn = self._graph._get_conn()
+        conn = await self._graph._get_conn()
         visited = {node_id: 0}
         queue = deque([(node_id, 0)])
         nodes = []
@@ -138,19 +144,21 @@ class GraphAnalyzer:
                 continue
 
             # Get node info
-            row = conn.execute("SELECT * FROM nodes WHERE id = ?", (current,)).fetchone()
+            cursor = await conn.execute("SELECT * FROM nodes WHERE id = ?", (current,))
+            row = await cursor.fetchone()
             if row:
                 nodes.append(dict(row))
 
             # Get edges
-            rows = conn.execute(
+            cursor = await conn.execute(
                 "SELECT e.*, s.label as source_label, t.label as target_label "
                 "FROM edges e "
                 "JOIN nodes s ON e.source = s.id "
                 "JOIN nodes t ON e.target = t.id "
                 "WHERE e.source = ? OR e.target = ?",
                 (current, current),
-            ).fetchall()
+            )
+            rows = await cursor.fetchall()
             for r in rows:
                 rd = dict(r)
                 edge_key = (rd["source"], rd["target"], rd["relation"])
@@ -165,20 +173,24 @@ class GraphAnalyzer:
 
     async def get_stats(self) -> dict:
         """Comprehensive graph statistics."""
-        conn = self._graph._get_conn()
-        node_count = conn.execute("SELECT COUNT(*) FROM nodes").fetchone()[0]
-        edge_count = conn.execute("SELECT COUNT(*) FROM edges").fetchone()[0]
+        conn = await self._graph._get_conn()
+        cursor = await conn.execute("SELECT COUNT(*) FROM nodes")
+        node_count = (await cursor.fetchone())[0]
+        cursor = await conn.execute("SELECT COUNT(*) FROM edges")
+        edge_count = (await cursor.fetchone())[0]
 
         # Type distribution
-        types = conn.execute(
+        cursor = await conn.execute(
             "SELECT type, COUNT(*) as cnt FROM nodes GROUP BY type"
-        ).fetchall()
+        )
+        types = await cursor.fetchall()
         type_dist = {r["type"]: r["cnt"] for r in types}
 
         # Relation distribution
-        rels = conn.execute(
+        cursor = await conn.execute(
             "SELECT relation, COUNT(*) as cnt FROM edges GROUP BY relation"
-        ).fetchall()
+        )
+        rels = await cursor.fetchall()
         rel_dist = {r["relation"]: r["cnt"] for r in rels}
 
         # Density

@@ -45,13 +45,16 @@ async def list_capabilities(
     owner: Optional[str] = None,
 ):
     """List all registered capabilities."""
-    from jarvis.core.capabilities import registry, CapType
-    cap_type = CapType(type) if type else None
-    caps = await registry.query(type=cap_type, owner=owner)
-    return {
-        "capabilities": [c.to_dict() for c in caps],
-        "total": len(caps),
-    }
+    try:
+        from jarvis.core.capabilities import registry, CapType
+        cap_type = CapType(type) if type else None
+        caps = await registry.query(type=cap_type, owner=owner)
+        return {
+            "capabilities": [c.to_dict() for c in caps],
+            "total": len(caps),
+        }
+    except Exception as e:
+        return {"capabilities": [], "total": 0, "error": str(e)}
 
 
 @router.get("/capabilities/stats")
@@ -273,91 +276,129 @@ async def rag_retrieve(body: dict):
 @router.get("/graph/stats")
 async def graph_stats():
     """Get knowledge graph statistics."""
-    from jarvis.brain.memory.graph import KnowledgeGraph
-    from jarvis.brain.graph_analysis import get_graph_analyzer
-    graph = KnowledgeGraph()
-    analyzer = get_graph_analyzer(graph)
-    return await analyzer.get_stats()
+    try:
+        from jarvis.brain.memory.graph import KnowledgeGraph
+        from jarvis.brain.graph_analysis import get_graph_analyzer
+        graph = KnowledgeGraph()
+        analyzer = get_graph_analyzer(graph)
+        stats = await analyzer.get_stats()
+        await graph.close()
+        return stats
+    except Exception as e:
+        return {"error": str(e), "nodes": 0, "edges": 0, "density": 0, "avg_degree": 0}
 
 
 @router.get("/graph/ego")
 async def graph_ego(node_id: str, radius: int = 2):
     """Get ego graph (neighborhood) of a node."""
-    from jarvis.brain.memory.graph import KnowledgeGraph
-    from jarvis.brain.graph_analysis import get_graph_analyzer
-    graph = KnowledgeGraph()
-    analyzer = get_graph_analyzer(graph)
-    return await analyzer.get_ego_graph(node_id, radius)
+    try:
+        from jarvis.brain.memory.graph import KnowledgeGraph
+        from jarvis.brain.graph_analysis import get_graph_analyzer
+        graph = KnowledgeGraph()
+        analyzer = get_graph_analyzer(graph)
+        result = await analyzer.get_ego_graph(node_id, radius)
+        await graph.close()
+        return result
+    except Exception as e:
+        return {"error": str(e), "nodes": [], "edges": []}
 
 
 @router.get("/graph/path")
 async def graph_path(source: str, target: str):
     """Find shortest path between two nodes."""
-    from jarvis.brain.memory.graph import KnowledgeGraph
-    from jarvis.brain.graph_analysis import get_graph_analyzer
-    graph = KnowledgeGraph()
-    analyzer = get_graph_analyzer(graph)
-    path = await analyzer.shortest_path(source, target)
-    return {"source": source, "target": target, "path": path, "found": path is not None}
+    try:
+        from jarvis.brain.memory.graph import KnowledgeGraph
+        from jarvis.brain.graph_analysis import get_graph_analyzer
+        graph = KnowledgeGraph()
+        analyzer = get_graph_analyzer(graph)
+        path = await analyzer.shortest_path(source, target)
+        await graph.close()
+        return {"source": source, "target": target, "path": path, "found": path is not None}
+    except Exception as e:
+        return {"source": source, "target": target, "path": None, "found": False, "error": str(e)}
 
 
 @router.get("/graph/pagerank")
 async def graph_pagerank():
     """Get PageRank importance scores."""
-    from jarvis.brain.memory.graph import KnowledgeGraph
-    from jarvis.brain.graph_analysis import get_graph_analyzer
-    graph = KnowledgeGraph()
-    analyzer = get_graph_analyzer(graph)
-    scores = await analyzer.pagerank()
-    # Return top 20
-    top = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:20]
-    return {"scores": {k: round(v, 4) for k, v in top}, "total_nodes": len(scores)}
+    try:
+        from jarvis.brain.memory.graph import KnowledgeGraph
+        from jarvis.brain.graph_analysis import get_graph_analyzer
+        graph = KnowledgeGraph()
+        analyzer = get_graph_analyzer(graph)
+        scores = await analyzer.pagerank()
+        await graph.close()
+        # Return top 20
+        top = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:20]
+        return {"scores": {k: round(v, 4) for k, v in top}, "total_nodes": len(scores)}
+    except Exception as e:
+        return {"error": str(e), "scores": {}, "total_nodes": 0}
 
 
 @router.post("/graph/extract")
 async def graph_extract(body: dict):
     """Auto-extract entities and relations from text."""
-    from jarvis.brain.memory.graph import KnowledgeGraph
-    from jarvis.brain.graph_analysis import get_entity_extractor
-    graph = KnowledgeGraph()
-    extractor = get_entity_extractor()
-    return await extractor.auto_extract(graph, body.get("text", ""))
+    try:
+        from jarvis.brain.memory.graph import KnowledgeGraph
+        from jarvis.brain.graph_analysis import get_entity_extractor
+        graph = KnowledgeGraph()
+        extractor = get_entity_extractor()
+        result = await extractor.auto_extract(graph, body.get("text", ""))
+        await graph.close()
+        return result
+    except Exception as e:
+        return {"error": str(e), "entities_extracted": 0, "relations_extracted": 0}
 
 
 @router.get("/graph/data")
 async def graph_data(limit: int = 100):
     """Get graph nodes and edges for visualization."""
-    from jarvis.brain.memory.graph import KnowledgeGraph
-    graph = KnowledgeGraph()
-    return await graph.get_graph_data(limit)
+    try:
+        from jarvis.brain.memory.graph import KnowledgeGraph
+        graph = KnowledgeGraph()
+        result = await graph.get_graph_data(limit)
+        await graph.close()
+        return result
+    except Exception as e:
+        return {"error": str(e), "nodes": [], "edges": []}
 
 
 @router.post("/graph/node")
 async def graph_add_node(body: dict):
     """Add a node to the knowledge graph."""
-    from jarvis.brain.memory.graph import KnowledgeGraph, Node
-    graph = KnowledgeGraph()
-    node = Node(
-        id=body["id"],
-        label=body["label"],
-        type=body.get("type", "concept"),
-        content=body.get("content", ""),
-    )
-    return await graph.add_node(node)
+    try:
+        from jarvis.brain.memory.graph import KnowledgeGraph, Node
+        graph = KnowledgeGraph()
+        node = Node(
+            id=body.get("id", ""),
+            label=body.get("label", ""),
+            type=body.get("type", "concept"),
+            content=body.get("content", ""),
+        )
+        result = await graph.add_node(node)
+        await graph.close()
+        return result
+    except Exception as e:
+        return {"error": str(e), "ok": False}
 
 
 @router.post("/graph/edge")
 async def graph_add_edge(body: dict):
     """Add an edge to the knowledge graph."""
-    from jarvis.brain.memory.graph import KnowledgeGraph, Edge
-    graph = KnowledgeGraph()
-    edge = Edge(
-        source=body["source"],
-        target=body["target"],
-        relation=body.get("relation", "related_to"),
-        weight=body.get("weight", 1.0),
-    )
-    return await graph.add_edge(edge)
+    try:
+        from jarvis.brain.memory.graph import KnowledgeGraph, Edge
+        graph = KnowledgeGraph()
+        edge = Edge(
+            source=body.get("source", ""),
+            target=body.get("target", ""),
+            relation=body.get("relation", "related_to"),
+            weight=body.get("weight", 1.0),
+        )
+        result = await graph.add_edge(edge)
+        await graph.close()
+        return result
+    except Exception as e:
+        return {"error": str(e), "ok": False}
 
 
 # ===== SKILL EVOLUTION =====
