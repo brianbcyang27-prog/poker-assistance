@@ -114,8 +114,9 @@ async def lifespan(app: FastAPI):
                     king.state = AgentState(saved_states[king.card_id])
                 except ValueError:
                     pass
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger("jarvis.startup").debug(f"Agent state restore skipped: {e}")
 
     # === VOICE ENGINE ===
     try:
@@ -139,11 +140,12 @@ async def lifespan(app: FastAPI):
             server_command="python3 run.py",
             server_port=config.port,
             url=f"http://{config.host}:{config.port}",
-            ai_tool_command="code /Users/brianyang/jarvis",
+            ai_tool_command=f"code {Path(__file__).parent.parent.parent}",
             ai_tool_name="VS Code",
         )
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger("jarvis.startup").debug(f"Project registration skipped: {e}")
 
     # === CAPABILITIES ===
     try:
@@ -175,8 +177,9 @@ async def lifespan(app: FastAPI):
                     description=worker.name,
                     tags=[king.suit.value] if king.suit else [],
                 ))
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger("jarvis.startup").debug(f"Capability registration skipped: {e}")
 
     # === EMIT STARTUP EVENT ===
     try:
@@ -186,8 +189,9 @@ async def lifespan(app: FastAPI):
             data={"version": __version__, "host": config.host, "port": config.port},
             source="system",
         ))
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+        logging.getLogger("jarvis.startup").debug(f"Startup event skipped: {e}")
 
     elapsed = time.time() - startup_start
     print(f"  ✓ JARVIS v{__version__} ready ({elapsed:.1f}s)\n")

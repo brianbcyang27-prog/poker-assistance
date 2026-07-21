@@ -5,20 +5,26 @@
     // Initialize JARVIS Core on load
     document.addEventListener('DOMContentLoaded', async () => {
         try {
-            const container = document.getElementById('jarvis-canvas');
-            window.jarvisCore = new JarvisCore(container);
+            const container = document.getElementById('golden-core-container');
+            if (container && typeof JarvisCore !== 'undefined') {
+                window.jarvisCore = new JarvisCore(container);
+            }
         } catch (e) {
             console.warn('JarvisCore init failed:', e);
         }
 
         try {
-            window.jarvisState = new JarvisState();
+            if (typeof JarvisState !== 'undefined') {
+                window.jarvisState = new JarvisState();
+            }
         } catch (e) {
             console.warn('JarvisState init failed:', e);
         }
 
         try {
-            window.audioAnalyzer = new AudioAnalyzer();
+            if (typeof AudioAnalyzer !== 'undefined') {
+                window.audioAnalyzer = new AudioAnalyzer();
+            }
         } catch (e) {
             console.warn('AudioAnalyzer init failed:', e);
         }
@@ -32,21 +38,15 @@
             });
         }
 
-        // Initialize card visualization
+        // Initialize command map
         try {
-            window.cardViz = new CardVisualization(document.getElementById('hierarchy-content'));
-
-            const response = await fetch('/api/agents/hierarchy');
-            const hierarchy = await response.json();
-            window.cardViz.update(hierarchy);
-
-            setInterval(async () => {
-                try {
-                    const res = await fetch('/api/agents/hierarchy');
-                    const h = await res.json();
-                    window.cardViz.update(h);
-                } catch (e) {}
-            }, 2000);
+            const mapContainer = document.getElementById('command-map');
+            if (mapContainer && typeof CommandMap !== 'undefined') {
+                window.commandMap = new CommandMap(mapContainer);
+                const response = await fetch('/api/agents/hierarchy');
+                const hierarchy = await response.json();
+                window.commandMap.update(hierarchy);
+            }
         } catch (e) {
             console.log('Agent hierarchy not yet available');
         }

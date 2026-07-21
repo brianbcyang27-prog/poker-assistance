@@ -26,6 +26,42 @@ class Database:
         await self._db.execute("PRAGMA busy_timeout=5000")
         await self._init_schema()
     
+    async def execute(self, sql: str, params=None):
+        """Execute SQL and return cursor. Proxy to underlying aiosqlite connection."""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        if params:
+            return await self._db.execute(sql, params)
+        return await self._db.execute(sql)
+
+    async def executemany(self, sql: str, params_list):
+        """Execute SQL for many parameter sets. Proxy to underlying aiosqlite connection."""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return await self._db.executemany(sql, params_list)
+
+    async def executescript(self, script: str):
+        """Execute a SQL script. Proxy to underlying aiosqlite connection."""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return await self._db.executescript(script)
+
+    async def commit(self):
+        """Commit the current transaction. Proxy to underlying aiosqlite connection."""
+        if self._db is None:
+            raise RuntimeError("Database not connected")
+        return await self._db.commit()
+
+    async def fetchone(self, sql: str, params=None):
+        """Execute SQL and fetch one row. Convenience method."""
+        cursor = await self.execute(sql, params)
+        return await cursor.fetchone()
+
+    async def fetchall(self, sql: str, params=None):
+        """Execute SQL and fetch all rows. Convenience method."""
+        cursor = await self.execute(sql, params)
+        return await cursor.fetchall()
+
     async def close(self):
         """Close the database connection."""
         if self._db:
@@ -809,12 +845,14 @@ class Database:
 
 # Singleton instance
 _db: Optional[Database] = None
-_db_lock = asyncio.Lock()
+_db_lock: Optional[asyncio.Lock] = None
 
 
 async def get_db() -> Database:
     """Get or create the global database instance."""
-    global _db
+    global _db, _db_lock
+    if _db_lock is None:
+        _db_lock = asyncio.Lock()
     if _db is not None and _db._db is not None:
         return _db
     async with _db_lock:
