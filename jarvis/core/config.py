@@ -1,8 +1,21 @@
 """Unified configuration for JARVIS."""
 
+import os
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from pathlib import Path
+
+
+def _secret(key: str, default: str = "") -> str:
+    """Resolve a secret via SecretManager, falling back to env var."""
+    try:
+        from jarvis.security import get_secret
+        value = get_secret(key)
+        if value:
+            return value
+    except Exception:
+        pass
+    return os.environ.get(key, default)
 
 
 class Config(BaseSettings):
@@ -73,6 +86,11 @@ class Config(BaseSettings):
         "case_sensitive": False,
         "extra": "ignore",
     }
+
+    def model_post_init(self, __context) -> None:
+        """Resolve secrets via SecretManager after pydantic init."""
+        self.nvidia_api_key = _secret("NVIDIA_API_KEY", self.nvidia_api_key)
+        self.openai_api_key = _secret("OPENAI_API_KEY", self.openai_api_key)
 
 
 _config = None

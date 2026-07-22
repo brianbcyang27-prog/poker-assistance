@@ -1,6 +1,17 @@
 # Environment & secrets
 .env
 .env.*
+.secrets.enc
+.secrets.meta.json
+.security_audit.jsonl
+
+# Certificates & keys
+*.pem
+*.key
+*.crt
+*.p12
+credentials.json
+service-account.json
 
 # Python
 __pycache__/

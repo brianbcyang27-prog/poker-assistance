@@ -1,117 +1,88 @@
-# JARVIS Changelog
+# Changelog
 
-## v6.2.0 — Production Stability & System Integration (2026-07-19)
+## v6.4.2 — Enterprise Secret Vault & Security Framework (2026-07-21)
 
-> Priority shift: NO MORE FEATURES. Focus on reliability, stability, maintainability, and production readiness.
+### NEW: Secret Vault
+- AES-256-GCM encrypted vault (`.secrets.enc`) — the single source of truth for all credentials
+- PBKDF2-HMAC-SHA256 key derivation with 600,000 iterations
+- Authenticated encryption with integrity verification
+- Password change, lock/unlock, metadata tracking
 
-### Startup Fixes
-- Fixed missing `app` module-level export in `main.py` (uvicorn couldn't find the ASGI app)
-- Fixed workspace search contradictory validation (`min_length=1` with default `""` caused 422 errors)
-- Added `/api/health` endpoint (frontend was fetching nonexistent `/api/memory/stats`)
-- Fixed frontend dead endpoint references (`/api/memory/stats` → `/api/system/memory/stats`)
+### NEW: Multi-Provider Architecture
+- Priority chain: macOS Keychain → Encrypted Vault → Environment Variables → .env → GitHub Actions
+- `SecretManager.get()` — unified interface, application never knows where secrets come from
+- Automatic fallback through provider chain
+- Secret access audit logging
 
-### Memory Subsystem Fixes
-- Fixed broken import paths in 6 memory modules (`..core` → `...core`): working.py, episodic.py, personal.py, consolidation.py, retrieval.py, journal.py
-- Fixed graph.py import-time side effect (relative `Path("memory_store")` → absolute project-relative path)
-- Fixed note.py same import-time side effect
+### NEW: First-Run Experience
+- Interactive setup wizard when no vault exists
+- Guided master password creation
+- API key entry with optional providers
+- NVIDIA key validation via live API request
+- Automatic migration from existing `.env` files
 
-### Resource Leak Fixes
-- Added LLM `httpx.Client` close/del methods (connection pool leak)
-- Fixed command-map.js WebSocket destroy bug (`this._ws` → `this.ws`)
-- Fixed graph-3d.js missing `_boundDrag` listener removal in destroy()
-- Fixed audio-analyzer.js MediaStream leak (microphone stream never stopped)
-- Fixed knowledge-graph.js canvas leak in destroy()
-- Fixed mission-dag.js anonymous resize listener (now removable)
-- Fixed app.js duplicate voice provider event listener
+### NEW: Repository Secret Scanner
+- Detects NVIDIA, OpenAI, Anthropic, GitHub, AWS, Azure, Google keys
+- JWT tokens, Bearer tokens, private keys, passwords, connection strings
+- Generates `security_report.md` with severity, line numbers, recommendations
+- Security health score (0-100)
 
-### Error Handling
-- Added JSON.parse safety + reconnect limit (50) to command-map.js WebSocket
-- Added FTS5 syntax error handling in database.py search_conversations
-- Added logging to 3 silent exception handlers in mission_executor.py
-- Fixed fire-and-forget task in mission_executor.py (now tracked in `_bg_tasks`)
+### NEW: Git Protection
+- Automatic `.gitignore` entries for `.secrets.enc`, `*.pem`, `*.key`, `credentials.json`
+- Pre-commit hook that scans staged diffs for secrets
+- Rejects commits containing hardcoded credentials
 
-### Code Cleanup
-- Removed dead `command_center.py` router (all endpoints shadowed by `mission_replay.py`)
-- Removed orphaned `jarvis/agents/orchestration/` module (unused, not imported anywhere)
-- Removed `tests/test_orchestration.py` (referenced deleted module)
+### NEW: Log Redaction
+- `LogRedactor` automatically redacts API keys, passwords, tokens from all text
+- Works on strings, dicts, and lists
+- Applied to logs, events, memory, mission replay, reasoning, tool history
 
-### Performance
-- Server startup: 2.34s
-- API latency: 2-14ms average across all endpoints
-- 223 tests passing
+### NEW: Security Dashboard API
+- `GET /api/security/status` — vault status, encryption info, providers
+- `GET /api/security/providers` — provider health check
+- `GET /api/security/secrets` — list secrets (masked)
+- `POST /api/security/secrets` — set a secret
+- `DELETE /api/security/secrets/{key}` — delete a secret
+- `POST /api/security/vault/create` — create vault
+- `POST /api/security/vault/unlock` — unlock vault
+- `POST /api/security/vault/lock` — lock vault
+- `GET /api/security/scan` — scan repository
+- `GET /api/security/audit` — audit log
+- `POST /api/security/git-protection/install` — install hooks
 
-## v6.1.0 — System Integration & Engineering Workspace (2026-07-19)
-
-> JARVIS becomes one unified operating system.
-
-### Unified Workspace
-- Merged `Workspace` (SQLite) and `Mission` (JSON) into a single persistent model with 24 fields
-- Workspace now tracks: research findings, tool candidates, architecture plans, execution results, verification, reviews, memory records, timeline events, stage history, errors
-- Database schema upgraded with 16 new columns (migration-safe for existing DBs)
-- WorkspaceManager: create, get, search, add_task, update_task, add_timeline_event, record_stage, add_error, complete, search
-
-### Cross-Agent Collaboration
-- Workers can now request help from peers via event bus (`worker.help_request` / `worker.help_response`)
-- Workers share results automatically (`worker.result_shared`)
-- Workers can broadcast discoveries (`worker.broadcast.*`)
-- King delegation passes previous worker results as context to subsequent workers
-- Workers receive peer context in their LLM prompts
-
-### Unified Mission Timeline
-- New `UnifiedTimeline` JS component (`unified-timeline.js`)
-- Connects to existing WebSocket at `/ws/agents`
-- 200-event ring buffer with auto-scroll
-- Filterable by event type, searchable, exportable as JSON
-- Toggle panel on right side of screen
-
-### Developer Dashboard
-- New `/dashboard` route with full developer dashboard
-- 7 panels: System Health, Active Workspaces, Worker Status, Live Event Stream, Memory Stats, API Performance, Tool Usage
-- Auto-refresh every 10 seconds
-- WebSocket live event feed
-- Responsive grid layout
-
-### Reliability Improvements
-- New `jarvis.core.reliability` module with centralized config
-- `ReliabilityConfig`: 18 configurable timeout/retry/concurrency settings
-- `retry_with_backoff`: async decorator with exponential backoff
-- `timeout_guard`: async context manager with timeout
-- `safe_execute`: coroutine runner with timeout and default value
-- LLM module now uses reliability config for timeouts and retries
-- HTTP 5xx and connection errors trigger automatic retry with backoff
-
-### API Additions
-- `GET /api/workspace/search?q=query` — search workspaces
-- `GET /api/workspace/{id}/timeline` — unified timeline for a workspace
-- `POST /api/workspace/{id}/timeline` — add timeline event
-- `POST /api/workspace/{id}/stage` — record pipeline stage
-- `POST /api/workspace/{id}/complete` — mark workspace complete
-
-### System Polish
-- Version bumped to v6.1.0
-- Updated navigation with Dashboard link
-- Updated MASTER_ROADMAP.md
-- All 208+ tests passing
+### IMPROVED
+- `jarvis/core/config.py` now resolves secrets via `SecretManager` before env vars
+- `.gitignore` expanded with security entries
+- 63 comprehensive tests (all passing)
 
 ---
 
-## v6.0.2 — Resource Leak Fixes & Rate Limiting (2026-07-19)
+## v6.4.1 — Bug Fixes & Stability (2026-07-21)
 
-- Full codebase resource audit (56 issues)
-- Database: busy_timeout, 8 indexes, LIMIT guards, singleton Lock
-- WebSocket: 30s heartbeat, dead-client cleanup, task tracking
-- Frontend: GPU cleanup, stored listener references
-- Rate limiting: global middleware + per-endpoint decorators
+### FIXED
+- Page freeze: infinite `while` loop in graph-3d.js `_updatePulse()` changed to `if`
+- 404 on Core tab: frontend graph endpoints corrected to `/api/system/graph/data`
+- Memory galaxy: added root `/api/memory` endpoint
+- WebSocket reconnect loops capped at 20 attempts (living-interface, unified-timeline)
+- fetchHierarchy retry capped at 10 attempts (command-map)
+- Cache version bumped to force browser reload
 
-## v6.0.1 — Browser Cache Fix (2026-07-19)
+---
 
-- Cache-busting on all 23 static assets
-- No-cache middleware for development
-- Defensive pulsePool guard
+## v6.4.0 — Maintenance & Stability (2026-07-21)
 
-## v6.0.0 — Visual & Design System Rewrite (2026-07-19)
-
-- Complete UI rewrite
-- Gold particle sphere (Graph3D)
-- Workspace-based UI
-- Agent Command Map, Knowledge Graph, Memory Galaxy
+### FIXED
+- Database lazy `asyncio.Lock()` init (Python 3.9 crash)
+- Added `execute()`/`commit()`/`fetchone()`/`fetchall()` proxy methods for memory subsystem
+- DOM refs `#jarvis-canvas` → `#golden-core-container`, `#hierarchy-content` → `#command-map`
+- Version aligned to v6.4.0 across all 7 files
+- Added logging to silent `except Exception: pass` blocks in lifespan
+- Fixed hardcoded `ai_tool_command` path
+- Removed Pydantic v2 `env=` deprecation warnings
+- `em.get_episode()` → `em.get()` (method didn't exist)
+- `pm.forget(category, key)` → `pm.forget(category=category, key=key)`
+- World model: full rewrite from sync `subprocess.run()` to async `asyncio.create_subprocess_shell()`
+- Knowledge graph: full rewrite from sync `sqlite3` to async `aiosqlite`
+- RAG: `MATCH` → `LIKE` (conversations table isn't FTS5)
+- RAG: `task_name` → `user_request`, `result` → `summary` (wrong column names)
+- Added try/except error handling to all graph endpoints + capabilities

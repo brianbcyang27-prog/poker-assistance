@@ -245,7 +245,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RateLimitMiddleware, max_post=30, window=60)
     
     # Include routers
-    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system, engineering, world
+    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system, engineering, world, security
     from .api import mission_replay
     app.include_router(chat.router)
     app.include_router(agents.router)
@@ -261,6 +261,7 @@ def create_app() -> FastAPI:
     app.include_router(engineering.router)
     app.include_router(mission_replay.router)
     app.include_router(world.router)
+    app.include_router(security.router)
     
     return app
 
