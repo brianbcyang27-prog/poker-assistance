@@ -54,10 +54,10 @@ class Graph3D {
         this._completionPulseTimer = 0;
         this._breathPhase = 0;
 
-        // Golden palette
-        this.GOLD = 0xffaa00;
-        this.GOLD_BRIGHT = 0xfff0b3;
-        this.GOLD_DIM = 0x996600;
+        // Golden palette — bright
+        this.GOLD = 0xffcc00;
+        this.GOLD_BRIGHT = 0xffee88;
+        this.GOLD_DIM = 0xcc8800;
     }
 
     /* ================================================================
@@ -73,7 +73,7 @@ class Graph3D {
         this.renderer.setPixelRatio(1);
         this.renderer.setClearColor(0x000000, 1);
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.0;
+        this.renderer.toneMappingExposure = 1.4;
         this.container.appendChild(this.renderer.domElement);
 
         // ---- Scene ----
@@ -157,7 +157,7 @@ class Graph3D {
             } else {
                 color.setHex(this.GOLD_DIM);
             }
-            color.multiplyScalar(0.6 + Math.random() * 0.4);
+            color.multiplyScalar(0.85 + Math.random() * 0.15);
 
             colors[i * 3]     = color.r;
             colors[i * 3 + 1] = color.g;
@@ -178,8 +178,8 @@ class Graph3D {
         const ctx = texCanvas.getContext('2d');
         const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
         gradient.addColorStop(0, 'rgba(255,255,255,1)');
-        gradient.addColorStop(0.15, 'rgba(255,240,180,0.8)');
-        gradient.addColorStop(0.4, 'rgba(255,170,0,0.3)');
+        gradient.addColorStop(0.15, 'rgba(255,245,200,0.9)');
+        gradient.addColorStop(0.4, 'rgba(255,200,0,0.5)');
         gradient.addColorStop(1, 'rgba(255,170,0,0)');
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, 64, 64);
@@ -215,7 +215,7 @@ class Graph3D {
                 varying float vSize;
                 void main() {
                     vec4 tex = texture2D(uTexture, gl_PointCoord);
-                    gl_FragColor = vec4(vColor * tex.rgb, tex.a * 0.85);
+                    gl_FragColor = vec4(vColor * tex.rgb * 1.3, tex.a * 1.0);
                 }
             `,
             transparent: true,
@@ -245,7 +245,7 @@ class Graph3D {
         const material = new THREE.LineBasicMaterial({
             vertexColors: true,
             transparent: true,
-            opacity: 0.35,
+            opacity: 0.5,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
         });
@@ -442,7 +442,7 @@ class Graph3D {
                 const tickMat = new THREE.LineBasicMaterial({
                     color: isMajor ? this.GOLD_BRIGHT : this.GOLD,
                     transparent: true,
-                    opacity: isMajor ? 0.6 : 0.2,
+                    opacity: isMajor ? 0.8 : 0.35,
                     blending: THREE.AdditiveBlending,
                 });
                 tickGroup.add(new THREE.Line(tickGeo, tickMat));
@@ -455,7 +455,7 @@ class Graph3D {
         const apertureMat = new THREE.MeshBasicMaterial({
             color: this.GOLD,
             transparent: true,
-            opacity: 0.08,
+            opacity: 0.15,
             side: THREE.DoubleSide,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
@@ -466,7 +466,7 @@ class Graph3D {
 
         // Aperture crosshair
         const chMat = new THREE.LineBasicMaterial({
-            color: this.GOLD_BRIGHT, transparent: true, opacity: 0.15,
+            color: this.GOLD_BRIGHT, transparent: true, opacity: 0.3,
             blending: THREE.AdditiveBlending,
         });
         const ch1 = new THREE.Line(new THREE.BufferGeometry().setFromPoints([
@@ -505,8 +505,8 @@ class Graph3D {
                 void main() {
                     float intensity = pow(0.55 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.5);
                     float pulse = 1.0 + sin(uTime * 1.5) * 0.15;
-                    vec3 glow = uColor * intensity * pulse * 1.2;
-                    gl_FragColor = vec4(glow, intensity * 0.5);
+                    vec3 glow = uColor * intensity * pulse * 2.0;
+                    gl_FragColor = vec4(glow, intensity * 0.7);
                 }
             `,
             transparent: true,
