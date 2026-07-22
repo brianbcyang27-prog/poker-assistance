@@ -15,6 +15,8 @@ let _eventCount = 0;
 
 /* ---- Golden Neural Core lifecycle ---- */
 
+let chatBg = null;
+
 function ensureGoldenCore() {
     if (goldenCore) return goldenCore;
 
@@ -314,6 +316,7 @@ async function switchWorkspace(workspace) {
             if (coreCanvas) coreCanvas.style.display = 'block';
             if (chatContainer) chatContainer.style.display = 'none';
             if (responseDisplay) responseDisplay.style.display = 'none';
+            if (chatBg) { chatBg.stop(); chatBg = null; }
             ensureGoldenCore()?.start();
             break;
 
@@ -322,6 +325,10 @@ async function switchWorkspace(workspace) {
             if (chatContainer) chatContainer.style.display = 'flex';
             if (responseDisplay) responseDisplay.style.display = 'none';
             currentChatMode = 'chat';
+            if (!chatBg && window.ChatBackground) {
+                chatBg = new ChatBackground(document.getElementById('chat-core-bg'));
+                chatBg.start();
+            }
             await loadChatHistory();
             break;
 

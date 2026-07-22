@@ -460,6 +460,18 @@ body {
     display: flex;
     flex-direction: row;
     background: var(--bg-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+#chat-core-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
 }
 
 #chat-sidebar {
@@ -469,6 +481,8 @@ body {
     flex-direction: column;
     background: var(--bg-panel);
     flex-shrink: 0;
+    position: relative;
+    z-index: 1;
 }
 
 #chat-sidebar-header {
@@ -547,6 +561,8 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
 #chat-messages {
