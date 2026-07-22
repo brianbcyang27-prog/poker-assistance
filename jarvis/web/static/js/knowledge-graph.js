@@ -103,7 +103,7 @@ class KnowledgeGraphViz {
 
     async _loadData() {
         try {
-            const res = await fetch('/api/memory/graph?limit=300');
+            const res = await fetch('/api/system/graph/data?limit=300');
             const data = await res.json();
             this.nodes = (data.nodes || []).map((n, i) => ({
                 ...n,

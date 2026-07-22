@@ -122,8 +122,14 @@ class LivingInterface {
             }
         };
 
+        this._wsReconnects = this._wsReconnects || 0;
         this._ws.onclose = () => {
-            console.log('[JARVIS] WebSocket closed, reconnecting in 3s...');
+            this._wsReconnects++;
+            if (this._wsReconnects > 20) {
+                console.log('[JARVIS] WebSocket gave up reconnecting after 20 attempts');
+                return;
+            }
+            console.log(`[JARVIS] WebSocket closed, reconnecting in 3s... (${this._wsReconnects}/20)`);
             this._reconnectTimer = setTimeout(() => this.connectEvents(wsUrl), 3000);
         };
 

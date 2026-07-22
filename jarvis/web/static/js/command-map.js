@@ -219,8 +219,11 @@ class CommandMap {
             this.hierarchy = await res.json();
             this.renderHierarchy();
         } catch (e) {
-            console.log('Waiting for hierarchy data...');
-            setTimeout(() => this.fetchHierarchy(), 2000);
+            this._hierarchyRetries = (this._hierarchyRetries || 0) + 1;
+            if (this._hierarchyRetries < 10) {
+                console.log(`Waiting for hierarchy data... (${this._hierarchyRetries}/10)`);
+                setTimeout(() => this.fetchHierarchy(), 2000);
+            }
         }
     }
     

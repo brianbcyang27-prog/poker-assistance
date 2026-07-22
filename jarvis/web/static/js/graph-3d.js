@@ -359,8 +359,8 @@ class Graph3D {
     _updatePulse(dt) {
         if (!this.pulsePool || !Array.isArray(this.pulsePool)) return;
 
-        // Spawn new pulses to match target count
-        while (this.activePulseCount < this.targetMaxPulses) {
+        // Spawn new pulses to match target count (use if, not while — _spawnPulse returns early when edgeCount===0)
+        if (this.activePulseCount < this.targetMaxPulses) {
             this._spawnPulse();
         }
 
@@ -525,7 +525,7 @@ class Graph3D {
 
     async loadData() {
         try {
-            const res = await fetch('/api/memory/graph?limit=300');
+            const res = await fetch('/api/system/graph/data?limit=300');
             const data = await res.json();
             if (data.nodes && data.nodes.length > 10) {
                 this._mapGraphToNodes(data.nodes, data.edges || []);

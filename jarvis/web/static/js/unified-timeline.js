@@ -556,7 +556,10 @@ class UnifiedTimeline {
             }
         };
 
+        this._wsReconnects = this._wsReconnects || 0;
         this._ws.onclose = () => {
+            this._wsReconnects++;
+            if (this._wsReconnects > 20) return;
             this._reconnectTimer = setTimeout(() => this.connect(wsUrl), 3000);
         };
 

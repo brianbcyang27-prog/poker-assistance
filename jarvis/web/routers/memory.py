@@ -58,6 +58,18 @@ class ConsolidateRequest(BaseModel):
     force: bool = False
 
 
+# ── Root ─────────────────────────────────────────────────────
+
+@router.get("")
+async def root_memories(limit: int = 200):
+    from ...brain.memory.episodic import get_episodic_memory
+    em = get_episodic_memory()
+    episodes = await em.get_recent(limit=limit)
+    return [{"id": ep.id, "title": ep.title, "summary": ep.summary,
+             "source": ep.episode_type, "importance": ep.importance_score / 100.0,
+             "created_at": ep.created_at} for ep in episodes]
+
+
 # ── Working Memory ───────────────────────────────────────────
 
 @router.get("/working")
