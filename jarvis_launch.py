@@ -8,13 +8,23 @@ import urllib.request
 
 
 def test_nvidia_key(key: str) -> bool:
-    """Test if an NVIDIA API key is valid."""
+    """Test if an NVIDIA API key works for chat completions."""
     try:
+        import json
+        data = json.dumps({
+            "model": "meta/llama-3.1-8b-instruct",
+            "messages": [{"role": "user", "content": "hi"}],
+            "max_tokens": 5
+        }).encode()
         req = urllib.request.Request(
-            "https://integrate.api.nvidia.com/v1/models",
-            headers={"Authorization": f"Bearer {key}"}
+            "https://integrate.api.nvidia.com/v1/chat/completions",
+            data=data,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json"
+            }
         )
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             return resp.status == 200
     except Exception:
         return False

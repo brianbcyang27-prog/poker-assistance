@@ -142,9 +142,14 @@ async def chat_stream(message: str, session_id: Optional[str] = None):
         # Use the async streaming LLM if available
         if llm and hasattr(llm, 'achat_stream'):
             full_response: list[str] = []
-            async for token in llm.achat_stream(message):
-                full_response.append(token)
-                yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+            try:
+                async for token in llm.achat_stream(message):
+                    full_response.append(token)
+                    yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+            except Exception as e:
+                error_msg = f"LLM error: {str(e)[:100]}"
+                yield f"data: {json.dumps({'type': 'token', 'content': error_msg})}\n\n"
+                full_response = [error_msg]
 
             response = "".join(full_response)
 
