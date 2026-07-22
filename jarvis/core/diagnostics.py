@@ -61,11 +61,7 @@ async def _check_port() -> DiagnosticResult:
         sock.settimeout(2)
         result = sock.connect_ex(("127.0.0.1", config.port))
         if result == 0:
-            # Port is in use — might be a zombie process
-            recovered = await _kill_zombie_on_port(config.port)
-            if recovered:
-                return DiagnosticResult("port", True, f"Port {config.port} was held by zombie — killed", recovered=True)
-            return DiagnosticResult("port", False, f"Port {config.port} is already in use")
+            return DiagnosticResult("port", True, f"Port {config.port} is serving (this server)")
         return DiagnosticResult("port", True, f"Port {config.port} is available")
     finally:
         sock.close()
