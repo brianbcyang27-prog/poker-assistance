@@ -76,6 +76,229 @@ async def get_voice_models():
     }
 
 
+# === Provider Management Endpoints ===
+
+# Known TTS providers and their install commands
+KNOWN_PROVIDERS = {
+    "macos": {
+        "name": "macOS",
+        "description": "Built-in macOS speech synthesis",
+        "install_command": None,  # Always available on macOS
+        "uninstall_command": None,
+        "check_command": "which say",
+        "category": "built-in",
+    },
+    "kokoro": {
+        "name": "Kokoro",
+        "description": "Local neural TTS (fast, high quality)",
+        "install_command": "pip3 install kokoro misaki[en]",
+        "uninstall_command": "pip3 uninstall -y kokoro misaki",
+        "check_command": "python3 -c \"import kokoro\"",
+        "category": "local",
+        "requirements": "espeak-ng (brew install espeak-ng), numpy==1.26.4",
+    },
+    "openai": {
+        "name": "OpenAI",
+        "description": "Cloud TTS API (requires API key)",
+        "install_command": "pip3 install openai",
+        "uninstall_command": "pip3 uninstall -y openai",
+        "check_command": "python3 -c \"import openai\"",
+        "category": "cloud",
+        "requires_api_key": True,
+    },
+    "coqui": {
+        "name": "Coqui XTTS",
+        "description": "Voice cloning with XTTS v2 (heavy, GPU recommended)",
+        "install_command": "pip3 install TTS",
+        "uninstall_command": "pip3 uninstall -y TTS",
+        "check_command": "python3 -c \"import TTS\"",
+        "category": "local",
+        "requirements": "Large download (~2GB), GPU recommended",
+    },
+}
+
+
+@router.get("/providers")
+async def list_providers():
+    """List all TTS providers with their status."""
+    import subprocess
+    
+    providers = []
+    config = get_config()
+    
+    for provider_id, info in KNOWN_PROVIDERS.items():
+        # Check if installed
+        installed = False
+        version = ""
+        if info["check_command"]:
+            try:
+                result = subprocess.run(
+                    info["check_command"],
+                    shell=True,
+                    capture_output=True,
+                    timeout=10,
+                )
+                installed = result.returncode == 0
+            except Exception:
+                installed = False
+        
+        # Check if enabled in config
+        enabled = False
+        if provider_id == config.tts_provider:
+            enabled = True
+        elif provider_id in voice_engine.providers:
+            enabled = True
+        
+        providers.append({
+            "id": provider_id,
+            "name": info["name"],
+            "description": info["description"],
+            "installed": installed,
+            "enabled": enabled,
+            "category": info["category"],
+            "requirements": info.get("requirements", ""),
+            "requires_api_key": info.get("requires_api_key", False),
+            "has_api_key": bool(config.openai_api_key) if provider_id == "openai" else None,
+        })
+    
+    return {"providers": providers}
+
+
+@router.post("/providers/{provider_id}/install")
+async def install_provider(provider_id: str):
+    """Install a TTS provider."""
+    import asyncio
+    
+    if provider_id not in KNOWN_PROVIDERS:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+    
+    info = KNOWN_PROVIDERS[provider_id]
+    if not info["install_command"]:
+        return {"status": "already_installed", "message": f"{info['name']} is built-in"}
+    
+    try:
+        # Run install command
+        proc = await asyncio.create_subprocess_shell(
+            info["install_command"],
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+        
+        if proc.returncode != 0:
+            error_msg = stderr.decode("utf-8", errors="replace")[-500:]
+            raise HTTPException(
+                status_code=500,
+                detail=f"Installation failed: {error_msg}"
+            )
+        
+        return {
+            "status": "installed",
+            "message": f"{info['name']} installed successfully",
+        }
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Installation timed out")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Installation failed: {str(e)}")
+
+
+@router.post("/providers/{provider_id}/uninstall")
+async def uninstall_provider(provider_id: str):
+    """Uninstall a TTS provider."""
+    import asyncio
+    
+    if provider_id not in KNOWN_PROVIDERS:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+    
+    info = KNOWN_PROVIDERS[provider_id]
+    if not info["uninstall_command"]:
+        return {"status": "cannot_uninstall", "message": f"{info['name']} is built-in"}
+    
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            info["uninstall_command"],
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        
+        return {
+            "status": "uninstalled",
+            "message": f"{info['name']} uninstalled",
+        }
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Uninstall timed out")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Uninstall failed: {str(e)}")
+
+
+@router.post("/providers/{provider_id}/enable")
+async def enable_provider(provider_id: str):
+    """Enable a TTS provider as the active one."""
+    if provider_id not in KNOWN_PROVIDERS:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found")
+    
+    config = get_config()
+    config.tts_provider = provider_id
+    
+    # Save to env
+    _save_tts_provider_to_env(provider_id)
+    
+    return {
+        "status": "enabled",
+        "provider": provider_id,
+        "message": f"{KNOWN_PROVIDERS[provider_id]['name']} is now the active TTS provider",
+    }
+
+
+@router.post("/providers/{provider_id}/disable")
+async def disable_provider(provider_id: str):
+    """Disable a TTS provider."""
+    config = get_config()
+    
+    # Can't disable the current active provider
+    if config.tts_provider == provider_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot disable the active provider. Switch to another provider first."
+        )
+    
+    # Remove from voice_engine if loaded
+    if provider_id in voice_engine.providers:
+        del voice_engine.providers[provider_id]
+    
+    return {
+        "status": "disabled",
+        "provider": provider_id,
+        "message": f"{KNOWN_PROVIDERS.get(provider_id, {}).get('name', provider_id)} disabled",
+    }
+
+
+def _save_tts_provider_to_env(provider_id: str):
+    """Save TTS provider to .env file."""
+    config = get_config()
+    env_path = config.model_config.get("env_file", ".env")
+    
+    existing = {}
+    try:
+        with open(env_path, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    k, v = line.split("=", 1)
+                    existing[k.strip()] = v.strip()
+    except FileNotFoundError:
+        pass
+    
+    existing["TTS_PROVIDER"] = provider_id
+    
+    with open(env_path, "w") as f:
+        for key, value in existing.items():
+            f.write(f"{key}={value}\n")
+
+
 @router.get("/audio/{filename}")
 async def serve_audio(filename: str):
     """Serve generated audio files."""

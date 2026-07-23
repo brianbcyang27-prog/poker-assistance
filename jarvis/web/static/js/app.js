@@ -40,9 +40,10 @@ function ensureGoldenCore() {
 
 function toggleSettings() {
     document.getElementById('settings-overlay').classList.toggle('hidden');
-    // Load voice clone status when settings are opened
+    // Load voice clone status and providers when settings are opened
     if (!document.getElementById('settings-overlay').classList.contains('hidden')) {
         loadVoiceCloneStatus();
+        loadProviders();
     }
 }
 
@@ -83,6 +84,148 @@ async function loadVoiceModels() {
         prov.value = cur;
         updateVoiceList(data.voices, cur);
     } catch (_) {}
+}
+
+/* ---- Provider Management ---- */
+
+async function loadProviders() {
+    const container = document.getElementById('providers-list');
+    if (!container) return;
+    
+    try {
+        const res = await fetch('/api/voice/providers');
+        const data = await res.json();
+        
+        container.innerHTML = data.providers.map(p => `
+            <div class="provider-card ${p.enabled ? 'provider-active' : ''}" data-provider="${p.id}">
+                <div class="provider-header">
+                    <div class="provider-info">
+                        <span class="provider-name">${p.name}</span>
+                        <span class="provider-category">${p.category}</span>
+                    </div>
+                    <div class="provider-status">
+                        ${p.enabled ? '<span class="status-badge active">Active</span>' : ''}
+                        ${p.installed ? '<span class="status-badge installed">Installed</span>' : '<span class="status-badge not-installed">Not Installed</span>'}
+                    </div>
+                </div>
+                <div class="provider-desc">${p.description}</div>
+                ${p.requirements ? `<div class="provider-reqs">Requires: ${p.requirements}</div>` : ''}
+                ${p.requires_api_key ? `<div class="provider-api-key">${p.has_api_key ? 'API key configured' : 'API key required'}</div>` : ''}
+                <div class="provider-actions">
+                    ${!p.installed ? `
+                        <button class="btn-action btn-sm" onclick="installProvider('${p.id}')">
+                            Install
+                        </button>
+                    ` : `
+                        ${!p.enabled ? `
+                            <button class="btn-action btn-sm" onclick="enableProvider('${p.id}')">
+                                Enable
+                            </button>
+                            <button class="btn-action btn-sm btn-danger" onclick="uninstallProvider('${p.id}')">
+                                Uninstall
+                            </button>
+                        ` : `
+                            <span class="provider-active-label">Currently Active</span>
+                        `}
+                    `}
+                </div>
+            </div>
+        `).join('');
+    } catch (_) {
+        container.innerHTML = '<p class="empty-state">Failed to load providers</p>';
+    }
+}
+
+async function installProvider(providerId) {
+    const card = document.querySelector(`[data-provider="${providerId}"]`);
+    if (card) {
+        const btn = card.querySelector('.btn-action');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Installing...';
+        }
+    }
+    
+    try {
+        const res = await fetch(`/api/voice/providers/${providerId}/install`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (res.ok) {
+            await loadProviders();
+            await loadVoiceModels();
+        } else {
+            alert(data.detail || 'Installation failed');
+            if (card) {
+                const btn = card.querySelector('.btn-action');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Install';
+                }
+            }
+        }
+    } catch (_) {
+        alert('Installation failed');
+        if (card) {
+            const btn = card.querySelector('.btn-action');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Install';
+            }
+        }
+    }
+}
+
+async function uninstallProvider(providerId) {
+    if (!confirm(`Are you sure you want to uninstall ${providerId}?`)) return;
+    
+    try {
+        const res = await fetch(`/api/voice/providers/${providerId}/uninstall`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (res.ok) {
+            await loadProviders();
+            await loadVoiceModels();
+        } else {
+            alert(data.detail || 'Uninstall failed');
+        }
+    } catch (_) {
+        alert('Uninstall failed');
+    }
+}
+
+async function enableProvider(providerId) {
+    try {
+        const res = await fetch(`/api/voice/providers/${providerId}/enable`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (res.ok) {
+            // Update the TTS provider select
+            const provSelect = document.getElementById('tts-provider');
+            if (provSelect) provSelect.value = providerId;
+            
+            await loadProviders();
+            await loadVoiceModels();
+        } else {
+            alert(data.detail || 'Failed to enable provider');
+        }
+    } catch (_) {
+        alert('Failed to enable provider');
+    }
+}
+
+async function disableProvider(providerId) {
+    try {
+        const res = await fetch(`/api/voice/providers/${providerId}/disable`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (res.ok) {
+            await loadProviders();
+        } else {
+            alert(data.detail || 'Failed to disable provider');
+        }
+    } catch (_) {
+        alert('Failed to disable provider');
+    }
 }
 
 async function loadPermissions() {

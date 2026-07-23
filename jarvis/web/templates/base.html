@@ -566,7 +566,7 @@
                         <div class="setting-row">
                             <div class="setting-info">
                                 <div class="setting-name">TTS Provider</div>
-                                <div class="setting-desc">macOS / Kokoro (local) / OpenAI</div>
+                                <div class="setting-desc">Active voice synthesis provider</div>
                             </div>
                             <div class="setting-control">
                                 <select name="tts_provider" id="tts-provider">
@@ -585,6 +585,16 @@
                                 </select>
                             </div>
                         </div>
+
+                        <!-- Provider Management -->
+                        <div class="provider-management">
+                            <h4>Provider Management</h4>
+                            <p class="setting-desc">Install, enable, or remove TTS providers</p>
+                            <div id="providers-list" class="providers-list">
+                                <div class="providers-loading">Loading providers...</div>
+                            </div>
+                        </div>
+
                         <div class="setting-row">
                             <div class="setting-info">
                                 <div class="setting-name">OpenAI API Key</div>
