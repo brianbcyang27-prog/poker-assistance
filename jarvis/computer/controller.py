@@ -32,8 +32,10 @@ class ComputerController:
             "browser_screenshot", "browser_get_text", "browser_scroll",
             "browser_press_key", "browser_evaluate",
             "screen_capture", "screen_capture_region", "screen_get_active_window",
+            "screen_list_windows",
             "mouse_move", "mouse_click", "mouse_drag", "mouse_scroll",
             "keyboard_type", "keyboard_press", "keyboard_hotkey",
+            "list_files", "read_file", "write_file", "create_file", "file_exists",
             "shell_execute", "web_search", "web_fetch",
             "arduino_send", "arduino_list",
         ]
@@ -92,6 +94,13 @@ class ComputerController:
             # App
             "open_app": self._open_app,
             "open_url": self._open_url,
+
+            # Files
+            "list_files": self._list_files,
+            "read_file": self._read_file,
+            "write_file": self._write_file,
+            "create_file": self._create_file,
+            "file_exists": self._file_exists,
 
             # Shell
             "shell_execute": self._shell_execute,
@@ -304,6 +313,67 @@ class ComputerController:
 
     async def _open_url(self, url: str = "", **kw):
         return await self.screen.open_url(url)
+
+    # ── File Operations ───────────────────────────────────────────
+
+    async def _list_files(self, path: str = ".", **kw):
+        """List files in a directory."""
+        from pathlib import Path
+        try:
+            p = Path(path).expanduser()
+            if not p.exists():
+                return {"ok": False, "error": f"Path not found: {path}"}
+            if not p.is_dir():
+                return {"ok": False, "error": f"Not a directory: {path}"}
+            items = []
+            for item in sorted(p.iterdir()):
+                items.append({
+                    "name": item.name,
+                    "type": "directory" if item.is_dir() else "file",
+                    "path": str(item),
+                    "size": item.stat().st_size if item.is_file() else 0,
+                })
+            return {"ok": True, "files": items, "count": len(items)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    async def _read_file(self, path: str = "", max_size: int = 100000, **kw):
+        """Read a file's contents."""
+        from pathlib import Path
+        try:
+            p = Path(path).expanduser()
+            if not p.exists():
+                return {"ok": False, "error": f"File not found: {path}"}
+            if not p.is_file():
+                return {"ok": False, "error": f"Not a file: {path}"}
+            content = p.read_text(encoding="utf-8", errors="replace")[:max_size]
+            return {"ok": True, "content": content, "size": p.stat().st_size}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    async def _write_file(self, path: str = "", content: str = "", **kw):
+        """Write content to a file."""
+        from pathlib import Path
+        try:
+            p = Path(path).expanduser()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+            return {"ok": True, "path": str(p), "size": len(content)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+    async def _create_file(self, path: str = "", content: str = "", **kw):
+        """Create a new file (alias for write_file)."""
+        return await self._write_file(path=path, content=content, **kw)
+
+    async def _file_exists(self, path: str = "", **kw):
+        """Check if a file exists."""
+        from pathlib import Path
+        try:
+            p = Path(path).expanduser()
+            return {"ok": True, "exists": p.exists(), "path": str(p)}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
 
     # ── Shell ──────────────────────────────────────────────────────
 

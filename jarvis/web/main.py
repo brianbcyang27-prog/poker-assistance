@@ -163,6 +163,11 @@ async def lifespan(app: FastAPI):
             ("screen_capture", "♣K", "Capture the screen", ["screen"], "computer"),
             ("screen_get_active_window", "♣K", "Get active window", ["screen"], "computer"),
             ("shell_execute", "♣K", "Execute shell command", ["system"], "computer"),
+            # File Operations
+            ("list_files", "♣K", "List files in a directory", ["files"], "computer"),
+            ("read_file", "♣K", "Read file contents", ["files"], "computer"),
+            ("write_file", "♣K", "Write content to a file", ["files"], "computer"),
+            ("create_file", "♣K", "Create a new file", ["files"], "computer"),
             # Projects
             ("resume_project", "♣K", "Resume a project", ["project"], "tool"),
             ("register_project", "♣K", "Register a project", ["project"], "tool"),

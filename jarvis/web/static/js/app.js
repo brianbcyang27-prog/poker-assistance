@@ -722,7 +722,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Wire up workspace navigation
     document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchWorkspace(btn.dataset.workspace));
+        btn.addEventListener('click', () => {
+            if (btn.dataset.workspace) switchWorkspace(btn.dataset.workspace);
+        });
     });
 
     // Load settings and apply modes

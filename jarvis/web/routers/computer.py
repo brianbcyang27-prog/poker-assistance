@@ -22,15 +22,20 @@ async def execute_action(request: Request, req: ActionRequest):
     # Map actions to required permissions
     action_permissions = {
         "screen_capture": ["screen"],
+        "screen_capture_region": ["screen"],
         "screen_get_active_window": ["screen"],
+        "screen_list_windows": ["screen"],
         "shell_execute": ["terminal"],
         "browser_navigate": ["browser"],
         "browser_screenshot": ["browser"],
         "browser_click": ["browser"],
         "browser_type": ["browser"],
+        "browser_get_text": ["browser"],
+        "browser_scroll": ["browser"],
         "list_files": ["files"],
         "read_file": ["files"],
         "write_file": ["files"],
+        "create_file": ["files"],
     }
     
     # Check permissions
@@ -68,6 +73,12 @@ async def list_actions():
         {"name": "type_text", "params": ["text"], "description": "Type text via keyboard"},
         {"name": "hotkey", "params": ["keys"], "description": "Press keyboard shortcut"},
         {"name": "press_key", "params": ["key"], "description": "Press a single key"},
+        {"name": "list_files", "params": ["path"], "description": "List files in a directory"},
+        {"name": "read_file", "params": ["path"], "description": "Read file contents"},
+        {"name": "write_file", "params": ["path", "content"], "description": "Write content to a file"},
+        {"name": "create_file", "params": ["path", "content"], "description": "Create a new file"},
+        {"name": "file_exists", "params": ["path"], "description": "Check if file exists"},
+        {"name": "shell_execute", "params": ["command"], "description": "Execute shell command"},
     ]}
 
 
