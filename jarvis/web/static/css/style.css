@@ -1585,3 +1585,38 @@ body.system-error {
     #dashboard { grid-template-columns: 1fr; }
     #chat-sidebar { display: none; }
 }
+
+/* ============================================
+   VOICE CLONING
+   ============================================ */
+#clone-profiles-list .setting-row {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    margin-top: var(--space-2);
+}
+
+#clone-voice-name {
+    flex: 1;
+    min-width: 120px;
+}
+
+#clone-voice-file {
+    flex: 1;
+}
+
+.btn-small {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--text-xs);
+}
+
+.btn-danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.3);
+}

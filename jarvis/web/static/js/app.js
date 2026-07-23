@@ -40,6 +40,10 @@ function ensureGoldenCore() {
 
 function toggleSettings() {
     document.getElementById('settings-overlay').classList.toggle('hidden');
+    // Load voice clone status when settings are opened
+    if (!document.getElementById('settings-overlay').classList.contains('hidden')) {
+        loadVoiceCloneStatus();
+    }
 }
 
 async function loadSettings() {
@@ -929,5 +933,132 @@ async function loadLogs() {
         `).join('');
     } catch (e) {
         container.innerHTML = '<p class="empty-state">Failed to load logs</p>';
+    }
+}
+
+/* ---- Voice Cloning ---- */
+
+async function loadVoiceCloneStatus() {
+    const statusEl = document.getElementById('clone-status-text');
+    const profilesListEl = document.getElementById('clone-profiles-list');
+    
+    try {
+        const res = await fetch('/api/voice/clone/status');
+        const data = await res.json();
+        
+        if (statusEl) {
+            if (data.available) {
+                statusEl.textContent = `Ready (${data.profiles_count} profiles)`;
+                statusEl.style.color = '#4ade80';
+            } else {
+                statusEl.textContent = data.error || 'Not available';
+                statusEl.style.color = '#f87171';
+            }
+        }
+        
+        // Load profiles
+        const profilesRes = await fetch('/api/voice/clone/profiles');
+        const profilesData = await profilesRes.json();
+        
+        if (profilesListEl && profilesData.profiles) {
+            profilesListEl.innerHTML = profilesData.profiles.map(p => `
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-name">${p.name}</div>
+                        <div class="setting-desc">ID: ${p.profile_id}</div>
+                    </div>
+                    <div class="setting-control">
+                        <button onclick="testCloneVoice('${p.profile_id}')" class="btn-action btn-small">Test</button>
+                        <button onclick="deleteCloneProfile('${p.profile_id}')" class="btn-action btn-small btn-danger">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        if (statusEl) {
+            statusEl.textContent = 'Failed to load status';
+            statusEl.style.color = '#f87171';
+        }
+    }
+}
+
+async function uploadCloneProfile() {
+    const nameInput = document.getElementById('clone-voice-name');
+    const fileInput = document.getElementById('clone-voice-file');
+    
+    if (!nameInput?.value || !fileInput?.files?.length) {
+        alert('Please enter a name and select an audio file');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('name', nameInput.value);
+    formData.append('audio', fileInput.files[0]);
+    
+    try {
+        const res = await fetch('/api/voice/clone/profiles', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            alert(`Voice profile "${data.profile.name}" created!`);
+            nameInput.value = '';
+            fileInput.value = '';
+            loadVoiceCloneStatus();
+        } else {
+            alert(`Error: ${data.detail || 'Failed to create profile'}`);
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
+    }
+}
+
+async function deleteCloneProfile(profileId) {
+    if (!confirm('Delete this voice profile?')) return;
+    
+    try {
+        const res = await fetch(`/api/voice/clone/profiles/${profileId}`, {
+            method: 'DELETE'
+        });
+        
+        if (res.ok) {
+            loadVoiceCloneStatus();
+        } else {
+            alert('Failed to delete profile');
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
+    }
+}
+
+async function testCloneVoice(profileId) {
+    const text = prompt('Enter text to speak with this voice:', 'Hello, this is a test of the voice cloning system.');
+    if (!text) return;
+    
+    try {
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('profile_id', profileId);
+        formData.append('language', 'en');
+        
+        const res = await fetch('/api/voice/clone/generate', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.play();
+        } else {
+            const data = await res.json();
+            alert(`Error: ${data.detail || 'Failed to generate voice'}`);
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
     }
 }

@@ -244,12 +244,48 @@ class VoiceEngine:
         return None
     
     def generate(self, text: str, output_path: str, voice: str = "", provider: str = "") -> Optional[str]:
-        """Generate speech audio file."""
+        """Generate speech audio file.
+        
+        If voice starts with "clone:", it will use the voice cloner with the profile ID.
+        Format: "clone:<profile_id>" or "clone:<profile_id>:<language>"
+        """
+        # Check if this is a cloned voice
+        if voice.startswith("clone:"):
+            return self._generate_cloned(text, output_path, voice)
+        
         tts_provider = self.get_provider(provider)
         if not tts_provider:
             return None
         
         return tts_provider.generate(text, output_path, voice)
+    
+    def _generate_cloned(self, text: str, output_path: str, voice: str) -> Optional[str]:
+        """Generate speech using a cloned voice."""
+        try:
+            from jarvis.voice.voice_clone import voice_cloner
+            
+            # Parse voice string: "clone:<profile_id>" or "clone:<profile_id>:<language>"
+            parts = voice.split(":")
+            if len(parts) < 2:
+                print("[TTS] Invalid clone voice format. Expected: clone:<profile_id>")
+                return None
+            
+            profile_id = parts[1]
+            language = parts[2] if len(parts) > 2 else "en"
+            
+            if not voice_cloner.is_available:
+                print(f"[TTS] Voice cloning not available: {voice_cloner.error}")
+                return None
+            
+            return voice_cloner.clone_voice(
+                text=text,
+                profile_id=profile_id,
+                output_path=output_path,
+                language=language
+            )
+        except Exception as e:
+            print(f"[TTS] Cloned voice generation failed: {e}")
+            return None
     
     def get_all_voices(self) -> dict[str, list[dict]]:
         """Get all available voices from all providers."""

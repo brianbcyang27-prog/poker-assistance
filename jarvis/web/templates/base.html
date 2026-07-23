@@ -450,6 +450,28 @@
                     </div>
 
                     <div class="settings-section">
+                        <h3>Voice Cloning</h3>
+                        <div id="voice-clone-status" class="setting-row">
+                            <div class="setting-info">
+                                <div class="setting-name">Status</div>
+                                <div class="setting-desc" id="clone-status-text">Checking...</div>
+                            </div>
+                        </div>
+                        <div class="setting-row">
+                            <div class="setting-info">
+                                <div class="setting-name">Upload Voice Sample</div>
+                                <div class="setting-desc">6-30 seconds of clear speech</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="text" id="clone-voice-name" placeholder="Profile name">
+                                <input type="file" id="clone-voice-file" accept="audio/*">
+                                <button onclick="uploadCloneProfile()" class="btn-action">Upload</button>
+                            </div>
+                        </div>
+                        <div id="clone-profiles-list"></div>
+                    </div>
+
+                    <div class="settings-section">
                         <h3>Interface</h3>
                         <div class="setting-row">
                             <div class="setting-info">
