@@ -989,3 +989,25 @@ async def graphify_threejs(max_nodes: int = 500):
     from jarvis.brain.graphify_integration import get_graphify
     g = get_graphify()
     return g.to_three_js(max_nodes=max_nodes)
+
+
+class PermissionUpdate(BaseModel):
+    permission: str
+    enabled: bool
+
+
+@router.get("/permissions")
+async def get_permissions():
+    """Get all permissions."""
+    from jarvis.core.permissions import permission_center
+    return {"permissions": permission_center.get_all()}
+
+
+@router.post("/permissions")
+async def update_permission(req: PermissionUpdate):
+    """Update a permission."""
+    from jarvis.core.permissions import permission_center
+    success = permission_center.set(req.permission, req.enabled)
+    if not success:
+        raise HTTPException(status_code=400, detail=f"Unknown permission: {req.permission}")
+    return {"ok": True, "permission": req.permission, "enabled": req.enabled}

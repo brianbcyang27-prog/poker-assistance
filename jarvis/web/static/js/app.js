@@ -1,5 +1,5 @@
 /**
- * JARVIS — Unified Dashboard Application v6.0.0
+ * JARVIS — Unified Dashboard Application v6.5.0
  * LEFT nav (workspace-based) | CENTER core | RIGHT conversations + health | BOTTOM input
  */
 
@@ -54,6 +54,7 @@ async function loadSettings() {
             else el.value = value;
         }
         await loadVoiceModels();
+        await loadPermissions();
     } catch (_) {}
 }
 
@@ -77,6 +78,44 @@ async function loadVoiceModels() {
         const cur = document.querySelector('[name="tts_provider"]')?.value || 'macos';
         prov.value = cur;
         updateVoiceList(data.voices, cur);
+    } catch (_) {}
+}
+
+async function loadPermissions() {
+    const container = document.getElementById('permissions-list');
+    if (!container) return;
+    
+    try {
+        const res = await fetch('/api/system/permissions');
+        const data = await res.json();
+        const permissions = data.permissions || [];
+        
+        container.innerHTML = permissions.map(p => `
+            <div class="permission-row">
+                <div class="permission-info">
+                    <div class="permission-name">${p.name}</div>
+                    <div class="permission-desc">${p.description}</div>
+                    <div class="permission-reason">${p.reason}</div>
+                </div>
+                <label class="permission-toggle">
+                    <input type="checkbox" ${p.enabled ? 'checked' : ''} 
+                           onchange="togglePermission('${p.name}', this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        `).join('');
+    } catch (_) {
+        container.innerHTML = '<p class="empty-state">Failed to load permissions</p>';
+    }
+}
+
+async function togglePermission(name, enabled) {
+    try {
+        await fetch('/api/system/permissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ permission: name, enabled })
+        });
     } catch (_) {}
 }
 
@@ -173,8 +212,13 @@ function sendMessageStreaming() {
     let fullText = '';
     let firstToken = true;
 
-    fetch(`/api/chat/stream?${params}`)
+    // Add timeout to prevent loading forever
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    
+    fetch(`/api/chat/stream?${params}`, { signal: controller.signal })
         .then(response => {
+            clearTimeout(timeout);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -232,12 +276,16 @@ function sendMessageStreaming() {
             read();
         })
         .catch(err => {
+            clearTimeout(timeout);
             setErrorState(true);
-            _addTerminalLine(`ERROR: ${err.message}`, 'error');
+            const errorMsg = err.name === 'AbortError' 
+                ? 'Request timed out. Please try again.'
+                : 'Error: ' + err.message;
+            _addTerminalLine(`ERROR: ${errorMsg}`, 'error');
             if (bubble) {
-                bubble.innerHTML = _md('Error: ' + err.message);
+                bubble.innerHTML = _md(errorMsg);
             } else {
-                addChatMessage('assistant', 'Error: ' + err.message);
+                addChatMessage('assistant', errorMsg);
             }
             if (window.jarvisState) window.jarvisState.set('idle');
             if (window.livingUI) window.livingUI.setState('idle');
@@ -304,11 +352,19 @@ async function switchWorkspace(workspace) {
     const coreCanvas = document.getElementById('golden-core-container');
     const graphContainer = document.getElementById('graph-container');
     const chatContainer = document.getElementById('chat-container');
+    const projectsContainer = document.getElementById('projects-container');
+    const computerContainer = document.getElementById('computer-container');
+    const metricsContainer = document.getElementById('metrics-container');
+    const logsContainer = document.getElementById('logs-container');
     const responseDisplay = document.getElementById('response-display');
     const terminalLog = document.getElementById('terminal-log');
 
     // Hide all workspace-specific panels
     if (graphContainer) graphContainer.style.display = 'none';
+    if (projectsContainer) projectsContainer.style.display = 'none';
+    if (computerContainer) computerContainer.style.display = 'none';
+    if (metricsContainer) metricsContainer.style.display = 'none';
+    if (logsContainer) logsContainer.style.display = 'none';
     if (terminalLog) terminalLog.classList.remove('visible');
 
     switch (workspace) {
@@ -356,6 +412,43 @@ async function switchWorkspace(workspace) {
             if (chatContainer) chatContainer.style.display = 'none';
             if (responseDisplay) responseDisplay.style.display = 'none';
             await showMemoryGalaxy();
+            break;
+
+        case 'projects':
+            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            if (projectsContainer) {
+                projectsContainer.style.display = 'flex';
+                await loadProjects();
+            }
+            break;
+
+        case 'computer':
+            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            if (computerContainer) computerContainer.style.display = 'flex';
+            break;
+
+        case 'metrics':
+            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            if (metricsContainer) {
+                metricsContainer.style.display = 'flex';
+                await loadMetrics();
+            }
+            break;
+
+        case 'logs':
+            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            if (logsContainer) {
+                logsContainer.style.display = 'flex';
+                await loadLogs();
+            }
             break;
 
         case 'settings':
@@ -689,6 +782,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             else if (graphViz && graphViz.visible) graphViz.hide();
         }
     });
+
+    // Developer mode toggle
+    const devToggle = document.getElementById('dev-mode-toggle');
+    if (devToggle) {
+        devToggle.addEventListener('click', () => {
+            const devItems = document.querySelector('.dev-only');
+            const isActive = devToggle.classList.toggle('active');
+            if (devItems) devItems.style.display = isActive ? 'flex' : 'none';
+        });
+    }
 });
 
 function _updateHealthFromStatus(status) {
@@ -703,4 +806,126 @@ function _updateHealthFromStatus(status) {
     }
     const el = document.getElementById('health-agents');
     if (el) el.textContent = `${activeWorkers}/${totalWorkers}`;
+}
+
+/* ---- Computer Actions ---- */
+
+async function computerAction(action, params = {}) {
+    const output = document.getElementById('computer-output');
+    if (output) output.textContent = 'Executing...';
+    
+    try {
+        const res = await fetch('/api/computer/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action, params })
+        });
+        const data = await res.json();
+        if (output) output.textContent = JSON.stringify(data, null, 2);
+        return data;
+    } catch (e) {
+        if (output) output.textContent = 'Error: ' + e.message;
+        return null;
+    }
+}
+
+async function executeTerminal() {
+    const input = document.getElementById('terminal-command');
+    if (!input || !input.value.trim()) return;
+    
+    const command = input.value.trim();
+    input.value = '';
+    
+    await computerAction('shell_execute', { command });
+}
+
+/* ---- Projects ---- */
+
+async function loadProjects() {
+    const container = document.getElementById('projects-list');
+    if (!container) return;
+    
+    try {
+        const res = await fetch('/api/workspace');
+        const data = await res.json();
+        const projects = data.workspaces || [];
+        
+        if (projects.length === 0) {
+            container.innerHTML = '<p class="empty-state">No projects found</p>';
+            return;
+        }
+        
+        container.innerHTML = projects.map(p => `
+            <div class="project-card">
+                <h3>${p.name || 'Untitled'}</h3>
+                <p>${p.description || 'No description'}</p>
+                <span class="project-status">${p.status || 'unknown'}</span>
+            </div>
+        `).join('');
+    } catch (e) {
+        container.innerHTML = '<p class="empty-state">Failed to load projects</p>';
+    }
+}
+
+/* ---- Metrics ---- */
+
+async function loadMetrics() {
+    const container = document.getElementById('metrics-content');
+    if (!container) return;
+    
+    try {
+        const [healthRes, agentsRes] = await Promise.all([
+            fetch('/api/system/health'),
+            fetch('/api/agents')
+        ]);
+        const health = await healthRes.json();
+        const agents = await agentsRes.json();
+        
+        container.innerHTML = `
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h4>System Health</h4>
+                    <p class="metric-value">${health.status || 'unknown'}</p>
+                </div>
+                <div class="metric-card">
+                    <h4>Agents</h4>
+                    <p class="metric-value">${agents.length || 0}</p>
+                </div>
+                <div class="metric-card">
+                    <h4>Uptime</h4>
+                    <p class="metric-value">${health.uptime || '0s'}</p>
+                </div>
+            </div>
+        `;
+    } catch (e) {
+        container.innerHTML = '<p class="empty-state">Failed to load metrics</p>';
+    }
+}
+
+/* ---- Logs ---- */
+
+async function loadLogs() {
+    const container = document.getElementById('logs-content');
+    if (!container) return;
+    
+    try {
+        const res = await fetch('/api/system/events?limit=50');
+        const data = await res.json();
+        const events = data.events || [];
+        
+        if (events.length === 0) {
+            container.innerHTML = '<p class="empty-state">No events recorded</p>';
+            return;
+        }
+        
+        container.innerHTML = events.map(e => `
+            <div class="log-entry">
+                <span class="log-time">${e.timestamp || ''}</span>
+                <span class="log-type">${e.event_type || ''}</span>
+                <span class="log-message">${e.label || e.message || ''}</span>
+            </div>
+        `).join('');
+    } catch (e) {
+        container.innerHTML = '<p class="empty-state">Failed to load logs</p>';
+    }
 }

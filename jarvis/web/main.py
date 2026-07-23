@@ -151,22 +151,26 @@ async def lifespan(app: FastAPI):
     try:
         from jarvis.core.capabilities import registry, Capability, CapType
         tool_caps = [
-            ("browser_navigate", "♣K", "Navigate to a URL", ["web"]),
-            ("browser_screenshot", "♣K", "Screenshot current page", ["web"]),
-            ("browser_click", "♣K", "Click an element", ["web"]),
-            ("browser_type", "♣K", "Type into an input", ["web"]),
-            ("web_search", "♦K", "Search the web", ["web"]),
-            ("web_fetch", "♦K", "Fetch and extract text", ["web"]),
-            ("screen_capture", "♣K", "Capture the screen", ["screen"]),
-            ("screen_get_active_window", "♣K", "Get active window", ["screen"]),
-            ("shell_execute", "♣K", "Execute shell command", ["system"]),
-            ("resume_project", "♣K", "Resume a project", ["project"]),
-            ("register_project", "♣K", "Register a project", ["project"]),
+            # Browser Control
+            ("browser_navigate", "♣K", "Navigate to a URL", ["web"], "browser"),
+            ("browser_screenshot", "♣K", "Screenshot current page", ["web"], "browser"),
+            ("browser_click", "♣K", "Click an element", ["web"], "browser"),
+            ("browser_type", "♣K", "Type into an input", ["web"], "browser"),
+            # Web Research
+            ("web_search", "♦K", "Search the web", ["web"], "tool"),
+            ("web_fetch", "♦K", "Fetch and extract text", ["web"], "tool"),
+            # Computer Control
+            ("screen_capture", "♣K", "Capture the screen", ["screen"], "computer"),
+            ("screen_get_active_window", "♣K", "Get active window", ["screen"], "computer"),
+            ("shell_execute", "♣K", "Execute shell command", ["system"], "computer"),
+            # Projects
+            ("resume_project", "♣K", "Resume a project", ["project"], "tool"),
+            ("register_project", "♣K", "Register a project", ["project"], "tool"),
         ]
-        for name, owner, desc, tags in tool_caps:
+        for name, owner, desc, tags, category in tool_caps:
             await registry.register(Capability(
                 name=name, owner=owner, type=CapType.TOOL,
-                description=desc, tags=tags,
+                description=desc, tags=tags, category=category,
             ))
         for king in jarvis.get_all_kings():
             for worker in king.get_all_workers():
@@ -176,7 +180,22 @@ async def lifespan(app: FastAPI):
                     type=CapType.WORKER,
                     description=worker.name,
                     tags=[king.suit.value] if king.suit else [],
+                    category="engineering",
                 ))
+        
+        # Memory capabilities
+        memory_caps = [
+            ("memory_episodes", "♥K", "Store and retrieve episodic memories", ["memory"], "memory"),
+            ("memory_personal", "♥K", "Store and retrieve personal preferences", ["memory"], "memory"),
+            ("memory_journal", "♥K", "Store and retrieve journal entries", ["memory"], "memory"),
+            ("memory_working", "♥K", "Working memory for current context", ["memory"], "memory"),
+            ("memory_graph", "♥K", "Search knowledge graph", ["memory"], "memory"),
+        ]
+        for name, owner, desc, tags, category in memory_caps:
+            await registry.register(Capability(
+                name=name, owner=owner, type=CapType.MEMORY,
+                description=desc, tags=tags, category=category,
+            ))
     except Exception as e:
         import logging
         logging.getLogger("jarvis.startup").debug(f"Capability registration skipped: {e}")

@@ -225,6 +225,49 @@ class CapabilityRegistry:
             ),
         }
 
+    async def generate_capability_prompt(self) -> str:
+        """Generate a system prompt section describing available capabilities.
+        
+        This is injected into chat requests so the LLM knows what tools it has.
+        """
+        caps = [c for c in self._caps.values() if c.enabled]
+        if not caps:
+            return ""
+        
+        # Group by category
+        categories = {}
+        for cap in caps:
+            cat = cap.category or cap.type.value
+            categories.setdefault(cat, []).append(cap)
+        
+        lines = [
+            "## Available Capabilities",
+            "You are JARVIS, an AI assistant with the following capabilities:",
+            ""
+        ]
+        
+        category_labels = {
+            "computer": "Computer Control",
+            "browser": "Browser Control", 
+            "memory": "Memory System",
+            "engineering": "Engineering Tools",
+            "tool": "General Tools",
+            "worker": "Agent Workers",
+            "action": "System Actions",
+            "skill": "Learned Skills",
+        }
+        
+        for cat, cat_caps in categories.items():
+            label = category_labels.get(cat, cat.title())
+            lines.append(f"### {label}")
+            for cap in cat_caps:
+                lines.append(f"- **{cap.name}**: {cap.description}")
+            lines.append("")
+        
+        lines.append("Use these capabilities to help the user. Always check what tools are available before saying you cannot do something.")
+        
+        return "\n".join(lines)
+
 
 # Module-level singleton
 registry = CapabilityRegistry()

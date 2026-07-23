@@ -273,3 +273,10 @@ async def score_importance(body: dict):
     )
     signals = importance_scorer.extract_signals(body.get("content", ""))
     return {"score": score, "signals": signals}
+
+
+@router.get("/health")
+async def memory_health():
+    """Check memory system health."""
+    from jarvis.core.memory_validation import memory_validator
+    return await memory_validator.validate_memory_health()

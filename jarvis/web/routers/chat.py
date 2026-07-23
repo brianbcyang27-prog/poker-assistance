@@ -139,11 +139,18 @@ async def chat_stream(message: str, session_id: Optional[str] = None):
         if llm:
             await llm.load_session_context(sid)
 
+        # Generate capability-aware system prompt
+        from jarvis.core.capabilities import registry
+        capability_prompt = await registry.generate_capability_prompt()
+        
+        # Build system prompt with capabilities
+        system_prompt = capability_prompt if capability_prompt else None
+
         # Use the async streaming LLM if available
         if llm and hasattr(llm, 'achat_stream'):
             full_response: list[str] = []
             try:
-                async for token in llm.achat_stream(message):
+                async for token in llm.achat_stream(message, system_prompt=system_prompt):
                     full_response.append(token)
                     yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
             except Exception as e:

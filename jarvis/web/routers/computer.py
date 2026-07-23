@@ -15,7 +15,34 @@ class ActionRequest(BaseModel):
 @router.post("/action")
 @rate_limit(max_requests=5, window_seconds=30)
 async def execute_action(request: Request, req: ActionRequest):
+    """Execute a computer action with permission check."""
     from jarvis.computer.controller import controller
+    from jarvis.core.permissions import permission_center
+    
+    # Map actions to required permissions
+    action_permissions = {
+        "screen_capture": ["screen"],
+        "screen_get_active_window": ["screen"],
+        "shell_execute": ["terminal"],
+        "browser_navigate": ["browser"],
+        "browser_screenshot": ["browser"],
+        "browser_click": ["browser"],
+        "browser_type": ["browser"],
+        "list_files": ["files"],
+        "read_file": ["files"],
+        "write_file": ["files"],
+    }
+    
+    # Check permissions
+    required = action_permissions.get(req.action, [])
+    if required:
+        all_granted, missing = permission_center.check_required(required)
+        if not all_granted:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Permission denied: {', '.join(missing)} required for {req.action}"
+            )
+    
     result = await controller.execute(req.action, **req.params)
     if not result.get("ok"):
         raise HTTPException(status_code=400, detail=result.get("error", "Action failed"))
@@ -49,3 +76,28 @@ async def shutdown():
     from jarvis.computer.controller import controller
     await controller.shutdown()
     return {"ok": True}
+
+
+class WorkflowRequest(BaseModel):
+    workflow: str
+    params: Optional[dict] = {}
+
+
+@router.post("/workflow")
+@rate_limit(max_requests=3, window_seconds=60)
+async def execute_workflow(request: Request, req: WorkflowRequest):
+    """Execute a predefined workflow."""
+    from jarvis.core.workflows import workflows
+    
+    if req.workflow not in workflows.list_workflows():
+        raise HTTPException(status_code=400, detail=f"Unknown workflow: {req.workflow}")
+    
+    result = await workflows.execute(req.workflow, **req.params)
+    return result.to_dict()
+
+
+@router.get("/workflows")
+async def list_workflows():
+    """List available workflows."""
+    from jarvis.core.workflows import workflows
+    return {"workflows": workflows.list_workflows()}
