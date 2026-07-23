@@ -58,6 +58,12 @@
                         </svg>
                         <span>Memory</span>
                     </button>
+                    <button class="nav-btn" data-workspace="voice" title="Voice">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                        <span>Voice</span>
+                    </button>
                 </div>
 
                 <!-- Developer Mode Toggle -->
@@ -198,6 +204,156 @@
 
                     <!-- WORKSPACE: Memory (Memory Galaxy) -->
                     <div id="memory-container" class="workspace-view" style="display:none;"></div>
+
+                    <!-- WORKSPACE: Voice (Voice Cloning & TTS) -->
+                    <div id="voice-container" class="workspace-view" style="display:none;">
+                        <div class="voice-workspace">
+                            <!-- Voice Profiles Section -->
+                            <div class="voice-section">
+                                <h3>Voice Profiles</h3>
+                                <p class="section-desc">Upload or record audio to create voice profiles for cloning</p>
+                                
+                                <div id="voice-status" class="voice-status">
+                                    <span class="status-dot"></span>
+                                    <span class="status-text">Checking voice cloning...</span>
+                                </div>
+
+                                <div class="voice-create">
+                                    <div class="voice-input-group">
+                                        <input type="text" id="voice-profile-name" placeholder="Profile name (e.g., John)" class="voice-input">
+                                        <div class="voice-source-tabs">
+                                            <button class="voice-tab active" data-source="upload">Upload File</button>
+                                            <button class="voice-tab" data-source="record">Record Live</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Upload Mode -->
+                                    <div id="voice-upload-mode" class="voice-mode active">
+                                        <div class="voice-upload-area" id="voice-drop-zone">
+                                            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                                            </svg>
+                                            <p>Drop audio file here or click to browse</p>
+                                            <p class="upload-hint">6-30 seconds of clear speech recommended</p>
+                                            <input type="file" id="voice-file-input" accept="audio/*" hidden>
+                                        </div>
+                                        <div id="voice-file-info" class="voice-file-info hidden">
+                                            <span class="file-name"></span>
+                                            <button class="btn-remove" onclick="removeVoiceFile()">×</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Record Mode -->
+                                    <div id="voice-record-mode" class="voice-mode">
+                                        <div class="voice-record-controls">
+                                            <button id="voice-record-btn" class="btn-record" onclick="toggleVoiceRecord()">
+                                                <span class="record-icon"></span>
+                                                <span class="record-text">Start Recording</span>
+                                            </button>
+                                            <div id="voice-record-timer" class="record-timer hidden">
+                                                <span class="timer-display">00:00</span>
+                                                <span class="timer-hint">Aim for 6-30 seconds</span>
+                                            </div>
+                                            <div id="voice-waveform" class="voice-waveform hidden">
+                                                <canvas id="waveform-canvas"></canvas>
+                                            </div>
+                                        </div>
+                                        <div id="voice-recorded-audio" class="hidden">
+                                            <audio id="voice-recorded-player" controls></audio>
+                                            <button class="btn-action btn-small" onclick="clearRecording()">Re-record</button>
+                                        </div>
+                                    </div>
+
+                                    <button id="voice-create-btn" class="btn-action" onclick="createVoiceProfile()" disabled>
+                                        Create Profile
+                                    </button>
+                                </div>
+
+                                <!-- Profiles List -->
+                                <div id="voice-profiles-list" class="voice-profiles-list"></div>
+                            </div>
+
+                            <!-- Voice Test Section -->
+                            <div class="voice-section">
+                                <h3>Test Voice</h3>
+                                <p class="section-desc">Type text and hear it spoken with a cloned voice</p>
+                                
+                                <div class="voice-test-controls">
+                                    <select id="voice-test-profile" class="voice-select">
+                                        <option value="">Select a voice profile...</option>
+                                    </select>
+                                    <select id="voice-test-language" class="voice-select">
+                                        <option value="en">English</option>
+                                        <option value="es">Spanish</option>
+                                        <option value="fr">French</option>
+                                        <option value="de">German</option>
+                                        <option value="it">Italian</option>
+                                        <option value="pt">Portuguese</option>
+                                        <option value="ja">Japanese</option>
+                                        <option value="ko">Korean</option>
+                                        <option value="zh">Chinese</option>
+                                    </select>
+                                </div>
+                                <div class="voice-test-input">
+                                    <textarea id="voice-test-text" placeholder="Type text to speak..." rows="3"></textarea>
+                                    <button id="voice-speak-btn" class="btn-action" onclick="testVoiceSpeak()" disabled>
+                                        Speak
+                                    </button>
+                                </div>
+                                <div id="voice-test-status" class="voice-test-status hidden">
+                                    <span class="status-indicator"></span>
+                                    <span class="status-message"></span>
+                                </div>
+                            </div>
+
+                            <!-- Live Test Section -->
+                            <div class="voice-section">
+                                <h3>Live Test</h3>
+                                <p class="section-desc">Speak and hear your voice cloned in real-time</p>
+                                
+                                <div class="voice-live-container">
+                                    <!-- Left: Speech to Text -->
+                                    <div class="voice-live-panel">
+                                        <h4>Your Speech</h4>
+                                        <div id="voice-stt-output" class="voice-live-output">
+                                            <p class="placeholder-text">Press "Start Listening" and speak...</p>
+                                        </div>
+                                        <button id="voice-stt-btn" class="btn-action" onclick="toggleLiveSTT()">
+                                            Start Listening
+                                        </button>
+                                    </div>
+
+                                    <!-- Right: Cloned Voice Output -->
+                                    <div class="voice-live-panel">
+                                        <h4>Cloned Voice Output</h4>
+                                        <div id="voice-tts-output" class="voice-live-output">
+                                            <p class="placeholder-text">Text will appear here and be spoken...</p>
+                                        </div>
+                                        <div id="voice-tts-status" class="hidden">
+                                            <span class="status-indicator speaking"></span>
+                                            <span>Speaking...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Built-in Voices (Kokoro/macOS) -->
+                            <div class="voice-section">
+                                <h3>Built-in Voices</h3>
+                                <p class="section-desc">Standard TTS voices (Kokoro, macOS)</p>
+                                
+                                <div class="voice-built-in">
+                                    <select id="voice-builtin-provider" class="voice-select" onchange="loadBuiltinVoices()">
+                                        <option value="">Select provider...</option>
+                                    </select>
+                                    <select id="voice-builtin-voice" class="voice-select">
+                                        <option value="">Select voice...</option>
+                                    </select>
+                                    <button class="btn-action" onclick="testBuiltinVoice()">Test</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- WORKSPACE: Chat (Modern AI Assistant) -->
                     <div id="chat-container" class="workspace-view" style="display:none;">
@@ -447,28 +603,6 @@
                                 <input type="checkbox" name="stt_enabled" checked>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="settings-section">
-                        <h3>Voice Cloning</h3>
-                        <div id="voice-clone-status" class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Status</div>
-                                <div class="setting-desc" id="clone-status-text">Checking...</div>
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Upload Voice Sample</div>
-                                <div class="setting-desc">6-30 seconds of clear speech</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="text" id="clone-voice-name" placeholder="Profile name">
-                                <input type="file" id="clone-voice-file" accept="audio/*">
-                                <button onclick="uploadCloneProfile()" class="btn-action">Upload</button>
-                            </div>
-                        </div>
-                        <div id="clone-profiles-list"></div>
                     </div>
 
                     <div class="settings-section">

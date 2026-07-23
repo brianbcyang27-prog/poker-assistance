@@ -100,8 +100,15 @@ async def serve_audio(filename: str):
 async def clone_status():
     """Get voice cloning system status."""
     from jarvis.voice.voice_clone import voice_cloner
+    tts_installed = False
+    try:
+        import TTS
+        tts_installed = True
+    except ImportError:
+        pass
     return {
-        "available": voice_cloner.is_available,
+        "tts_installed": tts_installed,
+        "model_loaded": voice_cloner._model is not None,
         "error": voice_cloner.error,
         "profiles_count": len(voice_cloner.list_profiles()),
         "profiles_dir": str(voice_cloner.profiles_dir)

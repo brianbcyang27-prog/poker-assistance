@@ -360,6 +360,7 @@ async function switchWorkspace(workspace) {
     const computerContainer = document.getElementById('computer-container');
     const metricsContainer = document.getElementById('metrics-container');
     const logsContainer = document.getElementById('logs-container');
+    const voiceContainer = document.getElementById('voice-container');
     const responseDisplay = document.getElementById('response-display');
     const terminalLog = document.getElementById('terminal-log');
 
@@ -369,6 +370,7 @@ async function switchWorkspace(workspace) {
     if (computerContainer) computerContainer.style.display = 'none';
     if (metricsContainer) metricsContainer.style.display = 'none';
     if (logsContainer) logsContainer.style.display = 'none';
+    if (voiceContainer) voiceContainer.style.display = 'none';
     if (terminalLog) terminalLog.classList.remove('visible');
 
     switch (workspace) {
@@ -416,6 +418,17 @@ async function switchWorkspace(workspace) {
             if (chatContainer) chatContainer.style.display = 'none';
             if (responseDisplay) responseDisplay.style.display = 'none';
             await showMemoryGalaxy();
+            break;
+
+        case 'voice':
+            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            if (responseDisplay) responseDisplay.style.display = 'none';
+            const voiceContainer = document.getElementById('voice-container');
+            if (voiceContainer) {
+                voiceContainer.style.display = 'flex';
+                initVoiceWorkspace();
+            }
             break;
 
         case 'projects':
@@ -1062,3 +1075,770 @@ async function testCloneVoice(profileId) {
         alert(`Error: ${e.message}`);
     }
 }
+
+/* ============================================================
+   VOICE WORKSPACE
+   ============================================================ */
+
+// Voice workspace state
+let voiceState = {
+    selectedFile: null,
+    recordedBlob: null,
+    mediaRecorder: null,
+    audioChunks: [],
+    isRecording: false,
+    recordingTimer: null,
+    recordingSeconds: 0,
+    liveSTT: null,
+    isListening: false,
+    selectedProfile: null
+};
+
+// Initialize voice workspace
+function initVoiceWorkspace() {
+    // Load voice status
+    loadVoiceWorkspaceStatus();
+    
+    // Load voice profiles
+    loadVoiceProfiles();
+    
+    // Load built-in voices
+    loadBuiltinProviders();
+    
+    // Setup file upload handlers
+    setupVoiceFileUpload();
+    
+    // Setup tab switching
+    setupVoiceTabs();
+    
+    // Setup textarea auto-resize
+    const textarea = document.getElementById('voice-test-text');
+    if (textarea) {
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = this.scrollHeight + 'px';
+        });
+    }
+}
+
+// Load voice workspace status
+async function loadVoiceWorkspaceStatus() {
+    const statusEl = document.getElementById('voice-status');
+    if (!statusEl) return;
+    
+    try {
+        const res = await fetch('/api/voice/clone/status');
+        const data = await res.json();
+        
+        const dot = statusEl.querySelector('.status-dot');
+        const text = statusEl.querySelector('.status-text');
+        
+        if (data.tts_installed) {
+            dot.classList.add('online');
+            text.textContent = data.model_loaded 
+                ? `Voice cloning ready (${data.profiles_count} profiles)`
+                : `TTS installed, model loads on first use (${data.profiles_count} profiles)`;
+        } else {
+            dot.classList.add('offline');
+            text.textContent = data.error || 'Voice cloning not available';
+        }
+    } catch (e) {
+        console.error('Failed to load voice status:', e);
+    }
+}
+
+// Load voice profiles
+async function loadVoiceProfiles() {
+    const listEl = document.getElementById('voice-profiles-list');
+    const selectEl = document.getElementById('voice-test-profile');
+    if (!listEl) return;
+    
+    try {
+        const res = await fetch('/api/voice/clone/profiles');
+        const data = await res.json();
+        
+        if (!data.profiles || data.profiles.length === 0) {
+            listEl.innerHTML = '<p class="empty-state">No voice profiles yet. Create one above.</p>';
+            return;
+        }
+        
+        // Update profiles list
+        listEl.innerHTML = data.profiles.map(p => `
+            <div class="voice-profile-card" data-id="${p.profile_id}">
+                <div class="profile-info">
+                    <span class="profile-name">${p.name}</span>
+                    <span class="profile-id">${p.profile_id}</span>
+                </div>
+                <div class="profile-actions">
+                    <button class="btn-action btn-small" onclick="playProfileAudio('${p.profile_id}')">Listen</button>
+                    <button class="btn-action btn-small" onclick="selectProfileForTest('${p.profile_id}', '${p.name}')">Use</button>
+                    <button class="btn-action btn-small btn-danger" onclick="deleteVoiceProfile('${p.profile_id}')">Delete</button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Update test profile select
+        if (selectEl) {
+            selectEl.innerHTML = '<option value="">Select a voice profile...</option>' + 
+                data.profiles.map(p => `<option value="${p.profile_id}">${p.name}</option>`).join('');
+        }
+    } catch (e) {
+        console.error('Failed to load profiles:', e);
+    }
+}
+
+// Setup file upload handlers
+function setupVoiceFileUpload() {
+    const dropZone = document.getElementById('voice-drop-zone');
+    const fileInput = document.getElementById('voice-file-input');
+    
+    if (!dropZone || !fileInput) return;
+    
+    // Click to browse
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleVoiceFile(e.target.files[0]);
+        }
+    });
+    
+    // Drag and drop
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+    
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+    
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            handleVoiceFile(e.dataTransfer.files[0]);
+        }
+    });
+}
+
+// Handle selected file
+function handleVoiceFile(file) {
+    voiceState.selectedFile = file;
+    voiceState.recordedBlob = null;
+    
+    const fileInfo = document.getElementById('voice-file-info');
+    const createBtn = document.getElementById('voice-create-btn');
+    
+    if (fileInfo) {
+        fileInfo.classList.remove('hidden');
+        fileInfo.querySelector('.file-name').textContent = file.name;
+    }
+    
+    if (createBtn) {
+        createBtn.disabled = false;
+    }
+    
+    updateCreateButton();
+}
+
+// Remove selected file
+function removeVoiceFile() {
+    voiceState.selectedFile = null;
+    
+    const fileInfo = document.getElementById('voice-file-info');
+    const fileInput = document.getElementById('voice-file-input');
+    
+    if (fileInfo) fileInfo.classList.add('hidden');
+    if (fileInput) fileInput.value = '';
+    
+    updateCreateButton();
+}
+
+// Setup voice tabs
+function setupVoiceTabs() {
+    const tabs = document.querySelectorAll('.voice-tab');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Update active tab
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Show corresponding mode
+            const source = tab.dataset.source;
+            document.querySelectorAll('.voice-mode').forEach(mode => mode.classList.remove('active'));
+            document.getElementById(`voice-${source}-mode`).classList.add('active');
+            
+            // Update create button state
+            updateCreateButton();
+        });
+    });
+}
+
+// Update create button state
+function updateCreateButton() {
+    const createBtn = document.getElementById('voice-create-btn');
+    const nameInput = document.getElementById('voice-profile-name');
+    const activeTab = document.querySelector('.voice-tab.active');
+    
+    if (!createBtn || !nameInput) return;
+    
+    const hasName = nameInput.value.trim().length > 0;
+    const isUploadMode = activeTab?.dataset.source === 'upload';
+    const hasFile = isUploadMode ? voiceState.selectedFile !== null : voiceState.recordedBlob !== null;
+    
+    createBtn.disabled = !(hasName && hasFile);
+}
+
+// Toggle voice recording
+async function toggleVoiceRecord() {
+    if (voiceState.isRecording) {
+        stopRecording();
+    } else {
+        await startRecording();
+    }
+}
+
+// Start recording
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        voiceState.mediaRecorder = new MediaRecorder(stream);
+        voiceState.audioChunks = [];
+        
+        voiceState.mediaRecorder.ondataavailable = (event) => {
+            voiceState.audioChunks.push(event.data);
+        };
+        
+        voiceState.mediaRecorder.onstop = () => {
+            const blob = new Blob(voiceState.audioChunks, { type: 'audio/wav' });
+            voiceState.recordedBlob = blob;
+            voiceState.selectedFile = null;
+            
+            // Show recorded audio player
+            const recordedAudio = document.getElementById('voice-recorded-audio');
+            const player = document.getElementById('voice-recorded-player');
+            
+            if (recordedAudio && player) {
+                const url = URL.createObjectURL(blob);
+                player.src = url;
+                recordedAudio.classList.remove('hidden');
+            }
+            
+            // Stop waveform
+            if (voiceState.waveformAnimation) {
+                cancelAnimationFrame(voiceState.waveformAnimation);
+            }
+            
+            updateCreateButton();
+        };
+        
+        voiceState.mediaRecorder.start();
+        voiceState.isRecording = true;
+        
+        // Update UI
+        const btn = document.getElementById('voice-record-btn');
+        btn.classList.add('recording');
+        btn.querySelector('.record-text').textContent = 'Stop Recording';
+        
+        // Show timer
+        const timer = document.getElementById('voice-record-timer');
+        timer.classList.remove('hidden');
+        
+        // Start timer
+        voiceState.recordingSeconds = 0;
+        voiceState.recordingTimer = setInterval(() => {
+            voiceState.recordingSeconds++;
+            const mins = Math.floor(voiceState.recordingSeconds / 60).toString().padStart(2, '0');
+            const secs = (voiceState.recordingSeconds % 60).toString().padStart(2, '0');
+            timer.querySelector('.timer-display').textContent = `${mins}:${secs}`;
+        }, 1000);
+        
+        // Show waveform
+        const waveformContainer = document.getElementById('voice-waveform');
+        waveformContainer.classList.remove('hidden');
+        startWaveform(stream);
+        
+    } catch (e) {
+        console.error('Failed to start recording:', e);
+        alert('Could not access microphone. Please allow microphone access.');
+    }
+}
+
+// Stop recording
+function stopRecording() {
+    if (voiceState.mediaRecorder && voiceState.isRecording) {
+        voiceState.mediaRecorder.stop();
+        voiceState.isRecording = false;
+        
+        // Stop all tracks
+        voiceState.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        
+        // Clear timer
+        clearInterval(voiceState.recordingTimer);
+        
+        // Update UI
+        const btn = document.getElementById('voice-record-btn');
+        btn.classList.remove('recording');
+        btn.querySelector('.record-text').textContent = 'Start Recording';
+        
+        document.getElementById('voice-record-timer').classList.add('hidden');
+        document.getElementById('voice-waveform').classList.add('hidden');
+    }
+}
+
+// Start waveform visualization
+function startWaveform(stream) {
+    const canvas = document.getElementById('waveform-canvas');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const audioContext = new AudioContext();
+    const source = audioContext.createMediaStreamSource(stream);
+    const analyser = audioContext.createAnalyser();
+    
+    analyser.fftSize = 256;
+    source.connect(analyser);
+    
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    
+    function draw() {
+        voiceState.waveformAnimation = requestAnimationFrame(draw);
+        
+        analyser.getByteFrequencyData(dataArray);
+        
+        ctx.fillStyle = 'rgba(5, 11, 20, 0.3)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const barWidth = (canvas.width / bufferLength) * 2.5;
+        let x = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+            const barHeight = (dataArray[i] / 255) * canvas.height;
+            
+            const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
+            gradient.addColorStop(0, '#fbbf24');
+            gradient.addColorStop(1, '#f59e0b');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+            
+            x += barWidth + 1;
+        }
+    }
+    
+    draw();
+}
+
+// Clear recording
+function clearRecording() {
+    voiceState.recordedBlob = null;
+    
+    const recordedAudio = document.getElementById('voice-recorded-audio');
+    if (recordedAudio) recordedAudio.classList.add('hidden');
+    
+    updateCreateButton();
+}
+
+// Create voice profile
+async function createVoiceProfile() {
+    const nameInput = document.getElementById('voice-profile-name');
+    const createBtn = document.getElementById('voice-create-btn');
+    
+    if (!nameInput?.value.trim()) {
+        alert('Please enter a profile name');
+        return;
+    }
+    
+    const name = nameInput.value.trim();
+    const isUploadMode = document.querySelector('.voice-tab.active')?.dataset.source === 'upload';
+    
+    let audioBlob;
+    if (isUploadMode && voiceState.selectedFile) {
+        audioBlob = voiceState.selectedFile;
+    } else if (!isUploadMode && voiceState.recordedBlob) {
+        audioBlob = voiceState.recordedBlob;
+    } else {
+        alert('Please upload or record audio first');
+        return;
+    }
+    
+    createBtn.disabled = true;
+    createBtn.textContent = 'Creating...';
+    
+    try {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('audio', audioBlob, isUploadMode ? voiceState.selectedFile.name : 'recording.wav');
+        
+        const res = await fetch('/api/voice/clone/profiles', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok) {
+            // Clear inputs
+            nameInput.value = '';
+            removeVoiceFile();
+            clearRecording();
+            
+            // Reload profiles
+            await loadVoiceProfiles();
+            await loadVoiceWorkspaceStatus();
+            
+            alert(`Voice profile "${name}" created successfully!`);
+        } else {
+            alert(`Error: ${data.detail || 'Failed to create profile'}`);
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
+    } finally {
+        createBtn.disabled = false;
+        createBtn.textContent = 'Create Profile';
+        updateCreateButton();
+    }
+}
+
+// Delete voice profile
+async function deleteVoiceProfile(profileId) {
+    if (!confirm('Delete this voice profile?')) return;
+    
+    try {
+        const res = await fetch(`/api/voice/clone/profiles/${profileId}`, {
+            method: 'DELETE'
+        });
+        
+        if (res.ok) {
+            await loadVoiceProfiles();
+            await loadVoiceWorkspaceStatus();
+        } else {
+            alert('Failed to delete profile');
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
+    }
+}
+
+// Play profile audio
+function playProfileAudio(profileId) {
+    const audio = new Audio(`/api/voice/clone/profiles/${profileId}/audio`);
+    audio.play();
+}
+
+// Select profile for test
+function selectProfileForTest(profileId, profileName) {
+    voiceState.selectedProfile = profileId;
+    
+    const selectEl = document.getElementById('voice-test-profile');
+    if (selectEl) {
+        selectEl.value = profileId;
+    }
+    
+    // Enable speak button
+    const speakBtn = document.getElementById('voice-speak-btn');
+    if (speakBtn) speakBtn.disabled = false;
+}
+
+// Test voice speak
+async function testVoiceSpeak() {
+    const profileId = document.getElementById('voice-test-profile')?.value;
+    const text = document.getElementById('voice-test-text')?.value;
+    const language = document.getElementById('voice-test-language')?.value || 'en';
+    const statusEl = document.getElementById('voice-test-status');
+    
+    if (!profileId) {
+        alert('Please select a voice profile');
+        return;
+    }
+    
+    if (!text?.trim()) {
+        alert('Please enter text to speak');
+        return;
+    }
+    
+    // Show status
+    statusEl?.classList.remove('hidden');
+    statusEl.querySelector('.status-message').textContent = 'Generating speech...';
+    statusEl.querySelector('.status-indicator').classList.add('speaking');
+    
+    try {
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('profile_id', profileId);
+        formData.append('language', language);
+        
+        const res = await fetch('/api/voice/clone/generate', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            
+            statusEl.querySelector('.status-message').textContent = 'Playing...';
+            
+            audio.onended = () => {
+                statusEl.querySelector('.status-message').textContent = 'Done';
+                statusEl.querySelector('.status-indicator').classList.remove('speaking');
+                setTimeout(() => statusEl?.classList.add('hidden'), 2000);
+            };
+            
+            audio.play();
+        } else {
+            const data = await res.json();
+            statusEl.querySelector('.status-message').textContent = `Error: ${data.detail || 'Generation failed'}`;
+            statusEl.querySelector('.status-indicator').classList.remove('speaking');
+        }
+    } catch (e) {
+        statusEl.querySelector('.status-message').textContent = `Error: ${e.message}`;
+        statusEl.querySelector('.status-indicator').classList.remove('speaking');
+    }
+}
+
+// Toggle live STT
+async function toggleLiveSTT() {
+    if (voiceState.isListening) {
+        stopLiveSTT();
+    } else {
+        await startLiveSTT();
+    }
+}
+
+// Start live STT
+async function startLiveSTT() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Use Web Speech API for live transcription
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            voiceState.liveSTT = new SpeechRecognition();
+            voiceState.liveSTT.continuous = true;
+            voiceState.liveSTT.interimResults = true;
+            voiceState.liveSTT.lang = 'en-US';
+            
+            voiceState.liveSTT.onresult = (event) => {
+                const sttOutput = document.getElementById('voice-stt-output');
+                const ttsOutput = document.getElementById('voice-tts-output');
+                
+                let interimTranscript = '';
+                let finalTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                // Update STT output
+                if (sttOutput) {
+                    sttOutput.innerHTML = `
+                        <p class="final-text">${finalTranscript}</p>
+                        <p class="interim-text">${interimTranscript}</p>
+                    `;
+                }
+                
+                // If we have final text, speak it with cloned voice
+                if (finalTranscript) {
+                    speakWithClonedVoice(finalTranscript);
+                }
+            };
+            
+            voiceState.liveSTT.start();
+            voiceState.isListening = true;
+            
+            // Update UI
+            const btn = document.getElementById('voice-stt-btn');
+            btn.textContent = 'Stop Listening';
+            btn.classList.add('recording');
+            
+        } else {
+            alert('Speech recognition not supported in this browser. Please use Chrome.');
+        }
+        
+    } catch (e) {
+        console.error('Failed to start STT:', e);
+        alert('Could not access microphone. Please allow microphone access.');
+    }
+}
+
+// Stop live STT
+function stopLiveSTT() {
+    if (voiceState.liveSTT) {
+        voiceState.liveSTT.stop();
+        voiceState.liveSTT = null;
+    }
+    
+    voiceState.isListening = false;
+    
+    // Update UI
+    const btn = document.getElementById('voice-stt-btn');
+    btn.textContent = 'Start Listening';
+    btn.classList.remove('recording');
+}
+
+// Speak with cloned voice
+async function speakWithClonedVoice(text) {
+    const profileId = document.getElementById('voice-test-profile')?.value;
+    const language = document.getElementById('voice-test-language')?.value || 'en';
+    const ttsOutput = document.getElementById('voice-tts-output');
+    const statusEl = document.getElementById('voice-tts-status');
+    
+    if (!profileId) {
+        if (ttsOutput) {
+            ttsOutput.innerHTML = '<p class="placeholder-text">Select a voice profile first</p>';
+        }
+        return;
+    }
+    
+    // Show typing effect
+    if (ttsOutput) {
+        ttsOutput.innerHTML = '<p class="typing-text"></p>';
+        const typingEl = ttsOutput.querySelector('.typing-text');
+        
+        // Typing animation
+        let i = 0;
+        const typeInterval = setInterval(() => {
+            if (i < text.length) {
+                typingEl.textContent += text.charAt(i);
+                i++;
+            } else {
+                clearInterval(typeInterval);
+            }
+        }, 50);
+    }
+    
+    // Show speaking status
+    statusEl?.classList.remove('hidden');
+    
+    try {
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('profile_id', profileId);
+        formData.append('language', language);
+        
+        const res = await fetch('/api/voice/clone/generate', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            
+            audio.onended = () => {
+                statusEl?.classList.add('hidden');
+            };
+            
+            audio.play();
+        } else {
+            console.error('Voice generation failed');
+            statusEl?.classList.add('hidden');
+        }
+    } catch (e) {
+        console.error('Voice generation error:', e);
+        statusEl?.classList.add('hidden');
+    }
+}
+
+// Load built-in TTS providers
+async function loadBuiltinProviders() {
+    const providerSelect = document.getElementById('voice-builtin-provider');
+    if (!providerSelect) return;
+    
+    try {
+        const res = await fetch('/api/voice/models');
+        const data = await res.json();
+        
+        providerSelect.innerHTML = '<option value="">Select provider...</option>' +
+            Object.keys(data.voices || {}).map(p => `<option value="${p}">${p}</option>`).join('');
+    } catch (e) {
+        console.error('Failed to load providers:', e);
+    }
+}
+
+// Load built-in voices for selected provider
+async function loadBuiltinVoices() {
+    const provider = document.getElementById('voice-builtin-provider')?.value;
+    const voiceSelect = document.getElementById('voice-builtin-voice');
+    if (!provider || !voiceSelect) return;
+    
+    try {
+        const res = await fetch('/api/voice/models');
+        const data = await res.json();
+        
+        const voices = data.voices?.[provider] || [];
+        voiceSelect.innerHTML = '<option value="">Select voice...</option>' +
+            voices.map(v => `<option value="${v.id}">${v.name || v.id}</option>`).join('');
+    } catch (e) {
+        console.error('Failed to load voices:', e);
+    }
+}
+
+// Test built-in voice
+async function testBuiltinVoice() {
+    const provider = document.getElementById('voice-builtin-provider')?.value;
+    const voice = document.getElementById('voice-builtin-voice')?.value;
+    const text = document.getElementById('voice-test-text')?.value || 'Hello, this is a test.';
+    
+    if (!provider) {
+        alert('Please select a provider');
+        return;
+    }
+    
+    try {
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('voice', voice || '');
+        formData.append('provider', provider);
+        
+        const res = await fetch('/api/voice/generate', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (res.ok) {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.play();
+        } else {
+            const data = await res.json();
+            alert(`Error: ${data.detail || 'Generation failed'}`);
+        }
+    } catch (e) {
+        alert(`Error: ${e.message}`);
+    }
+}
+
+// Initialize voice workspace when switching to it
+document.addEventListener('DOMContentLoaded', () => {
+    // Add event listener for voice workspace
+    const voiceBtn = document.querySelector('[data-workspace="voice"]');
+    if (voiceBtn) {
+        voiceBtn.addEventListener('click', () => {
+            setTimeout(initVoiceWorkspace, 100);
+        });
+    }
+    
+    // Add input listener for profile name
+    const nameInput = document.getElementById('voice-profile-name');
+    if (nameInput) {
+        nameInput.addEventListener('input', updateCreateButton);
+    }
+});
