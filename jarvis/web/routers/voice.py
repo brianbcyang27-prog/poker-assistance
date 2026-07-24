@@ -91,7 +91,7 @@ KNOWN_PROVIDERS = {
     "kokoro": {
         "name": "Kokoro",
         "description": "Local neural TTS (fast, high quality)",
-        "install_command": "pip3 install kokoro misaki[en]",
+        "install_command": "pip3 install kokoro 'misaki[en]'",
         "uninstall_command": "pip3 uninstall -y kokoro misaki",
         "check_command": "python3 -c \"import kokoro\"",
         "category": "local",

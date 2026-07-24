@@ -503,7 +503,6 @@ async function switchWorkspace(workspace) {
     const computerContainer = document.getElementById('computer-container');
     const metricsContainer = document.getElementById('metrics-container');
     const logsContainer = document.getElementById('logs-container');
-    const voiceContainer = document.getElementById('voice-container');
     const responseDisplay = document.getElementById('response-display');
     const terminalLog = document.getElementById('terminal-log');
 
@@ -513,7 +512,6 @@ async function switchWorkspace(workspace) {
     if (computerContainer) computerContainer.style.display = 'none';
     if (metricsContainer) metricsContainer.style.display = 'none';
     if (logsContainer) logsContainer.style.display = 'none';
-    if (voiceContainer) voiceContainer.style.display = 'none';
     if (terminalLog) terminalLog.classList.remove('visible');
 
     switch (workspace) {
@@ -563,16 +561,7 @@ async function switchWorkspace(workspace) {
             await showMemoryGalaxy();
             break;
 
-        case 'voice':
-            if (coreCanvas) coreCanvas.style.display = 'none';
-            if (chatContainer) chatContainer.style.display = 'none';
-            if (responseDisplay) responseDisplay.style.display = 'none';
-            const voiceContainer = document.getElementById('voice-container');
-            if (voiceContainer) {
-                voiceContainer.style.display = 'flex';
-                initVoiceWorkspace();
-            }
-            break;
+
 
         case 'projects':
             if (coreCanvas) coreCanvas.style.display = 'none';
@@ -1971,13 +1960,7 @@ async function testBuiltinVoice() {
 
 // Initialize voice workspace when switching to it
 document.addEventListener('DOMContentLoaded', () => {
-    // Add event listener for voice workspace
-    const voiceBtn = document.querySelector('[data-workspace="voice"]');
-    if (voiceBtn) {
-        voiceBtn.addEventListener('click', () => {
-            setTimeout(initVoiceWorkspace, 100);
-        });
-    }
+    // Voice workspace initialization is now handled by settings page
     
     // Add input listener for profile name
     const nameInput = document.getElementById('voice-profile-name');
