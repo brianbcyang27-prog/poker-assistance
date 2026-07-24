@@ -752,7 +752,7 @@ body {
 #chat-container {
     display: flex;
     flex-direction: row;
-    background: var(--bg-primary);
+    background: transparent;
     position: relative;
     overflow: hidden;
 }
@@ -765,6 +765,7 @@ body {
     height: 100%;
     z-index: 0;
     pointer-events: none;
+    opacity: 0.22;
 }
 
 #chat-sidebar {
@@ -772,10 +773,12 @@ body {
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    background: var(--bg-panel);
+    background: rgba(8, 16, 28, 0.42);
     flex-shrink: 0;
     position: relative;
     z-index: 1;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
 }
 
 #chat-sidebar-header {
@@ -856,7 +859,7 @@ body {
     overflow: hidden;
     position: relative;
     z-index: 1;
-    background: var(--bg-primary);
+    background: transparent;
 }
 
 #chat-messages {
@@ -870,6 +873,7 @@ body {
     max-width: 900px;
     margin: 0 auto;
     width: 100%;
+    background: transparent;
 }
 
 .chat-msg {
@@ -879,13 +883,15 @@ body {
     font-size: var(--text-md);
     line-height: 1.6;
     animation: chatFadeIn 0.3s ease;
-    background: var(--bg-secondary);
+    background: rgba(10, 20, 32, 0.78);
     border: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .chat-msg.user {
     align-self: flex-end;
-    background: var(--accent);
+    background: rgba(0, 240, 255, 0.18);
     color: #050b14;
     border: none;
     border-bottom-right-radius: 4px;
@@ -893,7 +899,7 @@ body {
 
 .chat-msg.assistant {
     align-self: flex-start;
-    background: var(--bg-secondary);
+    background: rgba(10, 20, 32, 0.82);
     border: 1px solid var(--border);
     color: var(--text-primary);
     border-bottom-left-radius: 4px;
@@ -1985,6 +1991,30 @@ body.system-error {
     background: var(--bg-primary);
     border-radius: var(--radius-md);
     font-size: var(--text-sm);
+}
+
+.voice-built-in {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+    gap: var(--space-3);
+    align-items: end;
+}
+
+.voice-built-in-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.voice-built-in-field label {
+    font-size: var(--text-xs);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.voice-built-in .btn-action {
+    height: 38px;
 }
 
 .status-indicator {

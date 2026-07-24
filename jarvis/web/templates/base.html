@@ -562,15 +562,21 @@
                         <!-- Built-in Voices (from Voice workspace) -->
                         <div class="settings-subsection">
                             <h4>Built-in Voices</h4>
-                            <p class="setting-desc">Standard TTS voices (Kokoro, macOS)</p>
+                            <p class="setting-desc">Choose the provider and the voice used to generate audio.</p>
                             
                             <div class="voice-built-in">
-                                <select id="voice-builtin-provider" class="voice-select" onchange="loadBuiltinVoices()">
-                                    <option value="">Select provider...</option>
-                                </select>
-                                <select id="voice-builtin-voice" class="voice-select">
-                                    <option value="">Select voice...</option>
-                                </select>
+                                <div class="voice-built-in-field">
+                                    <label for="voice-builtin-provider">Provider</label>
+                                    <select id="voice-builtin-provider" class="voice-select" onchange="loadBuiltinVoices()">
+                                        <option value="">Select provider...</option>
+                                    </select>
+                                </div>
+                                <div class="voice-built-in-field">
+                                    <label for="voice-builtin-voice">Voice</label>
+                                    <select id="voice-builtin-voice" class="voice-select">
+                                        <option value="">Select voice...</option>
+                                    </select>
+                                </div>
                                 <button class="btn-action" onclick="testBuiltinVoice()">Test</button>
                             </div>
                         </div>

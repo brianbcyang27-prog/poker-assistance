@@ -548,7 +548,7 @@ async function switchWorkspace(workspace) {
             break;
 
         case 'chat':
-            if (coreCanvas) coreCanvas.style.display = 'none';
+            if (coreCanvas) coreCanvas.style.display = 'block';
             if (chatContainer) chatContainer.style.display = 'flex';
             if (responseDisplay) responseDisplay.style.display = 'none';
             currentChatMode = 'chat';
@@ -556,6 +556,7 @@ async function switchWorkspace(workspace) {
                 chatBg = new ChatBackground(document.getElementById('chat-core-bg'));
                 chatBg.start();
             }
+            ensureGoldenCore()?.start();
             await loadChatHistory();
             break;
 
@@ -631,7 +632,11 @@ async function switchWorkspace(workspace) {
 
     // The renderer is expensive on laptops and should not keep animating behind
     // another workspace. The core resumes without losing its visual state.
-    if (workspace !== 'core' && goldenCore) goldenCore.stop();
+    if (workspace !== 'core' && workspace !== 'chat' && goldenCore) goldenCore.stop();
+    if (workspace !== 'chat' && chatBg) {
+        chatBg.stop();
+        chatBg = null;
+    }
 }
 
 /* ---- Chat History ---- */
@@ -1923,6 +1928,9 @@ async function loadBuiltinProviders() {
         
         providerSelect.innerHTML = '<option value="">Select provider...</option>' +
             Object.keys(data.voices || {}).map(p => `<option value="${p}">${p}</option>`).join('');
+        const cur = document.querySelector('[name="tts_provider"]')?.value || 'macos';
+        providerSelect.value = cur;
+        await loadBuiltinVoices();
     } catch (e) {
         console.error('Failed to load providers:', e);
     }
@@ -1941,6 +1949,8 @@ async function loadBuiltinVoices() {
         const voices = data.voices?.[provider] || [];
         voiceSelect.innerHTML = '<option value="">Select voice...</option>' +
             voices.map(v => `<option value="${v.id}">${v.name || v.id}</option>`).join('');
+        const cur = document.querySelector('[name="tts_voice"]')?.value || '';
+        if (cur) voiceSelect.value = cur;
     } catch (e) {
         console.error('Failed to load voices:', e);
     }
