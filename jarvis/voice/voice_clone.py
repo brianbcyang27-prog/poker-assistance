@@ -92,6 +92,8 @@ class VoiceCloner:
         self._load_attempted = True
         
         try:
+            import os
+            os.environ["COQUI_TOS_AGREED"] = "1"
             from TTS.api import TTS
             print("[VoiceClone] Loading XTTS v2 model...")
             self._model = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
