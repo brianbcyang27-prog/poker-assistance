@@ -382,6 +382,7 @@ function sendMessageStreaming() {
     let bubble = addChatMessage('assistant', '');
     let fullText = '';
     let firstToken = true;
+    let toolCalls = [];
 
     // Add timeout to prevent loading forever
     const controller = new AbortController();
@@ -418,11 +419,14 @@ function sendMessageStreaming() {
                                     bubble.innerHTML = _md(fullText);
                                     bubble.parentElement.scrollTop = bubble.parentElement.scrollHeight;
                                 }
+                            } else if (evt.type === 'tool_calls') {
+                                toolCalls = evt.calls || [];
                             } else if (evt.type === 'done') {
                                 currentSessionId = evt.session_id || currentSessionId;
                                 setErrorState(false);
                                 if (bubble && fullText) {
-                                    bubble.innerHTML = _md(fullText);
+                                    bubble.remove();
+                                    bubble = addChatMessage('assistant', fullText, { toolCalls });
                                 }
                                 if (window.jarvisState) window.jarvisState.set('idle');
                                 if (window.livingUI) window.livingUI.setState('idle');
@@ -464,15 +468,84 @@ function sendMessageStreaming() {
         });
 }
 
-function addChatMessage(role, text) {
+function addChatMessage(role, text, meta) {
     const container = document.getElementById('chat-messages');
     if (!container) return null;
     const msg = document.createElement('div');
     msg.className = `chat-msg ${role}`;
-    msg.innerHTML = role === 'assistant' ? _md(text) : _escHtml(text);
+
+    if (role === 'assistant') {
+        const { thinking, content } = splitThinking(text);
+        let html = '';
+
+        if (thinking) {
+            html += `<div class="chat-thinking">
+                <button class="thinking-toggle" onclick="this.parentElement.classList.toggle('open')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    <span>Reasoning</span>
+                </button>
+                <div class="thinking-body">${_md(thinking)}</div>
+            </div>`;
+        }
+
+        html += `<div class="chat-content">${_md(content)}</div>`;
+
+        if (meta && meta.toolCalls && meta.toolCalls.length > 0) {
+            html += `<div class="chat-tool-summary">
+                <button class="tool-toggle" onclick="this.parentElement.classList.toggle('open')">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                    <span>${meta.toolCalls.length} tool call${meta.toolCalls.length > 1 ? 's' : ''}</span>
+                </button>
+                <div class="tool-list">
+                    ${meta.toolCalls.map(tc => `<div class="tool-item ${tc.ok ? 'success' : 'failed'}">
+                        <span class="tool-icon">${tc.ok ? '✓' : '✗'}</span>
+                        <span class="tool-name">${_escHtml(tc.name)}</span>
+                        <span class="tool-status">${tc.ok ? 'Done' : tc.error || 'Failed'}</span>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        msg.innerHTML = html;
+    } else {
+        msg.innerHTML = _escHtml(text);
+    }
+
     container.appendChild(msg);
-    container.parentElement.scrollTop = container.parentElement.scrollHeight;
+    container.scrollTop = container.scrollHeight;
     return msg;
+}
+
+function splitThinking(text) {
+    const thinkPatterns = [
+        /^(I (?:can |will |'ll |would |should )).{20,}/m,
+        /^(Here(?:'s| is) (?:what I'll| the plan| how)).{20,}/m,
+        /^(Let me ).{20,}/m,
+        /^(To (?:do this|create|make|help)).{20,}/m,
+        /^(I (?:understand|see|notice)).{20,}/m,
+    ];
+
+    const lines = text.split('\n');
+    let thinkingEnd = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const isThinkLine = thinkPatterns.some(p => p.test(line));
+        if (isThinkLine && i < 6) {
+            thinkingEnd = i + 1;
+        } else if (thinkingEnd > 0) {
+            break;
+        }
+    }
+
+    if (thinkingEnd > 0 && thinkingEnd < lines.length) {
+        return {
+            thinking: lines.slice(0, thinkingEnd).join('\n').trim(),
+            content: lines.slice(thinkingEnd).join('\n').trim()
+        };
+    }
+    return { thinking: null, content: text };
 }
 
 function _md(text) {

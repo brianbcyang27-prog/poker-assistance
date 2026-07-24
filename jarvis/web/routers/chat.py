@@ -131,6 +131,7 @@ async def chat(request: Request, req: ChatRequest):
 async def chat_stream(message: str, session_id: Optional[str] = None):
     """Stream a chat response via SSE — true token-by-token streaming."""
     sid = session_id or str(uuid.uuid4())[:8]
+    tool_calls = []
 
     async def event_generator():
         yield f"data: {json.dumps({'type': 'state', 'state': 'thinking'})}\n\n"
@@ -164,13 +165,36 @@ async def chat_stream(message: str, session_id: Optional[str] = None):
 
             response = "".join(full_response)
 
+            # Check for tool calls in the response
+            import re
+            tool_pattern = re.findall(r'\[TOOL:\s*(\w+)\]', response)
+            for tool_name in tool_pattern:
+                tool_calls.append({"name": tool_name, "ok": True})
+
             await db.index_conversation(sid, "assistant", response)
             await llm.save_session_context(sid)
         else:
-            # Fallback: non-streaming path
-            response = await web_main.jarvis.process_user_request(message)
+            # Fallback: non-streaming path through agent hierarchy
+            try:
+                result = await web_main.jarvis.process_user_request(message)
+                response = result
+                # Extract tool calls from events
+                from jarvis.core.events import event_bus
+                recent_events = [e for e in getattr(event_bus, '_history', []) 
+                                if e.type == 'worker.tool_call'][-5:]
+                for evt in recent_events:
+                    tool_calls.append({
+                        "name": evt.data.get("action", "unknown"),
+                        "ok": True
+                    })
+            except Exception as e:
+                response = f"Error: {str(e)[:200]}"
             await db.index_conversation(sid, "assistant", response)
             yield f"data: {json.dumps({'type': 'token', 'content': response})}\n\n"
+
+        # Send tool calls if any
+        if tool_calls:
+            yield f"data: {json.dumps({'type': 'tool_calls', 'calls': tool_calls})}\n\n"
 
         yield f"data: {json.dumps({'type': 'done', 'session_id': sid})}\n\n"
 
