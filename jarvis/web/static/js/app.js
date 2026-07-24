@@ -1038,9 +1038,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const devToggle = document.getElementById('dev-mode-toggle');
     if (devToggle) {
         devToggle.addEventListener('click', () => {
-            const devItems = document.querySelector('.dev-only');
+            const devItems = document.querySelectorAll('.dev-only');
             const isActive = devToggle.classList.toggle('active');
-            if (devItems) devItems.style.display = isActive ? 'flex' : 'none';
+            const dashboard = document.getElementById('dashboard');
+            if (dashboard) dashboard.classList.toggle('dev-mode', isActive);
+            devItems.forEach(el => {
+                el.style.display = isActive ? '' : 'none';
+            });
         });
     }
 
