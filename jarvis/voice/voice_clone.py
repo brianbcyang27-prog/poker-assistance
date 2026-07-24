@@ -92,19 +92,39 @@ class VoiceCloner:
         self._load_attempted = True
         
         try:
+            import torch
+
+            original_torch_load = torch.load
+
+            def patched_torch_load(*args, **kwargs):
+                kwargs.setdefault("weights_only", False)
+                return original_torch_load(*args, **kwargs)
+
+            torch.load = patched_torch_load
+
             import os
             os.environ["COQUI_TOS_AGREED"] = "1"
             from TTS.api import TTS
-            print("[VoiceClone] Loading XTTS v2 model...")
-            self._model = TTS("tts_models/multilingual/multi-dataset/xtts_v2")
-            print("[VoiceClone] XTTS v2 model loaded successfully")
-            return True
+            for model_name, label in [
+                ("tts_models/multilingual/multi-dataset/your_tts", "YourTTS"),
+                ("xtts", "XTTS v2"),
+            ]:
+                try:
+                    print(f"[VoiceClone] Loading {label} model...")
+                    self._model = TTS(model_name)
+                    print(f"[VoiceClone] {label} model loaded successfully")
+                    return True
+                except Exception as e:
+                    self._load_error = f"Failed to load {label}: {e}"
+                    print(f"[VoiceClone] {self._load_error}")
+                    self._model = None
+            return False
         except ImportError as e:
             self._load_error = f"TTS not installed: {e}"
             print(f"[VoiceClone] {self._load_error}")
             return False
         except Exception as e:
-            self._load_error = f"Failed to load XTTS v2: {e}"
+            self._load_error = f"Failed to initialize voice cloning: {e}"
             print(f"[VoiceClone] {self._load_error}")
             return False
     
