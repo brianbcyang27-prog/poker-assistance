@@ -6,8 +6,9 @@
  */
 
 class Graph3D {
-    constructor(container) {
+    constructor(container, options = {}) {
         this.container = container;
+        this.interactive = options.interactive !== false;
         this.W = window.innerWidth;
         this.H = window.innerHeight;
         this.time = 0;
@@ -104,10 +105,6 @@ class Graph3D {
         this._boundMouseDown = () => { this._dragging = true; };
         this._boundMouseUp = () => { this._dragging = false; };
         window.addEventListener('resize', this._boundResize);
-        window.addEventListener('mousemove', this._boundMouseMove);
-        this.container.addEventListener('wheel', this._boundWheel, { passive: false });
-        this.container.addEventListener('mousedown', this._boundMouseDown);
-        window.addEventListener('mouseup', this._boundMouseUp);
         this._boundDrag = (e) => {
             if (this._dragging) {
                 this.orbitDamping.theta -= e.movementX * 0.004;
@@ -115,7 +112,7 @@ class Graph3D {
                 this.orbitDamping.phi = Math.max(0.3, Math.min(Math.PI - 0.3, this.orbitDamping.phi));
             }
         };
-        window.addEventListener('mousemove', this._boundDrag);
+        this._attachInteractionListeners();
     }
 
     _setupBloom() {
@@ -898,13 +895,53 @@ class Graph3D {
     }
 
     _onMouseMove(e) {
+        if (!this.interactive) return;
         this.mouse.tx = (e.clientX / this.W - 0.5) * 2;
         this.mouse.ty = -(e.clientY / this.H - 0.5) * 2;
     }
 
     _onWheel(e) {
+        if (!this.interactive) return;
         e.preventDefault();
         this.orbit.radius = Math.max(14, Math.min(50, this.orbit.radius + e.deltaY * 0.02));
+    }
+
+    setInteractionEnabled(enabled) {
+        if (this.interactive === enabled) return;
+        this.interactive = enabled;
+        if (!enabled) {
+            this._detachInteractionListeners();
+            this.mouse.tx = 0;
+            this.mouse.ty = 0;
+            this.mouse.x = 0;
+            this.mouse.y = 0;
+            this.orbitDamping.theta = this.orbit.theta;
+            this.orbitDamping.phi = this.orbit.phi;
+            this._dragging = false;
+        } else {
+            this._attachInteractionListeners();
+        }
+    }
+
+    _attachInteractionListeners() {
+        if (!this.interactive) return;
+        if (this._interactionBound) return;
+        window.addEventListener('mousemove', this._boundMouseMove);
+        this.container.addEventListener('wheel', this._boundWheel, { passive: false });
+        this.container.addEventListener('mousedown', this._boundMouseDown);
+        window.addEventListener('mouseup', this._boundMouseUp);
+        window.addEventListener('mousemove', this._boundDrag);
+        this._interactionBound = true;
+    }
+
+    _detachInteractionListeners() {
+        if (!this._interactionBound) return;
+        window.removeEventListener('mousemove', this._boundMouseMove);
+        window.removeEventListener('mousemove', this._boundDrag);
+        this.container.removeEventListener('wheel', this._boundWheel);
+        this.container.removeEventListener('mousedown', this._boundMouseDown);
+        window.removeEventListener('mouseup', this._boundMouseUp);
+        this._interactionBound = false;
     }
 
     destroy() {
@@ -912,13 +949,7 @@ class Graph3D {
 
         // Remove window/container event listeners
         window.removeEventListener('resize', this._boundResize);
-        window.removeEventListener('mousemove', this._boundMouseMove);
-        window.removeEventListener('mousemove', this._boundDrag);
-        if (this.container) {
-            this.container.removeEventListener('wheel', this._boundWheel);
-            this.container.removeEventListener('mousedown', this._boundMouseDown);
-        }
-        window.removeEventListener('mouseup', this._boundMouseUp);
+        this._detachInteractionListeners();
 
         // Dispose Three.js geometries and materials
         if (this.scene) {

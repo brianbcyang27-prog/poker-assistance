@@ -516,13 +516,17 @@ async function toggleGraph() {
 async function switchWorkspace(workspace) {
     currentWorkspace = workspace;
 
+    // Update nav buttons
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.workspace === workspace);
     });
 
+    // Get all workspace views
+    const views = document.querySelectorAll('.workspace-view');
     const coreCanvas = document.getElementById('golden-core-container');
-    const graphContainer = document.getElementById('graph-container');
     const chatContainer = document.getElementById('chat-container');
+    const graphContainer = document.getElementById('graph-container');
+    const memoryContainer = document.getElementById('memory-container');
     const projectsContainer = document.getElementById('projects-container');
     const computerContainer = document.getElementById('computer-container');
     const metricsContainer = document.getElementById('metrics-container');
@@ -530,42 +534,49 @@ async function switchWorkspace(workspace) {
     const responseDisplay = document.getElementById('response-display');
     const terminalLog = document.getElementById('terminal-log');
 
-    // Hide all workspace-specific panels
-    if (graphContainer) graphContainer.style.display = 'none';
-    if (projectsContainer) projectsContainer.style.display = 'none';
-    if (computerContainer) computerContainer.style.display = 'none';
-    if (metricsContainer) metricsContainer.style.display = 'none';
-    if (logsContainer) logsContainer.style.display = 'none';
+    // Hide all workspace views with fade transition
+    views.forEach(v => {
+        v.classList.remove('active');
+        v.style.display = 'none';
+    });
+
     if (terminalLog) terminalLog.classList.remove('visible');
+    if (responseDisplay) responseDisplay.style.display = 'none';
 
     switch (workspace) {
-        case 'core':
-            if (coreCanvas) coreCanvas.style.display = 'block';
-            if (chatContainer) chatContainer.style.display = 'none';
-            if (responseDisplay) responseDisplay.style.display = 'none';
+        case 'home':
+            if (coreCanvas) {
+                coreCanvas.style.display = 'block';
+                coreCanvas.classList.add('active');
+            }
             if (chatBg) { chatBg.stop(); chatBg = null; }
-            ensureGoldenCore()?.start();
+            if (ensureGoldenCore()) {
+                goldenCore.setInteractionEnabled(true);
+                goldenCore.start();
+            }
             break;
 
         case 'chat':
-            if (coreCanvas) coreCanvas.style.display = 'block';
-            if (chatContainer) chatContainer.style.display = 'flex';
-            if (responseDisplay) responseDisplay.style.display = 'none';
+            if (chatContainer) {
+                chatContainer.style.display = 'flex';
+                chatContainer.classList.add('active');
+            }
             currentChatMode = 'chat';
             if (!chatBg && window.ChatBackground) {
                 chatBg = new ChatBackground(document.getElementById('chat-core-bg'));
                 chatBg.start();
             }
-            ensureGoldenCore()?.start();
+            if (ensureGoldenCore()) {
+                goldenCore.setInteractionEnabled(false);
+                goldenCore.start();
+            }
             await loadChatHistory();
             break;
 
         case 'engineering':
-            if (coreCanvas) coreCanvas.style.display = 'none';
-            if (chatContainer) chatContainer.style.display = 'none';
-            if (responseDisplay) responseDisplay.style.display = 'none';
             if (graphContainer) {
                 graphContainer.style.display = 'block';
+                graphContainer.classList.add('active');
                 if (!commandMap) {
                     try { commandMap = new CommandMap(); } catch (e) { console.warn('CommandMap:', e); }
                 }
@@ -573,69 +584,61 @@ async function switchWorkspace(workspace) {
             break;
 
         case 'research':
-            if (coreCanvas) coreCanvas.style.display = 'none';
-            if (chatContainer) chatContainer.style.display = 'none';
-            if (responseDisplay) responseDisplay.style.display = 'none';
             await showKnowledgeGraph();
             break;
 
         case 'memory':
-            if (coreCanvas) coreCanvas.style.display = 'none';
-            if (chatContainer) chatContainer.style.display = 'none';
-            if (responseDisplay) responseDisplay.style.display = 'none';
+            if (memoryContainer) {
+                memoryContainer.style.display = 'block';
+                memoryContainer.classList.add('active');
+            }
             await showMemoryGalaxy();
             break;
 
-
-
         case 'projects':
-            if (coreCanvas) coreCanvas.style.display = 'none';
-            if (chatContainer) chatContainer.style.display = 'none';
-            if (responseDisplay) responseDisplay.style.display = 'none';
             if (projectsContainer) {
                 projectsContainer.style.display = 'flex';
+                projectsContainer.classList.add('active');
                 await loadProjects();
             }
             break;
 
         case 'computer':
-            if (coreCanvas) coreCanvas.style.display = 'none';
-            if (chatContainer) chatContainer.style.display = 'none';
-            if (responseDisplay) responseDisplay.style.display = 'none';
-            if (computerContainer) computerContainer.style.display = 'flex';
+            if (computerContainer) {
+                computerContainer.style.display = 'flex';
+                computerContainer.classList.add('active');
+            }
             break;
 
         case 'metrics':
-            if (coreCanvas) coreCanvas.style.display = 'none';
-            if (chatContainer) chatContainer.style.display = 'none';
-            if (responseDisplay) responseDisplay.style.display = 'none';
             if (metricsContainer) {
                 metricsContainer.style.display = 'flex';
+                metricsContainer.classList.add('active');
                 await loadMetrics();
             }
             break;
 
         case 'logs':
-            if (coreCanvas) coreCanvas.style.display = 'none';
-            if (chatContainer) chatContainer.style.display = 'none';
-            if (responseDisplay) responseDisplay.style.display = 'none';
             if (logsContainer) {
                 logsContainer.style.display = 'flex';
+                logsContainer.classList.add('active');
                 await loadLogs();
             }
             break;
 
         case 'settings':
             toggleSettings();
-            break;
+            return;
     }
 
-    // The renderer is expensive on laptops and should not keep animating behind
-    // another workspace. The core resumes without losing its visual state.
-    if (workspace !== 'core' && workspace !== 'chat' && goldenCore) goldenCore.stop();
+    // Performance: stop rendering behind other workspaces
+    if (workspace !== 'home' && workspace !== 'chat' && goldenCore) goldenCore.stop();
     if (workspace !== 'chat' && chatBg) {
         chatBg.stop();
         chatBg = null;
+    }
+    if (workspace !== 'memory' && memoryGalaxy) {
+        memoryGalaxy.stop();
     }
 }
 
@@ -694,10 +697,10 @@ async function showMemoryGalaxy() {
         try {
             memoryGalaxy = new MemoryGalaxy(container);
             memoryGalaxy.init();
-            memoryGalaxy.start();
             await memoryGalaxy.loadMemories();
         } catch (e) { console.warn('MemoryGalaxy:', e); }
     }
+    memoryGalaxy?.start();
 }
 
 /* ---- Terminal Log ---- */
@@ -827,14 +830,44 @@ async function loadSessionList() {
         for (const session of data.sessions) {
             const item = document.createElement('div');
             item.className = 'session-item';
+            if (session.session_id === currentSessionId) item.classList.add('active');
             item.dataset.sessionId = session.session_id;
+
+            const header = document.createElement('div');
+            header.className = 'session-header';
+
             const preview = document.createElement('div');
             preview.className = 'session-preview';
-            preview.textContent = session.preview || 'New conversation';
+            preview.textContent = session.title || session.preview || 'New conversation';
             const meta = document.createElement('div');
             meta.className = 'session-meta';
             meta.textContent = `${session.message_count} messages`;
-            item.appendChild(preview);
+            const actions = document.createElement('div');
+            actions.className = 'session-actions';
+
+            const renameBtn = document.createElement('button');
+            renameBtn.type = 'button';
+            renameBtn.className = 'session-action-btn';
+            renameBtn.textContent = 'Rename';
+            renameBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                renameSession(session.session_id, session.title || session.preview || 'New conversation');
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'session-action-btn danger';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteSession(session.session_id);
+            });
+
+            actions.appendChild(renameBtn);
+            actions.appendChild(deleteBtn);
+            header.appendChild(preview);
+            header.appendChild(actions);
+            item.appendChild(header);
             item.appendChild(meta);
             item.addEventListener('click', () => {
                 currentSessionId = session.session_id;
@@ -843,6 +876,39 @@ async function loadSessionList() {
                 item.classList.add('active');
             });
             list.appendChild(item);
+        }
+    } catch (_) {}
+}
+
+async function renameSession(sessionId, currentTitle) {
+    const title = prompt('Rename conversation', currentTitle || 'New conversation');
+    if (title === null) return;
+
+    try {
+        const res = await fetch(`/api/chat/sessions/${sessionId}/rename`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title }),
+        });
+        if (res.ok) {
+            await loadSessionList();
+        }
+    } catch (_) {}
+}
+
+async function deleteSession(sessionId) {
+    if (!confirm('Delete this conversation?')) return;
+
+    try {
+        const res = await fetch(`/api/chat/sessions/${sessionId}`, { method: 'DELETE' });
+        if (res.ok) {
+            if (currentSessionId === sessionId) {
+                currentSessionId = null;
+                const container = document.getElementById('chat-messages');
+                if (container) container.innerHTML = '';
+            }
+            await loadSessionList();
+            await loadChatHistory();
         }
     } catch (_) {}
 }
@@ -915,8 +981,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (_) {}
 
-    // Set default workspace to chat (modern AI assistant mode)
-    switchWorkspace('chat');
+    // Set default workspace to home (Neural Core)
+    switchWorkspace('home');
 
     // Health polling
     setInterval(_refreshHealth, 10000);
@@ -955,6 +1021,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
             e.preventDefault();
             toggleGraph();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
+            e.preventDefault();
+            const devToggle = document.getElementById('dev-mode-toggle');
+            if (devToggle) devToggle.click();
         }
         if (e.key === 'Escape') {
             const ov = document.getElementById('settings-overlay');

@@ -30,6 +30,10 @@ class ChatResponse(BaseModel):
     audio_url: Optional[str] = None
 
 
+class SessionRenameRequest(BaseModel):
+    title: str
+
+
 @router.post("", response_model=ChatResponse)
 @rate_limit(max_requests=15, window_seconds=60)
 async def chat(request: Request, req: ChatRequest):
@@ -191,3 +195,22 @@ async def list_sessions(
     sessions = await db.get_all_sessions(limit=limit, offset=offset)
     total = await db.get_session_count()
     return {"sessions": sessions, "total": total}
+
+
+@router.post("/sessions/{session_id}/rename")
+async def rename_session(session_id: str, req: SessionRenameRequest):
+    """Rename a conversation session."""
+    db = await get_db()
+    title = req.title.strip()
+    if not title:
+        return {"detail": "Title cannot be empty"}
+    await db.set_session_title(session_id, title)
+    return {"ok": True, "session_id": session_id, "title": title}
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(session_id: str):
+    """Delete a conversation session."""
+    db = await get_db()
+    await db.delete_session(session_id)
+    return {"ok": True, "session_id": session_id}

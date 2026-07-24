@@ -82,6 +82,36 @@ class TestUnifiedToolLayer:
         # Should have tools in multiple categories
         assert len(found) >= 5
 
+    def test_controller_action_aliases(self):
+        from jarvis.computer.controller import ComputerController
+        c = ComputerController()
+        assert c._normalize_action("keyboard_type") == "type_text"
+        assert c._normalize_action("browser_text") == "browser_get_text"
+        assert c._normalize_action("screen_active_window") == "screen_get_active_window"
+
+    def test_worker_tool_call_extraction(self):
+        from jarvis.agents.workers.base import BaseWorker
+        from jarvis.core.models import Suit, Rank
+
+        class DummyWorker(BaseWorker):
+            @property
+            def name(self) -> str:
+                return "Dummy"
+
+            @property
+            def title(self) -> str:
+                return "Dummy"
+
+            def get_system_prompt(self) -> str:
+                return ""
+
+        worker = object.__new__(DummyWorker)
+        calls = worker._extract_tool_calls(
+            'before [TOOL: shell_execute(command="ls -la")] after ```json\n{"action":"browser_navigate","params":{"url":"https://example.com"}}\n```'
+        )
+        assert ("shell_execute", {"command": "ls -la"}) in calls
+        assert ("browser_navigate", {"url": "https://example.com"}) in calls
+
 
 # ── Unified Context Engine ──────────────────────────────────────────
 

@@ -12,7 +12,7 @@ class ChatBackground {
     start() {
         if (this.graph) return;
 
-        this.graph = new Graph3D(this.container);
+        this.graph = new Graph3D(this.container, { interactive: false });
         this.graph.NODE_COUNT = 150;
         this.graph.SPACE_RADIUS = 10;
         this.graph.CONNECT_DIST = 3.0;
@@ -38,7 +38,7 @@ class ChatBackground {
 
     stop() {
         if (this.graph) {
-            this.graph.stop();
+            this.graph.destroy();
             this.graph = null;
         }
     }

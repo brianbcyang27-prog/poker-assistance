@@ -244,6 +244,19 @@ class WorkspaceManager:
             "duration_ms": int(workspace.duration_ms),
         })
 
+        try:
+            lesson = {
+                "workspace_id": workspace_id,
+                "goal": workspace.goal,
+                "owner": workspace.owner,
+                "success": True,
+                "lesson": f"Successfully completed workspace for: {workspace.goal}",
+                "summary": workspace.final_report or workspace.user_request or workspace.goal,
+            }
+            await db.save_workspace_lesson(lesson)
+        except Exception:
+            pass
+
         self._active_workspaces.pop(workspace_id, None)
         return True
 

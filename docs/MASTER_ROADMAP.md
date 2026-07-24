@@ -2,7 +2,7 @@
 
 > **Single source of truth for the future of JARVIS.**
 > This document is maintained automatically after every release.
-> Last updated: v6.2.0
+> Last updated: v6.6.0
 
 ---
 
@@ -48,7 +48,7 @@ The name stands for something larger than any single feature. JARVIS is the conv
 | Knowledge management system | ✅ Active | v3.1+ |
 | Daily life assistant | 🔜 Planned | v5.3+ |
 | Robotics assistant | 🔜 Planned | v6.3+ |
-| Personal AI operating system | 🔜 Planned | v7.0 |
+| Personal AI operating system | ✅ Active | v7.0 |
 
 ### The Mission
 
@@ -537,6 +537,18 @@ graph TB
 - **Code Cleanup**: Removed dead command_center.py, orchestration/ module, test_orchestration.py
 - **Performance**: 2.34s startup, 2-14ms API latency, 223 tests passing
 
+### v7.0.0 — Experience Revolution
+
+> **Design Philosophy**: Calm. Elegant. Fast. Premium. Alive.
+
+- Premium design system with glass, depth, spring transitions
+- 5 primary workspaces: Home, Chat, Memory, Projects, Settings
+- Developer Mode toggle (`Cmd+Shift+D`) — dev panels hidden by default
+- Single chat experience — ONE input, always consistent
+- AI Presence — real system state messages, living Neural Core states
+- Professional typography, spacing, shadows, and motion design
+- Apple/Arc/Raycast-inspired premium feel
+
 ### v6.1.0 — System Integration & Engineering Workspace
 
 > JARVIS becomes one unified operating system.
@@ -675,22 +687,56 @@ graph TB
 | CAM Support | Manufacturing paths | Medium |
 | Manufacturing Pipeline | End-to-end production | Low |
 
-### v6.3 — Robotics Studio
+### v6.6 — Workspace Engine
 
-> JARVIS enters the physical world.
+> Every request becomes a persistent workspace.
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
-| ESP32 Programming | Direct firmware upload | High |
-| Arduino Programming | Sketch compilation | High |
-| ROS2 Integration | Robot Operating System | High |
-| PlatformIO Integration | Embedded toolchain | High |
-| Serial Monitor | Live serial output | High |
-| Live Telemetry | Real-time sensor data | Medium |
-| Sensor Visualization | Dashboard for sensors | Medium |
-| Robot Dashboard | Unified robot control | High |
-| OTA Updates | Over-the-air firmware updates | Medium |
-| Simulation Support | Virtual robot testing | Medium |
+| Workspace Persistence | Goal, members, files, notes, timeline | High |
+| Artifact Registry | Track files, screenshots, terminals, outputs | High |
+| Workspace Search | Find old missions and unfinished work | High |
+| Resume Context | Restore prior work automatically | High |
+| Tool Audit Trail | Capture every tool call and result | High |
+| Conversation Linking | Tie chat turns to workspace state | Medium |
+| Project Handoff | Keep project state across sessions | High |
+| Timeline Replay | Review what happened step by step | Medium |
+
+### v6.7 — Multi-Agent Collaboration
+
+> Workers ask other workers for help.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Worker-to-Worker Requests | One worker can delegate to another | High |
+| Peer Review | Test worker, docs worker, analysis worker chains | High |
+| Shared Context Packets | Structured handoff between agents | High |
+| Collaboration Graph | Show who asked whom and why | Medium |
+| Cross-Agent Memory | Shared project notes and findings | High |
+
+### v6.8 — Learning From Success
+
+> Every successful mission should teach JARVIS something durable.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Success Lessons | Store outcome, reason, and pattern | High |
+| Preference Learning | Remember user defaults and habits | High |
+| Pattern Extraction | Convert repeated wins into rules | High |
+| Mission Retrospectives | Summaries of what worked and why | Medium |
+| Better Next-Time Plans | Use past success before planning new work | High |
+
+### v6.9 — Autonomous Project Manager
+
+> "Continue working on JARVIS" should just work.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Auto-Resume Projects | Open repo, read status, continue work | High |
+| Pending Work Discovery | Detect TODOs, roadmap gaps, open branches | High |
+| Git Awareness | Read recent commits and branch state | High |
+| Workspace Revival | Restore relevant apps, notes, and files | High |
+| Continuation Suggestions | Recommend the next logical action | Medium |
 
 ### v7.0 — Personal AI Operating System
 
@@ -708,6 +754,7 @@ graph TB
 | Engineering Suite | Professional tools | High |
 | Research Engine | Autonomous research | High |
 | Learning System | Continuous improvement | High |
+| **Workspace Engine** | **Persistent continuous workspaces** | **High** |
 | **Everything Unified** | **One coherent system** | **High** |
 
 ---

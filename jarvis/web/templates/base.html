@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JARVIS</title>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=6.5.0">
-    <link rel="stylesheet" href="/static/css/style.css?v=6.5.0">
-    <link rel="stylesheet" href="/static/css/command-map.css?v=6.5.0">
-    <script src="/static/vendor/three.min.js?v=6.5.0"></script>
-    <script src="/static/vendor/CopyShader.js?v=6.5.0"></script>
-    <script src="/static/vendor/LuminosityHighPassShader.js?v=6.5.0"></script>
-    <script src="/static/vendor/EffectComposer.js?v=6.5.0"></script>
-    <script src="/static/vendor/RenderPass.js?v=6.5.0"></script>
-    <script src="/static/vendor/ShaderPass.js?v=6.5.0"></script>
-    <script src="/static/vendor/UnrealBloomPass.js?v=6.5.0"></script>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=7.0.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=7.0.0">
+    <link rel="stylesheet" href="/static/css/command-map.css?v=7.0.0">
+    <script src="/static/vendor/three.min.js?v=7.0.0"></script>
+    <script src="/static/vendor/CopyShader.js?v=7.0.0"></script>
+    <script src="/static/vendor/LuminosityHighPassShader.js?v=7.0.0"></script>
+    <script src="/static/vendor/EffectComposer.js?v=7.0.0"></script>
+    <script src="/static/vendor/RenderPass.js?v=7.0.0"></script>
+    <script src="/static/vendor/ShaderPass.js?v=7.0.0"></script>
+    <script src="/static/vendor/UnrealBloomPass.js?v=7.0.0"></script>
 </head>
 <body>
     <div id="app">
@@ -21,36 +21,24 @@
         <!-- ===== UNIFIED DASHBOARD ===== -->
         <div id="dashboard">
 
-            <!-- LEFT NAV: Workspace-based navigation -->
+            <!-- LEFT NAV: Minimal icon navigation -->
             <nav id="left-nav">
                 <div class="nav-logo">
                     <div class="logo-ring"></div>
                     <span class="logo-text">J</span>
                 </div>
                 <div class="nav-items">
-                    <button class="nav-btn" data-workspace="core" title="Neural Core">
+                    <button class="nav-btn active" data-workspace="home" title="Home">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="12" cy="12" r="3"/><path d="M12 1v4m0 14v4m-9-9h4m14 0h4"/>
                         </svg>
-                        <span>Core</span>
+                        <span>Home</span>
                     </button>
-                    <button class="nav-btn active" data-workspace="chat" title="Chat">
+                    <button class="nav-btn" data-workspace="chat" title="Chat">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
                         <span>Chat</span>
-                    </button>
-                    <button class="nav-btn" data-workspace="projects" title="Projects">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                        </svg>
-                        <span>Projects</span>
-                    </button>
-                    <button class="nav-btn" data-workspace="computer" title="Computer">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
-                            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>
-                        </svg>
-                        <span>Computer</span>
                     </button>
                     <button class="nav-btn" data-workspace="memory" title="Memory">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -58,12 +46,17 @@
                         </svg>
                         <span>Memory</span>
                     </button>
-
+                    <button class="nav-btn" data-workspace="projects" title="Projects">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        <span>Projects</span>
+                    </button>
                 </div>
 
                 <!-- Developer Mode Toggle -->
                 <div class="nav-divider"></div>
-                <button id="dev-mode-toggle" class="nav-btn dev-toggle" title="Developer Mode">
+                <button id="dev-mode-toggle" class="nav-btn dev-toggle" title="Developer Mode (Cmd+Shift+D)">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
                         <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
                     </svg>
@@ -72,6 +65,12 @@
 
                 <!-- Developer items (hidden by default) -->
                 <div class="nav-items dev-only" style="display:none;">
+                    <button class="nav-btn" data-workspace="computer" title="Computer">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>
+                        </svg>
+                        <span>Computer</span>
+                    </button>
                     <button class="nav-btn" data-workspace="engineering" title="Agents">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/>
@@ -109,7 +108,7 @@
                     </button>
                     <div class="version-badge" title="System Status">
                         <span class="version-dot"></span>
-                        <span class="version-text">v6.5.0</span>
+                        <span class="version-text">v7.0.0</span>
                     </div>
                 </div>
             </nav>
@@ -118,36 +117,36 @@
             <main id="center-panel">
                 <div id="center-core">
 
-                    <!-- WORKSPACE: Core (3D Golden Neural Core) -->
-                    <div id="golden-core-container" class="workspace-view"></div>
+                    <!-- WORKSPACE: Home (3D Golden Neural Core) -->
+                    <div id="golden-core-container" class="workspace-view active"></div>
 
                     <!-- WORKSPACE: Engineering (Agent Command Map) -->
-                    <div id="graph-container" class="workspace-view" style="display:none;">
+                    <div id="graph-container" class="workspace-view">
                         <div id="command-map" style="width:100%;height:100%;position:relative;">
                             <canvas id="bg-canvas"></canvas>
                             <svg id="hierarchy-svg" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;">
                                 <defs>
                                     <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
                                         <feGaussianBlur stdDeviation="4" result="blur"/>
-                                        <feFlood flood-color="#00d4ff" flood-opacity="0.6" result="color"/>
+                                        <feFlood flood-color="#00dcff" flood-opacity="0.6" result="color"/>
                                         <feComposite in="color" in2="blur" operator="in" result="glow"/>
                                         <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
                                     </filter>
                                     <filter id="glow-green" x="-50%" y="-50%" width="200%" height="200%">
                                         <feGaussianBlur stdDeviation="4" result="blur"/>
-                                        <feFlood flood-color="#00ff88" flood-opacity="0.6" result="color"/>
+                                        <feFlood flood-color="#34d399" flood-opacity="0.6" result="color"/>
                                         <feComposite in="color" in2="blur" operator="in" result="glow"/>
                                         <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
                                     </filter>
                                     <filter id="glow-red" x="-50%" y="-50%" width="200%" height="200%">
                                         <feGaussianBlur stdDeviation="4" result="blur"/>
-                                        <feFlood flood-color="#ff4466" flood-opacity="0.6" result="color"/>
+                                        <feFlood flood-color="#f87171" flood-opacity="0.6" result="color"/>
                                         <feComposite in="color" in2="blur" operator="in" result="glow"/>
                                         <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
                                     </filter>
                                     <filter id="glow-yellow" x="-50%" y="-50%" width="200%" height="200%">
                                         <feGaussianBlur stdDeviation="4" result="blur"/>
-                                        <feFlood flood-color="#ffaa00" flood-opacity="0.6" result="color"/>
+                                        <feFlood flood-color="#fbbf24" flood-opacity="0.6" result="color"/>
                                         <feComposite in="color" in2="blur" operator="in" result="glow"/>
                                         <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
                                     </filter>
@@ -158,9 +157,9 @@
                                         <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
                                     </filter>
                                     <linearGradient id="energy-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stop-color="#00d4ff" stop-opacity="0"/>
-                                        <stop offset="50%" stop-color="#00d4ff" stop-opacity="1"/>
-                                        <stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/>
+                                        <stop offset="0%" stop-color="#00dcff" stop-opacity="0"/>
+                                        <stop offset="50%" stop-color="#00dcff" stop-opacity="1"/>
+                                        <stop offset="100%" stop-color="#00dcff" stop-opacity="0"/>
                                     </linearGradient>
                                 </defs>
                                 <g id="energy-lines"></g>
@@ -195,15 +194,13 @@
                     </div>
 
                     <!-- WORKSPACE: Research (Knowledge Graph) -->
-                    <div id="research-container" class="workspace-view" style="display:none;"></div>
+                    <div id="research-container" class="workspace-view"></div>
 
                     <!-- WORKSPACE: Memory (Memory Galaxy) -->
-                    <div id="memory-container" class="workspace-view" style="display:none;"></div>
+                    <div id="memory-container" class="workspace-view"></div>
 
-
-
-                    <!-- WORKSPACE: Chat (Modern AI Assistant) -->
-                    <div id="chat-container" class="workspace-view" style="display:none;">
+                    <!-- WORKSPACE: Chat (Premium AI Assistant) -->
+                    <div id="chat-container" class="workspace-view">
                         <div id="chat-core-bg"></div>
                         <div id="chat-sidebar">
                             <div id="chat-sidebar-header">
@@ -218,7 +215,7 @@
                     </div>
 
                     <!-- WORKSPACE: Projects -->
-                    <div id="projects-container" class="workspace-view" style="display:none;">
+                    <div id="projects-container" class="workspace-view">
                         <div class="workspace-header">
                             <h2>Projects</h2>
                         </div>
@@ -226,7 +223,7 @@
                     </div>
 
                     <!-- WORKSPACE: Computer -->
-                    <div id="computer-container" class="workspace-view" style="display:none;">
+                    <div id="computer-container" class="workspace-view">
                         <div class="workspace-header">
                             <h2>Computer</h2>
                         </div>
@@ -261,7 +258,7 @@
                     </div>
 
                     <!-- WORKSPACE: Metrics (Dev) -->
-                    <div id="metrics-container" class="workspace-view" style="display:none;">
+                    <div id="metrics-container" class="workspace-view">
                         <div class="workspace-header">
                             <h2>Metrics</h2>
                         </div>
@@ -269,7 +266,7 @@
                     </div>
 
                     <!-- WORKSPACE: Logs (Dev) -->
-                    <div id="logs-container" class="workspace-view" style="display:none;">
+                    <div id="logs-container" class="workspace-view">
                         <div class="workspace-header">
                             <h2>Logs</h2>
                         </div>
@@ -278,7 +275,7 @@
 
                     <!-- Overlays (always present) -->
                     <div id="core-label">
-                        <div id="core-state">IDLE</div>
+                        <div id="core-state">READY</div>
                     </div>
                     <div id="thought-stream"></div>
                     <div id="department-badges"></div>
@@ -301,7 +298,7 @@
                                 <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                             </svg>
                         </button>
-                        <input type="text" id="message-input" placeholder="Speak to JARVIS..."
+                        <input type="text" id="message-input" placeholder="Ask JARVIS anything..."
                                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}">
                         <button id="send-btn" onclick="sendMessage()" title="Send">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -461,7 +458,7 @@
                             </div>
                         </div>
 
-                        <!-- Voice Profiles (from Voice workspace) -->
+                        <!-- Voice Profiles -->
                         <div class="settings-subsection">
                             <h4>Voice Profiles</h4>
                             <p class="setting-desc">Upload or record audio to create voice profiles for cloning</p>
@@ -492,7 +489,7 @@
                                     </div>
                                     <div id="voice-file-info" class="voice-file-info hidden">
                                         <span class="file-name"></span>
-                                        <button class="btn-remove" onclick="removeVoiceFile()">×</button>
+                                        <button class="btn-remove" onclick="removeVoiceFile()">&times;</button>
                                     </div>
                                 </div>
 
@@ -526,7 +523,7 @@
                             <div id="voice-profiles-list" class="voice-profiles-list"></div>
                         </div>
 
-                        <!-- Voice Test (from Voice workspace) -->
+                        <!-- Voice Test -->
                         <div class="settings-subsection">
                             <h4>Test Voice</h4>
                             <p class="setting-desc">Type text and hear it spoken with a cloned voice</p>
@@ -559,7 +556,7 @@
                             </div>
                         </div>
 
-                        <!-- Built-in Voices (from Voice workspace) -->
+                        <!-- Built-in Voices -->
                         <div class="settings-subsection">
                             <h4>Built-in Voices</h4>
                             <p class="setting-desc">Choose the provider and the voice used to generate audio.</p>
@@ -666,20 +663,20 @@
         <div id="explain-panel"></div>
     </div>
 
-    <script src="/static/js/jarvis-core.js?v=6.5.0"></script>
-    <script src="/static/js/state-machine.js?v=6.5.0"></script>
-    <script src="/static/js/audio-analyzer.js?v=6.5.0"></script>
-    <script src="/static/js/living-interface.js?v=6.5.0"></script>
-    <script src="/static/js/knowledge-graph.js?v=6.5.0"></script>
-    <script src="/static/js/graph-3d.js?v=6.5.0"></script>
-    <script src="/static/js/command-map.js?v=6.5.0"></script>
-    <script src="/static/js/department-identity.js?v=6.5.0"></script>
-    <script src="/static/js/explainability.js?v=6.5.0"></script>
-    <script src="/static/js/mission-dag.js?v=6.5.0"></script>
-    <script src="/static/js/memory-galaxy.js?v=6.5.0"></script>
-    <script src="/static/js/unified-timeline.js?v=6.5.0"></script>
-    <script src="/static/js/chat-background.js?v=6.5.0"></script>
-    <script src="/static/js/app.js?v=6.5.0"></script>
-    <script src="/static/js/voice.js?v=6.5.0"></script>
+    <script src="/static/js/jarvis-core.js?v=7.0.0"></script>
+    <script src="/static/js/state-machine.js?v=7.0.0"></script>
+    <script src="/static/js/audio-analyzer.js?v=7.0.0"></script>
+    <script src="/static/js/living-interface.js?v=7.0.0"></script>
+    <script src="/static/js/knowledge-graph.js?v=7.0.0"></script>
+    <script src="/static/js/graph-3d.js?v=7.0.0"></script>
+    <script src="/static/js/command-map.js?v=7.0.0"></script>
+    <script src="/static/js/department-identity.js?v=7.0.0"></script>
+    <script src="/static/js/explainability.js?v=7.0.0"></script>
+    <script src="/static/js/mission-dag.js?v=7.0.0"></script>
+    <script src="/static/js/memory-galaxy.js?v=7.0.0"></script>
+    <script src="/static/js/unified-timeline.js?v=7.0.0"></script>
+    <script src="/static/js/chat-background.js?v=7.0.0"></script>
+    <script src="/static/js/app.js?v=7.0.0"></script>
+    <script src="/static/js/voice.js?v=7.0.0"></script>
 </body>
 </html>

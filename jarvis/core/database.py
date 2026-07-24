@@ -101,6 +101,13 @@ class Database:
                 content TEXT NOT NULL,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
+
+            -- Conversation Sessions
+            CREATE TABLE IF NOT EXISTS conversation_sessions (
+                session_id TEXT PRIMARY KEY,
+                title TEXT DEFAULT '',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
             
             -- Agent Messages
             CREATE TABLE IF NOT EXISTS agent_messages (
@@ -171,6 +178,18 @@ class Database:
                 workspace_id TEXT,
                 owner TEXT,
                 duration_ms INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- Workspace Lessons
+            CREATE TABLE IF NOT EXISTS workspace_lessons (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                workspace_id TEXT NOT NULL,
+                goal TEXT NOT NULL,
+                owner TEXT NOT NULL,
+                success INTEGER NOT NULL DEFAULT 1,
+                lesson TEXT NOT NULL,
+                summary TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             
@@ -473,6 +492,34 @@ class Database:
             (rowid, session_id, role, content)
         )
         await self._db.commit()
+
+    async def set_session_title(self, session_id: str, title: str):
+        """Create or update a conversation title."""
+        await self._db.execute(
+            """INSERT INTO conversation_sessions (session_id, title, updated_at)
+               VALUES (?, ?, CURRENT_TIMESTAMP)
+               ON CONFLICT(session_id) DO UPDATE SET
+                   title = excluded.title,
+                   updated_at = CURRENT_TIMESTAMP""",
+            (session_id, title.strip()),
+        )
+        await self._db.commit()
+
+    async def delete_session(self, session_id: str):
+        """Delete a conversation session and its indexed rows."""
+        cursor = await self._db.execute(
+            "SELECT id FROM conversations WHERE session_id = ?",
+            (session_id,)
+        )
+        rows = await cursor.fetchall()
+        for row in rows:
+            await self._db.execute(
+                "DELETE FROM conversations_fts WHERE rowid = ?",
+                (row["id"],)
+            )
+        await self._db.execute("DELETE FROM conversations WHERE session_id = ?", (session_id,))
+        await self._db.execute("DELETE FROM conversation_sessions WHERE session_id = ?", (session_id,))
+        await self._db.commit()
     
     async def search_task_history(self, query: str, limit: int = 10) -> list[dict]:
         """Search past task history using FTS5."""
@@ -555,26 +602,30 @@ class Database:
     async def get_all_sessions(self, limit: int = 50, offset: int = 0) -> list[dict]:
         """Get all conversation sessions with first user message as preview."""
         cursor = await self._db.execute(
-            """SELECT session_id, 
-                      MIN(timestamp) as started_at,
-                      MAX(timestamp) as last_at,
-                      COUNT(*) as message_count
-               FROM conversations 
-               GROUP BY session_id 
-               ORDER BY last_at DESC 
+            """SELECT c.session_id,
+                      MIN(c.timestamp) as started_at,
+                      MAX(c.timestamp) as last_at,
+                      COUNT(*) as message_count,
+                      COALESCE(s.title, '') as title,
+                      COALESCE((
+                          SELECT content
+                          FROM conversations c2
+                          WHERE c2.session_id = c.session_id AND c2.role = 'user'
+                          ORDER BY c2.id
+                          LIMIT 1
+                      ), '') as preview
+               FROM conversations c
+               LEFT JOIN conversation_sessions s ON s.session_id = c.session_id
+               GROUP BY c.session_id
+               ORDER BY last_at DESC
                LIMIT ? OFFSET ?""",
             (limit, offset)
         )
         sessions = []
         for row in await cursor.fetchall():
             d = dict(row)
-            # Get first user message as preview
-            preview_cursor = await self._db.execute(
-                "SELECT content FROM conversations WHERE session_id = ? AND role = 'user' ORDER BY id LIMIT 1",
-                (d["session_id"],)
-            )
-            preview_row = await preview_cursor.fetchone()
-            d["preview"] = preview_row["content"][:100] if preview_row else ""
+            d["preview"] = (d.get("preview") or "")[:100]
+            d["title"] = d["title"] or d["preview"] or "New conversation"
             sessions.append(d)
         return sessions
     
@@ -810,6 +861,30 @@ class Database:
             )
         )
         await self._db.commit()
+
+    async def save_workspace_lesson(self, lesson: dict):
+        await self._db.execute(
+            """INSERT INTO workspace_lessons
+               (workspace_id, goal, owner, success, lesson, summary)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                lesson["workspace_id"],
+                lesson["goal"],
+                lesson["owner"],
+                1 if lesson.get("success", True) else 0,
+                lesson["lesson"],
+                lesson.get("summary", ""),
+            ),
+        )
+        await self._db.commit()
+
+    async def get_recent_workspace_lessons(self, limit: int = 20) -> list[dict]:
+        cursor = await self._db.execute(
+            "SELECT * FROM workspace_lessons ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        )
+        rows = await cursor.fetchall()
+        return [dict(row) for row in rows]
     
     async def get_task_history(self, limit: int = 20, offset: int = 0) -> list[dict]:
         cursor = await self._db.execute(

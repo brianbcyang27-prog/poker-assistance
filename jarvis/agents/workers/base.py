@@ -41,6 +41,48 @@ class BaseWorker(CardAgent):
             self._tools = controller
         return self._tools
 
+    async def _llm_chat(self, message: str, system_prompt: str, **kwargs) -> str:
+        """Run sync LLM calls off the event loop."""
+        return await asyncio.to_thread(self._llm.chat, message=message, system_prompt=system_prompt, **kwargs)
+
+    def _extract_tool_calls(self, response: str) -> list[tuple[str, dict]]:
+        """Extract tool calls from bracket syntax or JSON blocks."""
+        calls: list[tuple[str, dict]] = []
+
+        for action_str, args_str in re.findall(r'\[TOOL:\s*([\w\.]+)\((.*?)\)\]', response, re.DOTALL):
+            params = {}
+            if args_str.strip():
+                for key, value in re.findall(r'(\w+)="([^"]*)"', args_str):
+                    params[key] = value
+                for key, value in re.findall(r'(\w+)=(\d+\.?\d*)', args_str):
+                    if key not in params:
+                        try:
+                            num = float(value)
+                            params[key] = int(num) if num == int(num) else num
+                        except ValueError:
+                            params[key] = value
+            calls.append((action_str, params))
+
+        for block in re.findall(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL | re.IGNORECASE):
+            try:
+                payload = json.loads(block)
+            except Exception:
+                continue
+            action_str = payload.get("action") or payload.get("tool") or payload.get("name")
+            if not action_str:
+                continue
+            params = payload.get("params") or payload.get("arguments") or {}
+            if isinstance(params, str):
+                try:
+                    params = json.loads(params)
+                except Exception:
+                    params = {"value": params}
+            if not isinstance(params, dict):
+                params = {"value": params}
+            calls.append((action_str, params))
+
+        return calls
+
     @property
     def role(self):
         from ...core.models import AgentRole
@@ -190,7 +232,7 @@ After receiving tool results or peer help, continue your work. When done, provid
                 )
                 message += f"\n\n=== Available peer discoveries ===\n{summaries}"
 
-            response = self._llm.chat(message=message, system_prompt=full_prompt)
+            response = await self._llm_chat(message=message, system_prompt=full_prompt)
             response = await self._process_tool_calls(response)
 
             confidence = await self._assess_confidence(task, response)
@@ -278,26 +320,12 @@ After receiving tool results or peer help, continue your work. When done, provid
                 else:
                     response += "\n\n[PEER HELP]: No peer available to help."
 
-            # Find tool calls: [TOOL: action(param="val", ...)]
-            pattern = r'\[TOOL:\s*(\w+)\((.*?)\)\]'
-            matches = re.findall(pattern, response)
+            matches = self._extract_tool_calls(response)
 
             if not matches:
                 break
 
-            for action_str, args_str in matches:
-                params = {}
-                if args_str.strip():
-                    for arg in re.findall(r'(\w+)="([^"]*)"', args_str):
-                        params[arg[0]] = arg[1]
-                    for arg in re.findall(r'(\w+)=(\d+\.?\d*)', args_str):
-                        if arg[0] not in params:
-                            try:
-                                params[arg[0]] = float(arg[1])
-                                if params[arg[0]] == int(params[arg[0]]):
-                                    params[arg[0]] = int(params[arg[0]])
-                            except ValueError:
-                                params[arg[0]] = arg[1]
+            for action_str, params in matches:
 
                 await event_bus.emit(Event(
                     type="worker.tool_call",
@@ -311,7 +339,7 @@ After receiving tool results or peer help, continue your work. When done, provid
 
                 result = await tool_executor.execute(action_str, **params)
                 result_str = f"\n[TOOL RESULT: {action_str}] {result}\n"
-                response = self._llm.chat(
+                response = await self._llm_chat(
                     message=f"Tool result for {action_str}:\n{result_str}\n\nContinue your work.",
                     system_prompt="Process the tool result and continue.",
                 )
@@ -325,7 +353,7 @@ Consider: completeness, accuracy, potential issues, limitations.
 Respond with just the number."""
         
         try:
-            result = self._llm.chat(
+            result = await self._llm_chat(
                 message=f"Task: {task.name}\nResponse: {response[:500]}",
                 system_prompt=system_prompt,
                 temperature=0.1,
@@ -341,7 +369,7 @@ Respond with just the number."""
 List each issue on a new line, or respond with "None" if there are no issues."""
         
         try:
-            result = self._llm.chat(
+            result = await self._llm_chat(
                 message=f"Task: {task.name}\nResponse: {response[:500]}",
                 system_prompt=system_prompt,
                 temperature=0.1,

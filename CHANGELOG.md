@@ -1,5 +1,51 @@
 # Changelog
 
+## v7.0.0 — Experience Revolution (2026-07-24)
+
+> **Design Philosophy**: Calm. Elegant. Fast. Premium. Alive.
+
+### NEW: Premium Design System
+- Complete style.css rewrite with design tokens (shadows, spacing, typography, border-radii, transitions)
+- Glass + depth effects with `backdrop-filter: blur()` on all surfaces
+- Spring-eased transitions (`cubic-bezier(0.34, 1.56, 0.64, 1)`) for natural motion
+- Micro-interactions on buttons, cards, and nav items (scale, glow, shadow)
+- Responsive breakpoints: 480px, 768px, 1024px, 1200px
+- Professional typography scale (12px–28px)
+
+### NEW: Unified Navigation
+- 5 primary workspaces: Home, Chat, Memory, Projects, Settings
+- Developer items (Metrics, Logs, Engineering, Computer) hidden behind Dev Mode toggle
+- `Cmd+Shift+D` keyboard shortcut for Developer Mode
+- Clean top bar with status pill, workspace switcher, and settings gear
+
+### NEW: Single Chat Experience
+- ONE message input — always in same location across all contexts
+- Chat lives in its own workspace, no duplication
+- Floating input card with premium glass styling
+
+### NEW: AI Presence
+- Real system state messages ("Monitoring your environment...") instead of static "Ready"
+- Living Neural Core states: Idle, Listening, Thinking, Working, Speaking, Complete, Error
+- Each state has unique icon, color, and rotating thought messages
+- Smooth state transitions with visual feedback
+
+### CHANGED: Default Workspace
+- Home (Neural Core) is now the default landing workspace
+- Core visualization shows on Home and Chat workspaces
+
+### CHANGED: Developer Mode
+- All developer panels (confidence, JSON traces, DAG, EventBus, metrics) hidden by default
+- Toggle with Dev Mode switch or `Cmd+Shift+D`
+- Non-dev users see a clean, premium interface
+
+### FIXED
+- Layout jumps and flashing during workspace transitions
+- Inconsistent margins and padding across panels
+- Broken golden core visibility on workspace switches
+- AI state messages showing developer jargon instead of human-friendly text
+
+---
+
 ## v6.4.2 — Enterprise Secret Vault & Security Framework (2026-07-21)
 
 ### NEW: Secret Vault

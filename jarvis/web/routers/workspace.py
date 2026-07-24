@@ -149,6 +149,14 @@ async def replay_workspace(workspace_id: str):
     }
 
 
+@router.get("/lessons")
+async def list_workspace_lessons(limit: int = Query(20, ge=1, le=100)):
+    """List recent lessons learned from successful workspaces."""
+    db = await get_db()
+    lessons = await db.get_recent_workspace_lessons(limit=limit)
+    return {"lessons": lessons}
+
+
 # === MUTATIONS ===
 
 @router.post("/{workspace_id}/timeline")

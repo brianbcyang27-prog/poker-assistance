@@ -29,13 +29,16 @@ class ComputerController:
             "register_project", "list_projects", "get_active_project",
             "record_activity", "resume_project", "open_terminal",
             "browser_navigate", "browser_click", "browser_type",
-            "browser_screenshot", "browser_get_text", "browser_scroll",
+            "browser_screenshot", "browser_get_text", "browser_text", "browser_fill", "browser_scroll",
             "browser_press_key", "browser_evaluate",
             "screen_capture", "screen_capture_region", "screen_get_active_window",
+            "screen_active_window", "screen_open_app", "screen_open_url",
             "screen_list_windows",
             "mouse_move", "mouse_click", "mouse_drag", "mouse_scroll",
             "keyboard_type", "keyboard_press", "keyboard_hotkey",
+            "type_text", "hotkey", "press_key",
             "list_files", "read_file", "write_file", "create_file", "file_exists",
+            "file_list", "file_read", "file_write", "file_create",
             "shell_execute", "web_search", "web_fetch",
             "arduino_send", "arduino_list",
         ]
@@ -48,6 +51,7 @@ class ComputerController:
 
     async def execute(self, action: str, **params) -> dict:
         """Execute an action."""
+        action = self._normalize_action(action)
         if not self._initialized and action not in (
             "search", "open_url", "open_app",
             "register_project", "list_projects", "get_active_project",
@@ -121,6 +125,26 @@ class ComputerController:
             return await handler(**params)
         except Exception as e:
             return {"ok": False, "error": str(e), "action": action}
+
+    def _normalize_action(self, action: str) -> str:
+        """Map common worker/tool aliases to controller actions."""
+        aliases = {
+            "keyboard_type": "type_text",
+            "keyboard_press": "press_key",
+            "keyboard_hotkey": "hotkey",
+            "browser_text": "browser_get_text",
+            "browser_fill": "browser_type",
+            "screen_active_window": "screen_get_active_window",
+            "screen_open_app": "open_app",
+            "screen_open_url": "open_url",
+            "browser_open_app": "open_app",
+            "browser_open_url": "open_url",
+            "file_list": "list_files",
+            "file_read": "read_file",
+            "file_write": "write_file",
+            "file_create": "create_file",
+        }
+        return aliases.get(action, action)
 
     # ── Project Memory ─────────────────────────────────────────────
 

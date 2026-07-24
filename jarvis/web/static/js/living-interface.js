@@ -19,42 +19,44 @@ class LivingInterface {
         this._stateThoughts = {
             idle: [
                 { icon: '◉', text: 'Systems nominal' },
-                { icon: '◎', text: 'Monitoring environment' },
+                { icon: '◎', text: 'Monitoring your environment' },
                 { icon: '◇', text: 'Memory consolidation active' },
-                { icon: '○', text: 'Awaiting instructions' },
+                { icon: '○', text: 'Waiting for your next mission' },
+                { icon: '◈', text: 'Watching system health' },
+                { icon: '◇', text: 'Remembering previous work' },
             ],
             listening: [
-                { icon: '◉', text: 'Audio input active' },
-                { icon: '◎', text: 'Processing speech' },
+                { icon: '◉', text: 'Listening...' },
+                { icon: '◎', text: 'Processing your words' },
                 { icon: '◇', text: 'Voice recognized' },
             ],
             thinking: [
-                { icon: '◉', text: 'Analyzing intent...' },
+                { icon: '◉', text: 'Understanding your request...' },
                 { icon: '◎', text: 'Searching memories...' },
                 { icon: '◇', text: 'Reviewing context...' },
                 { icon: '◈', text: 'Building understanding...' },
-                { icon: '◆', text: 'Processing request...' },
+                { icon: '◆', text: 'Processing...' },
             ],
             planning: [
-                { icon: '◉', text: 'Decomposing task...' },
-                { icon: '◎', text: 'Creating mission plan...' },
-                { icon: '◇', text: 'Assigning workers...' },
-                { icon: '◈', text: 'Building DAG...' },
+                { icon: '◉', text: 'Planning the approach...' },
+                { icon: '◎', text: 'Creating a mission plan...' },
+                { icon: '◇', text: 'Assigning the right agents...' },
+                { icon: '◈', text: 'Building the execution path...' },
             ],
             delegating: [
-                { icon: '◉', text: 'Dispatching to kings...' },
-                { icon: '◎', text: 'Forming team...' },
+                { icon: '◉', text: 'Dispatching to specialists...' },
+                { icon: '◎', text: 'Forming the right team...' },
                 { icon: '◇', text: 'Activating workers...' },
             ],
             working: [
                 { icon: '◉', text: 'Executing tasks...' },
                 { icon: '◎', text: 'Workers collaborating...' },
                 { icon: '◇', text: 'Processing data...' },
-                { icon: '◈', text: 'Building solution...' },
+                { icon: '◈', text: 'Building your solution...' },
             ],
             reviewing: [
-                { icon: '◉', text: 'Quality review...' },
-                { icon: '◎', text: 'Checking results...' },
+                { icon: '◉', text: 'Quality check...' },
+                { icon: '◎', text: 'Verifying results...' },
                 { icon: '◇', text: 'Validating output...' },
             ],
             retrieving: [
@@ -71,12 +73,12 @@ class LivingInterface {
                 { icon: '◉', text: 'Results delivered' },
             ],
             error: [
-                { icon: '✗', text: 'Error detected' },
+                { icon: '✗', text: 'Something went wrong' },
                 { icon: '⚠', text: 'Attempting recovery...' },
             ],
             mission_active: [
                 { icon: '◉', text: 'Mission in progress...' },
-                { icon: '◎', text: 'Workers active...' },
+                { icon: '◎', text: 'Workers are active...' },
             ],
         };
     }
