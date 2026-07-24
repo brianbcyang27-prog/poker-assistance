@@ -187,30 +187,11 @@ class CommandMap {
     
     connectWebSocket() {
         if (this._wsDestroyed) return;
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws/agents`;
         
-        this.ws = new WebSocket(wsUrl);
-        
-        this.ws.onmessage = (event) => {
-            try {
-                const msg = JSON.parse(event.data);
-                if (msg.type === 'status') {
-                    this.updateHierarchy(msg.data);
-                }
-            } catch(e) {}
-        };
-        
-        this.ws.onclose = () => {
-            if (!this._wsDestroyed && this._wsReconnects < 50) {
-                this._wsReconnects = (this._wsReconnects || 0) + 1;
-                this._retryTimeout = setTimeout(() => this.connectWebSocket(), 3000);
-            }
-        };
-        
-        this.ws.onerror = () => {
-            this.ws.close();
-        };
+        if (window.JarvisWS) {
+            window.JarvisWS.connect();
+            window.JarvisWS.on('status', (data) => this.updateHierarchy(data));
+        }
     }
     
     async fetchHierarchy() {

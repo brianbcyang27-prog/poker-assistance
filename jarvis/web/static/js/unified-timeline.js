@@ -535,35 +535,12 @@ class UnifiedTimeline {
     }
 
     connect(wsUrl) {
-        if (this._ws && this._ws.readyState === WebSocket.OPEN) return;
+        if (window.JarvisWS && window.JarvisWS.connected) return;
 
-        const url = wsUrl || `ws://${location.host}/ws/agents`;
-        this._ws = new WebSocket(url);
-
-        this._ws.onopen = () => {
-            if (this._reconnectTimer) {
-                clearTimeout(this._reconnectTimer);
-                this._reconnectTimer = null;
-            }
-        };
-
-        this._ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                this._handleWSMessage(data);
-            } catch (e) {
-                console.error('[UnifiedTimeline] WS parse error:', e);
-            }
-        };
-
-        this._wsReconnects = this._wsReconnects || 0;
-        this._ws.onclose = () => {
-            this._wsReconnects++;
-            if (this._wsReconnects > 20) return;
-            this._reconnectTimer = setTimeout(() => this.connect(wsUrl), 3000);
-        };
-
-        this._ws.onerror = () => {};
+        if (window.JarvisWS) {
+            window.JarvisWS.connect(wsUrl);
+            window.JarvisWS.on('message', (data) => this._handleWSMessage(data));
+        }
     }
 
     _handleWSMessage(data) {

@@ -102,42 +102,12 @@ class LivingInterface {
     }
 
     connectEvents(wsUrl) {
-        if (this._ws && this._ws.readyState === WebSocket.OPEN) return;
+        if (window.JarvisWS && window.JarvisWS.connected) return;
 
-        const url = wsUrl || `ws://${location.host}/ws/agents`;
-        this._ws = new WebSocket(url);
-
-        this._ws.onopen = () => {
-            console.log('[JARVIS] WebSocket connected');
-            if (this._reconnectTimer) {
-                clearTimeout(this._reconnectTimer);
-                this._reconnectTimer = null;
-            }
-        };
-
-        this._ws.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                this._handleWSMessage(data);
-            } catch (e) {
-                console.error('[JARVIS] WS parse error:', e);
-            }
-        };
-
-        this._wsReconnects = this._wsReconnects || 0;
-        this._ws.onclose = () => {
-            this._wsReconnects++;
-            if (this._wsReconnects > 20) {
-                console.log('[JARVIS] WebSocket gave up reconnecting after 20 attempts');
-                return;
-            }
-            console.log(`[JARVIS] WebSocket closed, reconnecting in 3s... (${this._wsReconnects}/20)`);
-            this._reconnectTimer = setTimeout(() => this.connectEvents(wsUrl), 3000);
-        };
-
-        this._ws.onerror = (err) => {
-            console.error('[JARVIS] WebSocket error:', err);
-        };
+        if (window.JarvisWS) {
+            window.JarvisWS.connect(wsUrl);
+            window.JarvisWS.on('message', (data) => this._handleWSMessage(data));
+        }
     }
 
     _handleWSMessage(data) {
