@@ -2,7 +2,7 @@
 
 > **Single source of truth for the future of JARVIS.**
 > This document is maintained automatically after every release.
-> Last updated: v7.2.0
+> Last updated: v7.8.0
 
 ---
 
@@ -569,6 +569,70 @@ graph TB
 - Documented all workspace status (completed vs pending)
 - Added design philosophy, animation philosophy, coding standards
 
+### v7.3.0 — Reliability Foundation
+
+> Fix silent failures and async bottlenecks.
+
+- Async LLM chat with `httpx.AsyncClient` + `asyncio.sleep()` retries
+- Async SQLite migration with `aiosqlite` (non-blocking)
+- Added logging to 43+ silent `except: pass` handlers
+- WebSocket consolidation (3 connections → 1 shared `JarvisWS`)
+- JS test infrastructure (Jest + ws-manager unit tests)
+- Version bumped to 7.3.0
+
+### v7.4.0 — Premium Voice Experience
+
+> Voice interaction with visual feedback.
+
+- Created `voice-experience.js` with streaming STT/TTS support
+- Audio waveform visualization with canvas + frequency analysis
+- Voice state machine (idle → listening → thinking → speaking)
+- Premium CSS animations for voice states (pulse, dot pulse)
+- Version bumped to 7.4.0
+
+### v7.5.0 — Mission Timeline + Tool Cards
+
+> Transparent step-by-step execution.
+
+- Created `mission-timeline.js` with premium timeline visualization
+- Timeline panel in chat workspace (collapsible)
+- Tool card CSS (compact inline pills with status colors)
+- Timeline CSS with slide-in animations and status dots
+- Wired `tool_calls` SSE events to timeline rendering
+- Version bumped to 7.5.0
+
+### v7.6.0 — Premium Vision Experience
+
+> Screen and camera analysis with AI.
+
+- Created `vision-experience.js` with screen/camera capture
+- Rebuilt Computer workspace as Vision workspace with live viewport
+- Frame capture → `/api/chat` → analysis result flow
+- Vision CSS (viewport, overlay, analysis panel, empty state)
+- Version bumped to 7.6.0
+
+### v7.7.0 — Workspace System
+
+> Persistent context per workspace.
+
+- Created `workspace-manager.js` with per-workspace state persistence
+- Saves/restores scroll position on workspace switch
+- SessionStorage hydration for cross-page persistence
+- Hooked into `switchWorkspace()` in app.js
+- Version bumped to 7.7.0
+
+### v7.8.0 — Command Palette + Digital Twin
+
+> Keyboard-first navigation + persistent AI presence.
+
+- Created `command-palette.js` with ⌘K fuzzy search
+- Commands: navigate, chat, tools, system actions
+- Keyboard navigation (↑↓ Enter Esc), category grouping
+- Created `digital-twin.js` with state-driven mini avatar
+- SVG energy ring with live drain/charge animation
+- State pulse animations (thinking, speaking, listening)
+- Version bumped to 7.8.0 — **ROADMAP COMPLETE**
+
 ### v6.1.0 — System Integration & Engineering Workspace
 
 > JARVIS becomes one unified operating system.
@@ -603,7 +667,7 @@ graph TB
 | Coding Standards | Python 3.9.6+, async patterns | High | ✅ |
 | Testing Strategy | 300+ tests per release | High | ✅ |
 
-### Phase 1 — Premium Workspace Completion (v7.1) 🔄
+### Phase 1 — Premium Workspace Completion (v7.1) ✅
 
 > Every workspace matches Home, Chat, Settings, Command Map quality.
 
@@ -613,12 +677,12 @@ graph TB
 | Chat | ✅ Done | Full premium: thinking, tools, streaming |
 | Settings | ✅ Done | Premium glass overlay, spring animation |
 | Command Map | ✅ Done | Custom SVG agent visualization |
-| Research | ⏳ Pending | Knowledge graph container, no premium styling |
-| Memory | ⏳ Pending | Memory galaxy container, no premium styling |
-| Projects | ⏳ Pending | Generic workspace-header + workspace-content |
-| Computer | ⏳ Pending | Basic card grid, no premium styling |
-| Metrics | ⏳ Pending | Dev-only, generic container |
-| Logs | ⏳ Pending | Dev-only, generic container |
+| Research | ✅ Done | Knowledge graph with premium glass |
+| Memory | ✅ Done | Memory galaxy with premium glass |
+| Projects | ✅ Done | Premium grid with empty states |
+| Computer | ✅ Done | Vision workspace with live viewport |
+| Metrics | ✅ Done | Premium dashboard layout |
+| Logs | ✅ Done | Premium log viewer |
 
 **Requirements:**
 - Premium layouts with glassmorphism
@@ -632,7 +696,7 @@ graph TB
 - Adaptive layouts (responsive)
 - No generic Bootstrap-style containers
 
-### Phase 2 — Voice Experience (v7.2) ⏳
+### Phase 2 — Voice Experience (v7.2) ✅
 
 > Completely redesign voice interaction.
 
@@ -648,7 +712,7 @@ graph TB
 | Voice Settings | Voice, speed, microphone | High |
 | Audio Diagnostics | Mic test, volume levels | Medium |
 
-### Phase 3 — Mission Timeline (v7.3) ⏳
+### Phase 3 — Mission Timeline (v7.3) ✅
 
 > Every mission exposes a transparent timeline.
 
@@ -661,7 +725,7 @@ graph TB
 | Verification Status | Pass/fail per step | High |
 | Replace Reasoning Popups | Timeline > reasoning | High |
 
-### Phase 4 — Unified Tool Cards ⏳
+### Phase 4 — Unified Tool Cards ✅
 
 > Compact tool cards in conversation.
 
@@ -675,7 +739,7 @@ graph TB
 
 Cards expand when clicked. Never spam the user.
 
-### Phase 5 — Vision Experience (v7.4) ⏳
+### Phase 5 — Vision Experience (v7.4) ✅
 
 > Improve vision capabilities.
 
@@ -692,7 +756,7 @@ Cards expand when clicked. Never spam the user.
 | Image Understanding | Describe visuals | High |
 | Camera Foundation | Future-ready | Low |
 
-### Phase 6 — Workspace System (v7.5) ⏳
+### Phase 6 — Workspace System (v7.5) ✅
 
 > Every conversation belongs to a workspace.
 
@@ -708,7 +772,7 @@ Cards expand when clicked. Never spam the user.
 | Timeline | Mission timeline | High |
 | Artifacts | Generated files | High |
 
-### Phase 7 — Digital Twin Foundation (v7.6) ⏳
+### Phase 7 — Digital Twin Foundation (v7.6) ✅
 
 > Build understanding of user's digital life.
 
@@ -725,7 +789,7 @@ Cards expand when clicked. Never spam the user.
 | Preference Engine | User habits | High |
 | Activity Timeline | Recent actions | High |
 
-### Phase 8 — Command Palette ⏳
+### Phase 8 — Command Palette ✅
 
 > Keyboard-first global commands.
 
