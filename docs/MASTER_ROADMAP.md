@@ -2,7 +2,7 @@
 
 > **Single source of truth for the future of JARVIS.**
 > This document is maintained automatically after every release.
-> Last updated: v6.6.0
+> Last updated: v7.2.0
 
 ---
 
@@ -549,6 +549,26 @@ graph TB
 - Professional typography, spacing, shadows, and motion design
 - Apple/Arc/Raycast-inspired premium feel
 
+### v7.1.0 — Premium Chat Experience
+
+> Chat becomes Apple-quality.
+
+- Collapsible thinking blocks with dimmer text
+- Tool call summary footer (✓/✗ status)
+- Streaming token display with SSE
+- Premium glass sidebar with session list
+- Background canvas animation (particles)
+- Scroll fix for chat container
+
+### v7.2.0 — UI Audit & Workspace Planning
+
+> Full UI audit and roadmap expansion.
+
+- Created `docs/UI_UX_AUDIT_v7.md` — scored current UI 4.3/10
+- Expanded MASTER_ROADMAP.md with 12 phases
+- Documented all workspace status (completed vs pending)
+- Added design philosophy, animation philosophy, coding standards
+
 ### v6.1.0 — System Integration & Engineering Workspace
 
 > JARVIS becomes one unified operating system.
@@ -568,6 +588,222 @@ graph TB
 ---
 
 ## 5 — Future Roadmap
+
+### Phase 0 — Master Roadmap ✅
+
+> This document is the single source of truth.
+
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| Architecture Documentation | Current system diagrams | High | ✅ |
+| UI Status Tracking | Which workspaces are premium | High | ✅ |
+| Phase Planning | All future versions documented | High | ✅ |
+| Design Philosophy | Apple/Arc/Raycast guidelines | High | ✅ |
+| Animation Philosophy | Spring easings, purposeful motion | High | ✅ |
+| Coding Standards | Python 3.9.6+, async patterns | High | ✅ |
+| Testing Strategy | 300+ tests per release | High | ✅ |
+
+### Phase 1 — Premium Workspace Completion (v7.1) 🔄
+
+> Every workspace matches Home, Chat, Settings, Command Map quality.
+
+| Workspace | Status | Notes |
+|-----------|--------|-------|
+| Home | ✅ Done | 3D Golden Neural Core, premium glass |
+| Chat | ✅ Done | Full premium: thinking, tools, streaming |
+| Settings | ✅ Done | Premium glass overlay, spring animation |
+| Command Map | ✅ Done | Custom SVG agent visualization |
+| Research | ⏳ Pending | Knowledge graph container, no premium styling |
+| Memory | ⏳ Pending | Memory galaxy container, no premium styling |
+| Projects | ⏳ Pending | Generic workspace-header + workspace-content |
+| Computer | ⏳ Pending | Basic card grid, no premium styling |
+| Metrics | ⏳ Pending | Dev-only, generic container |
+| Logs | ⏳ Pending | Dev-only, generic container |
+
+**Requirements:**
+- Premium layouts with glassmorphism
+- Consistent spacing (var(--space-*) tokens)
+- Skeleton loading states
+- Smooth transitions (var(--ease-spring))
+- Custom empty states with illustrations
+- Beautiful icons (Lucide or custom SVG)
+- Context-aware controls
+- Animated cards with hover effects
+- Adaptive layouts (responsive)
+- No generic Bootstrap-style containers
+
+### Phase 2 — Voice Experience (v7.2) ⏳
+
+> Completely redesign voice interaction.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Streaming Speech Recognition | Real-time transcription | High |
+| Streaming TTS | Token-by-token synthesis | High |
+| Interruptible Speech | Stop/continue naturally | High |
+| Voice Activity Detection | Auto-start/stop | High |
+| Speaking Animation | Visual feedback | Medium |
+| Listening Animation | Waveform visualization | Medium |
+| Neural Core Reacts to Voice | Core pulses with speech | Medium |
+| Voice Settings | Voice, speed, microphone | High |
+| Audio Diagnostics | Mic test, volume levels | Medium |
+
+### Phase 3 — Mission Timeline (v7.3) ⏳
+
+> Every mission exposes a transparent timeline.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Timeline Visualization | Step-by-step execution | High |
+| Tool Cards | Compact tool status in conversation | High |
+| Duration Tracking | Time per step | High |
+| Expandable Details | Logs, files, screenshots | High |
+| Verification Status | Pass/fail per step | High |
+| Replace Reasoning Popups | Timeline > reasoning | High |
+
+### Phase 4 — Unified Tool Cards ⏳
+
+> Compact tool cards in conversation.
+
+| Tool | Card Example |
+|------|--------------|
+| 🌐 Browser | ✓ searched documentation (0.8s) |
+| 📂 Files | ✓ scanned 23 files |
+| 🧠 Memory | ✓ loaded previous project |
+| 💻 Terminal | ✓ pytest completed |
+| 👁 Vision | ✓ verified webpage |
+
+Cards expand when clicked. Never spam the user.
+
+### Phase 5 — Vision Experience (v7.4) ⏳
+
+> Improve vision capabilities.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Screenshots | Capture and analyze | High |
+| OCR | Text extraction | High |
+| Window Understanding | App context | High |
+| Accessibility Summary | UI structure | High |
+| UI Verification | Visual regression | High |
+| Error Detection | Bug identification | Medium |
+| Browser Verification | Cross-check results | Medium |
+| Mission Verification | Goal completion | High |
+| Image Understanding | Describe visuals | High |
+| Camera Foundation | Future-ready | Low |
+
+### Phase 6 — Workspace System (v7.5) ⏳
+
+> Every conversation belongs to a workspace.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Workspace Persistence | Goal, missions, files, notes | High |
+| Mission History | All missions in workspace | High |
+| Browser State | Tabs, history | High |
+| Terminal State | Command history | High |
+| File Context | Related files | High |
+| Notes | User notes | Medium |
+| Memories | Workspace-specific | High |
+| Timeline | Mission timeline | High |
+| Artifacts | Generated files | High |
+
+### Phase 7 — Digital Twin Foundation (v7.6) ⏳
+
+> Build understanding of user's digital life.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| Project Registry | All projects indexed | High |
+| Folder Graph | Directory relationships | High |
+| Git Awareness | Repos, branches, commits | High |
+| Application Map | Installed apps | Medium |
+| Device Registry | Connected devices | Medium |
+| File Index | Important files | High |
+| Skill Graph | Learned capabilities | High |
+| Goal Tracker | User objectives | High |
+| Preference Engine | User habits | High |
+| Activity Timeline | Recent actions | High |
+
+### Phase 8 — Command Palette ⏳
+
+> Keyboard-first global commands.
+
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| ⌘K Trigger | Global palette | High |
+| Open Workspace | Quick navigation | High |
+| Run Mission | Execute tasks | High |
+| Search Memory | Recall information | High |
+| Launch App | Open applications | High |
+| Search Projects | Find projects | High |
+| Run Terminal | Execute commands | High |
+| Open Settings | Quick settings | Medium |
+| Switch Model | Change LLM | Medium |
+
+### Phase 9 — Performance ⏳
+
+> Audit and optimize entire frontend.
+
+| Metric | Target |
+|--------|--------|
+| FPS | 60fps consistent |
+| Startup | < 2s |
+| Memory | < 200MB |
+| Animation | Smooth, no jank |
+| Layout Shifts | Zero CLS |
+| Long Tasks | < 50ms |
+
+### Phase 10 — Polish ⏳
+
+> Remove dead code, unused CSS, duplicates.
+
+| Task | Description |
+|------|-------------|
+| Dead Code | Remove unused functions |
+| Unused CSS | Remove unreferenced styles |
+| Duplicate Components | Merge similar |
+| Duplicate Icons | Consolidate |
+| Obsolete Pages | Remove old UI |
+| Developer UI | Clean up dev tools |
+
+### Phase 11 — Testing ⏳
+
+> Test everything.
+
+| Area | Tests |
+|------|-------|
+| UI | Component rendering |
+| API | Endpoint responses |
+| Memory | CRUD operations |
+| Browser | Automation flows |
+| Voice | STT/TTS accuracy |
+| Workspace | Persistence |
+| Vision | Screenshot analysis |
+| Timeline | Mission tracking |
+| Tool Cards | Status display |
+| Command Palette | Search accuracy |
+| Developer Mode | Toggle behavior |
+| Dark Mode | Theme consistency |
+| Responsive | Mobile/tablet |
+| Accessibility | ARIA, keyboard |
+
+### Phase 12 — Documentation ⏳
+
+> Update all documentation.
+
+| Document | Action |
+|----------|--------|
+| CHANGELOG | Add v7.x entries |
+| PROJECT_INDEX | Update module list |
+| SYSTEM_ARCHITECTURE | Update diagrams |
+| MASTER_ROADMAP | This document |
+| VOICE_ARCHITECTURE | Create new |
+| WORLD_MODEL | Create new |
+| WORKSPACE_SYSTEM | Create new |
+| MISSION_TIMELINE | Create new |
+| ANIMATION_SYSTEM | Create new |
+| TOOL_EXECUTION | Create new |
 
 ### v5.3 — Living Intelligence ✅
 
@@ -761,22 +997,33 @@ graph TB
 
 ## 6 — Design Philosophy
 
-### User Experience
+### Design Philosophy (Apple Quality)
 
-Users should feel like they are interacting with an **intelligent operating system**, not a chatbot. The experience should be:
+The UI should feel like:
+
+| Inspiration | Quality |
+|-------------|---------|
+| **Apple** | Clean, refined, premium materials |
+| **Arc Browser** | Bold, modern, workspace-first |
+| **Raycast** | Fast, keyboard-first, command-driven |
+| **Linear** | Minimal, beautiful, professional |
+| **ChatGPT** | Conversational, streaming, responsive |
+
+NOT like:
+- Admin dashboard
+- Developer console
+- Bootstrap template
+- Random collection of pages
+
+### Core Qualities
 
 | Quality | Meaning |
 |---------|---------|
-| **Elegant** | Clean, refined, no clutter |
-| **Minimal** | Essential information only, no noise |
-| **Futuristic** | Forward-looking, cutting-edge |
-| **Dynamic** | Responsive, alive, constantly updating |
-| **Explainable** | Every action has a clear reason |
-| **Interactive** | Everything clickable, explorable |
-| **Professional** | Enterprise-grade quality |
-| **Fast** | Instant responses, no lag |
-| **Confident** | Decisive, clear communication |
-| **Alive** | Feels like a living entity |
+| **Calm** | No visual noise, peaceful |
+| **Elegant** | Refined details, no clutter |
+| **Fast** | Instant responses, smooth |
+| **Premium** | High-quality materials, depth |
+| **Alive** | Constant subtle motion, breathing |
 
 ### Visual Identity
 
@@ -791,11 +1038,67 @@ Everything else in the interface should **support the Neural Core**, not compete
 
 ### Interface Principles
 
-- **Left Navigation** — System navigation (56px sidebar)
-- **Center Workspace** — Primary interaction area
-- **Right Intelligence Panel** — Context, memory, agent status (320px)
-- **Bottom Command Dock** — Quick actions, system status (52px)
-- **3D Neural Core** — Always visible, always animated
+| Element | Design |
+|---------|--------|
+| **Left Navigation** | Glass sidebar, 56px, primary items |
+| **Center Workspace** | Primary interaction area |
+| **Right Panel** | Dev-only, hidden by default |
+| **Bottom Input** | Glass bar, voice + text |
+| **3D Neural Core** | Always visible, always animated |
+
+### Animation Philosophy
+
+| Principle | Meaning |
+|-----------|---------|
+| **Purposeful** | Every animation has a reason |
+| **Spring-based** | Natural, physical motion |
+| **Subtle** | Never distracting |
+| **Consistent** | Same timing, same easing |
+| **Fast** | 150-300ms transitions |
+
+### Color System
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| `--accent` | `#e94560` | Primary accent |
+| `--accent-glow` | `rgba(233, 69, 96, 0.4)` | Glow effects |
+| `--success` | `#34d399` | Success states |
+| `--warning` | `#fbbf24` | Warning states |
+| `--danger` | `#f87171` | Error states |
+| `--info` | `#00dcff` | Information |
+
+### Typography
+
+| Element | Style |
+|---------|-------|
+| **Headings** | Inter, -0.02em tracking |
+| **Body** | Inter, 1.6 line-height |
+| **Code** | JetBrains Mono, 0.88em |
+| **Sizes** | xs=12, sm=14, base=16, lg=18, xl=20, 2xl=24 |
+
+### Spacing System
+
+```
+--space-1: 4px
+--space-2: 8px
+--space-3: 12px
+--space-4: 16px
+--space-5: 20px
+--space-6: 24px
+--space-8: 32px
+--space-10: 40px
+--space-12: 48px
+--space-16: 64px
+```
+
+### Glass Effects
+
+| Level | Usage |
+|-------|-------|
+| `backdrop-filter: blur(40px) saturate(1.4)` | Main glass |
+| `background: rgba(12, 18, 32, 0.5)` | Glass tint |
+| `border: 1px solid rgba(255, 255, 255, 0.06)` | Glass border |
+| `box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4)` | Depth |
 
 ---
 
@@ -958,14 +1261,14 @@ python3 -m jarvis.cli_v2 dashboard . # Update metrics
 
 | Metric | Value |
 |--------|-------|
-| **Current Version** | 5.5.0 |
-| **Python Files** | 264 |
-| **Total Lines** | 49,004 |
+| **Current Version** | 7.2.0 |
+| **Python Files** | 264+ |
+| **Total Lines** | 50,000+ |
 | **Test Files** | 39 |
 | **Test Lines** | 10,500+ |
 | **Total Tests** | 954+ |
 | **Modules** | 53 |
-| **Major Releases** | 13 |
+| **Major Releases** | 15 |
 | **Contributors** | 1 |
 | **License** | MIT |
 | **Python** | ≥ 3.9.6 |
