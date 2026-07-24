@@ -126,7 +126,7 @@
                     </button>
                     <div class="version-badge" title="System Status">
                         <span class="version-dot"></span>
-                        <span class="version-text">v7.2.0</span>
+                        <span class="version-text">v7.5.0</span>
                     </div>
                 </div>
             </nav>
@@ -293,6 +293,15 @@
                         </div>
                         <div id="chat-main">
                             <div id="chat-messages"></div>
+                            <div id="timeline-panel" class="timeline-panel" style="display:none;">
+                                <div class="timeline-panel-header">
+                                    <h3>Mission Timeline</h3>
+                                    <button class="btn-glass" onclick="document.getElementById('timeline-panel').style.display='none'" title="Close timeline">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                                    </button>
+                                </div>
+                                <div id="mission-timeline"></div>
+                            </div>
                         </div>
                     </div>
 
@@ -848,7 +857,8 @@
     <script src="/static/js/chat-background.js?v=7.0.0"></script>
     <script src="/static/js/ws-manager.js?v=7.3.0"></script>
     <script src="/static/js/voice-experience.js?v=7.4.0"></script>
-    <script src="/static/js/app.js?v=7.4.0"></script>
+    <script src="/static/js/mission-timeline.js?v=7.5.0"></script>
+    <script src="/static/js/app.js?v=7.5.0"></script>
     <script src="/static/js/voice.js?v=7.0.0"></script>
 </body>
 </html>

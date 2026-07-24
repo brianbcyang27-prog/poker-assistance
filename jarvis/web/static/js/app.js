@@ -421,6 +421,18 @@ function sendMessageStreaming() {
                                 }
                             } else if (evt.type === 'tool_calls') {
                                 toolCalls = evt.calls || [];
+                                if (toolCalls.length > 0 && window.MissionTimeline) {
+                                    const panel = document.getElementById('timeline-panel');
+                                    if (panel) panel.style.display = '';
+                                    const timeline = new MissionTimeline('mission-timeline');
+                                    timeline.setTimeline(toolCalls.map(tc => ({
+                                        event_type: tc.ok ? 'tool.complete' : 'tool.fail',
+                                        label: tc.name || 'Tool call',
+                                        status: tc.ok ? 'success' : 'failed',
+                                        description: tc.error || (tc.ok ? 'Completed' : ''),
+                                        duration_ms: tc.duration_ms
+                                    })));
+                                }
                             } else if (evt.type === 'done') {
                                 currentSessionId = evt.session_id || currentSessionId;
                                 setErrorState(false);
