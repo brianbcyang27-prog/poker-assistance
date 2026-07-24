@@ -4,19 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JARVIS</title>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=7.0.0">
-    <link rel="stylesheet" href="/static/css/style.css?v=7.0.0">
-    <link rel="stylesheet" href="/static/css/command-map.css?v=7.0.0">
-    <script src="/static/vendor/three.min.js?v=7.0.0"></script>
-    <script src="/static/vendor/CopyShader.js?v=7.0.0"></script>
-    <script src="/static/vendor/LuminosityHighPassShader.js?v=7.0.0"></script>
-    <script src="/static/vendor/EffectComposer.js?v=7.0.0"></script>
-    <script src="/static/vendor/RenderPass.js?v=7.0.0"></script>
-    <script src="/static/vendor/ShaderPass.js?v=7.0.0"></script>
-    <script src="/static/vendor/UnrealBloomPass.js?v=7.0.0"></script>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=7.1.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=7.1.0">
+    <link rel="stylesheet" href="/static/css/command-map.css?v=7.1.0">
+    <script src="/static/vendor/three.min.js?v=7.1.0"></script>
+    <script src="/static/vendor/CopyShader.js?v=7.1.0"></script>
+    <script src="/static/vendor/LuminosityHighPassShader.js?v=7.1.0"></script>
+    <script src="/static/vendor/EffectComposer.js?v=7.1.0"></script>
+    <script src="/static/vendor/RenderPass.js?v=7.1.0"></script>
+    <script src="/static/vendor/ShaderPass.js?v=7.1.0"></script>
+    <script src="/static/vendor/UnrealBloomPass.js?v=7.1.0"></script>
 </head>
 <body>
-    <div id="app">
+    <!-- PREMIUM LOADING SCREEN -->
+    <div id="loading-screen">
+        <div class="loading-content">
+            <div class="loading-logo">
+                <div class="loading-ring"></div>
+                <div class="loading-ring loading-ring-2"></div>
+                <div class="loading-core"></div>
+            </div>
+            <div class="loading-text">
+                <span class="loading-brand">JARVIS</span>
+                <span class="loading-status">Preparing your environment</span>
+            </div>
+            <div class="loading-bar">
+                <div class="loading-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" style="opacity: 0;">
 
         <!-- ===== UNIFIED DASHBOARD ===== -->
         <div id="dashboard">
@@ -108,7 +126,7 @@
                     </button>
                     <div class="version-badge" title="System Status">
                         <span class="version-dot"></span>
-                        <span class="version-text">v7.0.0</span>
+                        <span class="version-text">v7.1.0</span>
                     </div>
                 </div>
             </nav>

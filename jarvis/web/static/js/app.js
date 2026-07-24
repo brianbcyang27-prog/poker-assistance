@@ -1043,6 +1043,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (devItems) devItems.style.display = isActive ? 'flex' : 'none';
         });
     }
+
+    // Dismiss loading screen with premium fade
+    requestAnimationFrame(() => {
+        setTimeout(() => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const app = document.getElementById('app');
+            if (loadingScreen) loadingScreen.classList.add('hidden');
+            if (app) {
+                app.style.transition = 'opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+                app.style.opacity = '1';
+            }
+        }, 800);
+    });
 });
 
 function _updateHealthFromStatus(status) {
