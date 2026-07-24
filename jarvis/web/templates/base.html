@@ -336,48 +336,81 @@
                         </div>
                     </div>
 
-                    <!-- WORKSPACE: Computer -->
+                    <!-- WORKSPACE: Computer (Vision) -->
                     <div id="computer-container" class="workspace-view">
-                        <div class="workspace-header">
-                            <div class="workspace-header-content">
-                                <h2>Computer</h2>
-                                <p class="workspace-subtitle">System control and automation</p>
+                        <div class="vision-container">
+                            <div class="vision-header">
+                                <h2>Vision</h2>
+                                <div class="vision-actions">
+                                    <button class="btn-glass" id="btn-screen-capture" onclick="startVision('screen')" title="Screen capture">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                        Screen
+                                    </button>
+                                    <button class="btn-glass" id="btn-camera" onclick="startVision('camera')" title="Camera">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                                        Camera
+                                    </button>
+                                    <button class="btn-glass" id="btn-capture-frame" onclick="captureVisionFrame()" title="Capture frame" style="display:none;">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                                        Capture
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                        <div class="workspace-content">
-                            <div class="computer-grid">
-                                <div class="computer-card" onclick="computerAction('screen_capture')">
-                                    <div class="computer-card-icon">
-                                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                                    </div>
-                                    <h3>Screen</h3>
-                                    <p>Capture and analyze your screen</p>
-                                    <span class="computer-card-action">Capture →</span>
-                                </div>
-                                <div class="computer-card">
-                                    <div class="computer-card-icon">
-                                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-                                    </div>
-                                    <h3>Terminal</h3>
-                                    <p>Execute shell commands</p>
-                                    <div class="terminal-input">
-                                        <input type="text" id="terminal-command" placeholder="Enter command..." onkeydown="if(event.key==='Enter')executeTerminal()">
-                                        <button onclick="executeTerminal()" class="btn-action">Run</button>
+                            <div class="vision-viewport">
+                                <video id="vision-video" autoplay muted playsinline></video>
+                                <div class="vision-overlay empty" id="vision-overlay">
+                                    <div class="vision-empty-state">
+                                        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                        <p>Start screen or camera capture to analyze</p>
                                     </div>
                                 </div>
-                                <div class="computer-card" onclick="computerAction('list_files')">
-                                    <div class="computer-card-icon">
-                                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                                    </div>
-                                    <h3>Files</h3>
-                                    <p>Browse and manage files</p>
-                                    <span class="computer-card-action">Browse →</span>
+                            </div>
+                            <div class="vision-analysis" id="vision-analysis" style="display:none;">
+                                <div class="vision-analysis-header">
+                                    <h3>Analysis</h3>
+                                    <button class="btn-glass" onclick="document.getElementById('vision-analysis').style.display='none'" title="Close">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                                    </button>
                                 </div>
-                                <div class="computer-card" onclick="computerAction('browser_screenshot')">
-                                    <div class="computer-card-icon">
-                                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                <div class="vision-result" id="vision-result"></div>
+                            </div>
+                            <div class="workspace-content">
+                                <div class="computer-grid">
+                                    <div class="computer-card" onclick="computerAction('screen_capture')">
+                                        <div class="computer-card-icon">
+                                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                                        </div>
+                                        <h3>Screen</h3>
+                                        <p>Capture and analyze your screen</p>
+                                        <span class="computer-card-action">Capture →</span>
                                     </div>
-                                    <h3>Browser</h3>
+                                    <div class="computer-card">
+                                        <div class="computer-card-icon">
+                                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                                        </div>
+                                        <h3>Terminal</h3>
+                                        <p>Execute shell commands</p>
+                                        <div class="terminal-input">
+                                            <input type="text" id="terminal-command" placeholder="Enter command..." onkeydown="if(event.key==='Enter')executeTerminal()">
+                                            <button onclick="executeTerminal()" class="btn-action">Run</button>
+                                        </div>
+                                    </div>
+                                    <div class="computer-card" onclick="computerAction('list_files')">
+                                        <div class="computer-card-icon">
+                                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                                        </div>
+                                        <h3>Files</h3>
+                                        <p>Browse and manage files</p>
+                                        <span class="computer-card-action">Browse →</span>
+                                    </div>
+                                    <div class="computer-card" onclick="computerAction('browser_screenshot')">
+                                        <div class="computer-card-icon">
+                                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                                        </div>
+                                        <h3>Browser</h3>
                                     <p>Control web browser</p>
                                     <span class="computer-card-action">Screenshot →</span>
                                 </div>
@@ -858,7 +891,8 @@
     <script src="/static/js/ws-manager.js?v=7.3.0"></script>
     <script src="/static/js/voice-experience.js?v=7.4.0"></script>
     <script src="/static/js/mission-timeline.js?v=7.5.0"></script>
-    <script src="/static/js/app.js?v=7.5.0"></script>
+    <script src="/static/js/vision-experience.js?v=7.6.0"></script>
+    <script src="/static/js/app.js?v=7.6.0"></script>
     <script src="/static/js/voice.js?v=7.0.0"></script>
 </body>
 </html>

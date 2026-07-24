@@ -2175,3 +2175,60 @@ document.addEventListener('DOMContentLoaded', () => {
         nameInput.addEventListener('input', updateCreateButton);
     }
 });
+
+/* ---- Vision Experience helpers ---- */
+
+let _visionExperience = null;
+
+function startVision(mode) {
+    if (!_visionExperience) {
+        _visionExperience = new VisionExperience();
+    }
+
+    const video = document.getElementById('vision-video');
+    const overlay = document.getElementById('vision-overlay');
+    const captureBtn = document.getElementById('btn-capture-frame');
+
+    if (mode === 'screen') {
+        _visionExperience.startScreenCapture().then(ok => {
+            if (ok) {
+                overlay.style.display = 'none';
+                overlay.classList.remove('empty');
+                captureBtn.style.display = '';
+            }
+        });
+    } else if (mode === 'camera') {
+        _visionExperience.startCamera().then(ok => {
+            if (ok) {
+                overlay.style.display = 'none';
+                overlay.classList.remove('empty');
+                captureBtn.style.display = '';
+            }
+        });
+    }
+}
+
+function captureVisionFrame() {
+    if (!_visionExperience) return;
+
+    const dataUrl = _visionExperience.captureFrame();
+    if (!dataUrl) return;
+
+    const analysis = document.getElementById('vision-analysis');
+    const result = document.getElementById('vision-result');
+    if (analysis) analysis.style.display = '';
+    if (result) result.textContent = 'Analyzing frame...';
+
+    fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            message: 'Analyze this screenshot. Describe what you see, identify UI elements, text, and any issues.',
+            image: dataUrl
+        })
+    }).then(r => r.json()).then(data => {
+        if (result) result.textContent = data.response || 'No analysis available';
+    }).catch(e => {
+        if (result) result.textContent = `Error: ${e.message}`;
+    });
+}
