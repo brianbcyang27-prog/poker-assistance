@@ -1,10 +1,11 @@
-"""SQLite-backed KnowledgeGraph for the Second Brain."""
+"""SQLite-backed KnowledgeGraph for the Second Brain (async version)."""
 import json
-import sqlite3
 import time
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Optional, Dict, Any
+
+import aiosqlite
 
 from .models import (
     Entity,
@@ -19,23 +20,23 @@ MEMORY_DIR.mkdir(exist_ok=True)
 
 
 class KnowledgeGraph:
-    """SQLite-backed knowledge graph with entities, relationships, and cluster queries."""
+    """Async SQLite-backed knowledge graph with entities, relationships, and cluster queries."""
 
     def __init__(self, db_path: Optional[str] = None):
         self.db_path = db_path or str(MEMORY_DIR / "second_brain.db")
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: Optional[aiosqlite.Connection] = None
 
-    def _get_conn(self) -> sqlite3.Connection:
+    async def _get_conn(self) -> aiosqlite.Connection:
         if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path)
-            self._conn.row_factory = sqlite3.Row
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._init_tables()
+            self._conn = await aiosqlite.connect(self.db_path)
+            self._conn.row_factory = aiosqlite.Row
+            await self._conn.execute("PRAGMA journal_mode=WAL")
+            await self._init_tables()
         return self._conn
 
-    def _init_tables(self) -> None:
+    async def _init_tables(self) -> None:
         conn = self._conn
-        conn.executescript("""
+        await conn.executescript("""
             CREATE TABLE IF NOT EXISTS entities (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -70,26 +71,26 @@ class KnowledgeGraph:
             CREATE INDEX IF NOT EXISTS idx_rel_target ON relationships(target_id);
             CREATE INDEX IF NOT EXISTS idx_rel_type ON relationships(relation_type);
         """)
-        conn.commit()
+        await conn.commit()
 
-    def _row_to_entity(self, row: sqlite3.Row) -> Entity:
+    def _row_to_entity(self, row: aiosqlite.Row) -> Entity:
         d = dict(row)
         d["source_memories"] = json.loads(d["source_memories"])
         d["metadata"] = json.loads(d["metadata"])
         return Entity(**d)
 
-    def _row_to_relationship(self, row: sqlite3.Row) -> Relationship:
+    def _row_to_relationship(self, row: aiosqlite.Row) -> Relationship:
         d = dict(row)
         d["metadata"] = json.loads(d["metadata"])
         return Relationship(**d)
 
     async def add_entity(self, entity: Entity) -> dict:
-        conn = self._get_conn()
+        conn = await self._get_conn()
         now = time.time()
         if not entity.created_at:
             entity.created_at = now
         entity.updated_at = now
-        conn.execute(
+        await conn.execute(
             "INSERT OR REPLACE INTO entities "
             "(id, name, entity_type, description, importance, confidence, "
             "source_memories, metadata, created_at, updated_at) "
@@ -107,18 +108,19 @@ class KnowledgeGraph:
                 entity.updated_at,
             ),
         )
-        conn.commit()
+        await conn.commit()
         return {"ok": True, "id": entity.id}
 
     async def get_entity(self, entity_id: str) -> Optional[Entity]:
-        conn = self._get_conn()
-        row = conn.execute("SELECT * FROM entities WHERE id = ?", (entity_id,)).fetchone()
+        conn = await self._get_conn()
+        cursor = await conn.execute("SELECT * FROM entities WHERE id = ?", (entity_id,))
+        row = await cursor.fetchone()
         return self._row_to_entity(row) if row else None
 
     async def update_entity(self, entity: Entity) -> dict:
         entity.updated_at = time.time()
-        conn = self._get_conn()
-        conn.execute(
+        conn = await self._get_conn()
+        await conn.execute(
             "UPDATE entities SET name=?, entity_type=?, description=?, importance=?, "
             "confidence=?, source_memories=?, metadata=?, updated_at=? WHERE id=?",
             (
@@ -133,21 +135,21 @@ class KnowledgeGraph:
                 entity.id,
             ),
         )
-        conn.commit()
+        await conn.commit()
         return {"ok": True, "id": entity.id}
 
     async def delete_entity(self, entity_id: str) -> dict:
-        conn = self._get_conn()
-        conn.execute("DELETE FROM relationships WHERE source_id=? OR target_id=?", (entity_id, entity_id))
-        conn.execute("DELETE FROM entities WHERE id=?", (entity_id,))
-        conn.commit()
+        conn = await self._get_conn()
+        await conn.execute("DELETE FROM relationships WHERE source_id=? OR target_id=?", (entity_id, entity_id))
+        await conn.execute("DELETE FROM entities WHERE id=?", (entity_id,))
+        await conn.commit()
         return {"ok": True, "deleted": entity_id}
 
     async def add_relationship(self, relationship: Relationship) -> dict:
-        conn = self._get_conn()
+        conn = await self._get_conn()
         if not relationship.created_at:
             relationship.created_at = time.time()
-        conn.execute(
+        await conn.execute(
             "INSERT OR REPLACE INTO relationships "
             "(source_id, target_id, relation_type, weight, description, confidence, metadata, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -162,7 +164,7 @@ class KnowledgeGraph:
                 relationship.created_at,
             ),
         )
-        conn.commit()
+        await conn.commit()
         return {"ok": True}
 
     async def get_relationships(
@@ -171,7 +173,7 @@ class KnowledgeGraph:
         relation_type: Optional[str] = None,
         direction: str = "both",
     ) -> List[Relationship]:
-        conn = self._get_conn()
+        conn = await self._get_conn()
         clauses: List[str] = []
         params: List[Any] = []
 
@@ -191,18 +193,19 @@ class KnowledgeGraph:
             params.append(relation_type)
 
         where = " AND ".join(clauses) if clauses else "1=1"
-        rows = conn.execute(f"SELECT * FROM relationships WHERE {where}", params).fetchall()
+        cursor = await conn.execute(f"SELECT * FROM relationships WHERE {where}", params)
+        rows = await cursor.fetchall()
         return [self._row_to_relationship(r) for r in rows]
 
     async def delete_relationship(
         self, source_id: str, target_id: str, relation_type: str
     ) -> dict:
-        conn = self._get_conn()
-        conn.execute(
+        conn = await self._get_conn()
+        await conn.execute(
             "DELETE FROM relationships WHERE source_id=? AND target_id=? AND relation_type=?",
             (source_id, target_id, relation_type),
         )
-        conn.commit()
+        await conn.commit()
         return {"ok": True, "deleted": f"{source_id}->{target_id}:{relation_type}"}
 
     async def search_entities(
@@ -212,7 +215,7 @@ class KnowledgeGraph:
         importance: Optional[str] = None,
         limit: int = 20,
     ) -> List[Entity]:
-        conn = self._get_conn()
+        conn = await self._get_conn()
         clauses: List[str] = ["(name LIKE ? OR description LIKE ?)"]
         params: List[Any] = [f"%{query}%", f"%{query}%"]
 
@@ -225,15 +228,16 @@ class KnowledgeGraph:
 
         params.append(limit)
         where = " AND ".join(clauses)
-        rows = conn.execute(
+        cursor = await conn.execute(
             f"SELECT * FROM entities WHERE {where} LIMIT ?", params
-        ).fetchall()
+        )
+        rows = await cursor.fetchall()
         return [self._row_to_entity(r) for r in rows]
 
     async def get_neighbors(
         self, entity_id: str, depth: int = 1, direction: str = "both"
     ) -> Dict[str, Any]:
-        conn = self._get_conn()
+        conn = await self._get_conn()
         visited: set = set()
         result_entities: List[dict] = []
         result_relationships: List[dict] = []
@@ -247,11 +251,12 @@ class KnowledgeGraph:
                 continue
 
             if direction in ("outgoing", "both"):
-                rows = conn.execute(
+                cursor = await conn.execute(
                     "SELECT r.*, e.name, e.entity_type FROM relationships r "
                     "JOIN entities e ON r.target_id = e.id WHERE r.source_id = ?",
                     (current_id,),
-                ).fetchall()
+                )
+                rows = await cursor.fetchall()
                 for r in rows:
                     d = dict(r)
                     result_relationships.append(d)
@@ -261,11 +266,12 @@ class KnowledgeGraph:
                         queue.append((d["target_id"], current_depth + 1))
 
             if direction in ("incoming", "both"):
-                rows = conn.execute(
+                cursor = await conn.execute(
                     "SELECT r.*, e.name, e.entity_type FROM relationships r "
                     "JOIN entities e ON r.source_id = e.id WHERE r.target_id = ?",
                     (current_id,),
-                ).fetchall()
+                )
+                rows = await cursor.fetchall()
                 for r in rows:
                     d = dict(r)
                     result_relationships.append(d)
@@ -279,8 +285,8 @@ class KnowledgeGraph:
     async def get_entity_clusters(
         self, min_weight: float = 0.5, limit: int = 10
     ) -> List[Dict[str, Any]]:
-        conn = self._get_conn()
-        rows = conn.execute(
+        conn = await self._get_conn()
+        cursor = await conn.execute(
             "SELECT r.*, "
             "  e1.name as source_name, e1.entity_type as source_type, "
             "  e2.name as target_name, e2.entity_type as target_type "
@@ -290,7 +296,8 @@ class KnowledgeGraph:
             "WHERE r.weight >= ? "
             "ORDER BY r.weight DESC LIMIT ?",
             (min_weight, limit),
-        ).fetchall()
+        )
+        rows = await cursor.fetchall()
 
         clusters: Dict[str, Dict[str, Any]] = {}
         for r in rows:
@@ -315,7 +322,8 @@ class KnowledgeGraph:
             entity_ids = list(data["entities"])
             entities = []
             for eid in entity_ids[:20]:
-                ent_row = conn.execute("SELECT * FROM entities WHERE id=?", (eid,)).fetchone()
+                cursor = await conn.execute("SELECT * FROM entities WHERE id=?", (eid,))
+                ent_row = await cursor.fetchone()
                 if ent_row:
                     entities.append(self._row_to_entity(ent_row).to_dict())
             result.append({
@@ -330,42 +338,51 @@ class KnowledgeGraph:
     async def get_by_type(
         self, entity_type: str, limit: int = 50
     ) -> List[Entity]:
-        conn = self._get_conn()
-        rows = conn.execute(
+        conn = await self._get_conn()
+        cursor = await conn.execute(
             "SELECT * FROM entities WHERE entity_type=? ORDER BY confidence DESC LIMIT ?",
             (entity_type, limit),
-        ).fetchall()
+        )
+        rows = await cursor.fetchall()
         return [self._row_to_entity(r) for r in rows]
 
     async def get_by_importance(
         self, importance: str, limit: int = 50
     ) -> List[Entity]:
-        conn = self._get_conn()
-        rows = conn.execute(
+        conn = await self._get_conn()
+        cursor = await conn.execute(
             "SELECT * FROM entities WHERE importance=? ORDER BY updated_at DESC LIMIT ?",
             (importance, limit),
-        ).fetchall()
+        )
+        rows = await cursor.fetchall()
         return [self._row_to_entity(r) for r in rows]
 
     async def get_stats(self) -> GraphStats:
-        conn = self._get_conn()
-        total_entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
-        total_rels = conn.execute("SELECT COUNT(*) FROM relationships").fetchone()[0]
+        conn = await self._get_conn()
+        
+        cursor = await conn.execute("SELECT COUNT(*) as cnt FROM entities")
+        total_entities = (await cursor.fetchone())["cnt"]
+        
+        cursor = await conn.execute("SELECT COUNT(*) as cnt FROM relationships")
+        total_rels = (await cursor.fetchone())["cnt"]
 
-        type_rows = conn.execute(
+        cursor = await conn.execute(
             "SELECT entity_type, COUNT(*) as cnt FROM entities GROUP BY entity_type"
-        ).fetchall()
+        )
+        type_rows = await cursor.fetchall()
         entity_type_counts = {r["entity_type"]: r["cnt"] for r in type_rows}
 
-        rel_type_rows = conn.execute(
+        cursor = await conn.execute(
             "SELECT relation_type, COUNT(*) as cnt FROM relationships GROUP BY relation_type"
-        ).fetchall()
+        )
+        rel_type_rows = await cursor.fetchall()
         relationship_type_counts = {r["relation_type"]: r["cnt"] for r in rel_type_rows}
 
         avg_conf = 0.0
         avg_imp = 0.0
         if total_entities > 0:
-            row = conn.execute("SELECT AVG(confidence) as ac FROM entities").fetchone()
+            cursor = await conn.execute("SELECT AVG(confidence) as ac FROM entities")
+            row = await cursor.fetchone()
             avg_conf = row["ac"] or 0.0
 
             importance_map = {
@@ -374,7 +391,8 @@ class KnowledgeGraph:
                 ImportanceLevel.IMPORTANT.value: 3,
                 ImportanceLevel.PERMANENT.value: 4,
             }
-            imp_row = conn.execute("SELECT importance FROM entities").fetchall()
+            cursor = await conn.execute("SELECT importance FROM entities")
+            imp_row = await cursor.fetchall()
             if imp_row:
                 imp_vals = [importance_map.get(r["importance"], 2) for r in imp_row]
                 avg_imp = sum(imp_vals) / len(imp_vals) if imp_vals else 0.0
@@ -391,33 +409,38 @@ class KnowledgeGraph:
     async def get_subgraph(
         self, entity_ids: List[str], include_edges: bool = True
     ) -> Dict[str, Any]:
-        conn = self._get_conn()
+        conn = await self._get_conn()
         if not entity_ids:
             return {"entities": [], "relationships": []}
 
         placeholders = ",".join("?" for _ in entity_ids)
-        rows = conn.execute(
+        cursor = await conn.execute(
             f"SELECT * FROM entities WHERE id IN ({placeholders})", entity_ids
-        ).fetchall()
+        )
+        rows = await cursor.fetchall()
         entities = [self._row_to_entity(r).to_dict() for r in rows]
 
         relationships: List[dict] = []
         if include_edges:
-            rel_rows = conn.execute(
+            cursor = await conn.execute(
                 f"SELECT * FROM relationships WHERE source_id IN ({placeholders}) "
                 f"AND target_id IN ({placeholders})",
                 entity_ids + entity_ids,
-            ).fetchall()
+            )
+            rel_rows = await cursor.fetchall()
             relationships = [self._row_to_relationship(r).to_dict() for r in rel_rows]
 
         return {"entities": entities, "relationships": relationships}
 
     async def to_dict(self) -> Dict[str, Any]:
-        conn = self._get_conn()
-        entity_rows = conn.execute("SELECT * FROM entities").fetchall()
+        conn = await self._get_conn()
+        
+        cursor = await conn.execute("SELECT * FROM entities")
+        entity_rows = await cursor.fetchall()
         entities = [self._row_to_entity(r).to_dict() for r in entity_rows]
 
-        rel_rows = conn.execute("SELECT * FROM relationships").fetchall()
+        cursor = await conn.execute("SELECT * FROM relationships")
+        rel_rows = await cursor.fetchall()
         relationships = [self._row_to_relationship(r).to_dict() for r in rel_rows]
 
         return {
@@ -431,5 +454,5 @@ class KnowledgeGraph:
 
     async def close(self) -> None:
         if self._conn:
-            self._conn.close()
+            await self._conn.close()
             self._conn = None

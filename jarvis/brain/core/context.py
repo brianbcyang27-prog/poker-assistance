@@ -197,7 +197,8 @@ class BrainContextManager:
                 or q_lower in m.get("user_request", "").lower()
             ]
             return related[:limit]
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to get related missions: %s", exc)
             return []
 
     async def get_working_memory_context(self) -> Dict[str, str]:
@@ -206,7 +207,8 @@ class BrainContextManager:
             from ...brain.memory.working import WorkingMemoryManager
             wm = WorkingMemoryManager()
             return await wm.get_context(max_chars=2000)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to get working memory: %s", exc)
             return {}
 
     async def get_execution_history(self, goal: str, limit: int = 3) -> List[Dict[str, Any]]:
@@ -221,7 +223,8 @@ class BrainContextManager:
             )
             rows = await cursor.fetchall()
             return [dict(r) for r in rows] if rows else []
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to get execution history: %s", exc)
             return []
 
     async def inject_context(

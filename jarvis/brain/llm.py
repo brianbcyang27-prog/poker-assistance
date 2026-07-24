@@ -5,6 +5,7 @@ NVIDIA API is OpenAI-compatible, so we hit /chat/completions directly.
 Timeouts and retries are configurable via jarvis.core.reliability.
 """
 
+import asyncio
 import json
 import logging
 import subprocess
@@ -59,6 +60,13 @@ class LLM:
         self._current_session_id: Optional[str] = None
         
         self._http = httpx.Client(timeout=self._timeout)
+        self._async_http: Optional[httpx.AsyncClient] = None
+    
+    async def _get_async_http(self) -> httpx.AsyncClient:
+        """Get or create async httpx client."""
+        if self._async_http is None or self._async_http.is_closed:
+            self._async_http = httpx.AsyncClient(timeout=self._timeout)
+        return self._async_http
     
     def _init_ollama(self):
         """Initialize Ollama client if available."""
@@ -78,10 +86,15 @@ class LLM:
         return bool(self.api_key) or self._ollama_available
     
     def close(self) -> None:
-        """Close the httpx client to release connections."""
+        """Close the httpx clients to release connections."""
         if self._http:
             try:
                 self._http.close()
+            except Exception:
+                pass
+        if self._async_http and not self._async_http.is_closed:
+            try:
+                asyncio.get_event_loop().run_until_complete(self._async_http.aclose())
             except Exception:
                 pass
     
@@ -144,6 +157,94 @@ class LLM:
                 raise
 
         raise last_error or RuntimeError("LLM request failed after retries")
+    
+    async def _achat_completion(
+        self,
+        messages: List[Dict[str, str]],
+        model: str,
+        base_url: str,
+        api_key: str,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+    ) -> str:
+        """Async call /chat/completions endpoint with retry logic."""
+        url = f"{base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+
+        client = await self._get_async_http()
+        last_error = None
+        for attempt in range(self._max_retries + 1):
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+            except httpx.HTTPStatusError as e:
+                last_error = e
+                if e.response.status_code >= 500 and attempt < self._max_retries:
+                    delay = min(self._retry_base_delay * (self._retry_backoff ** attempt), self._retry_max_delay)
+                    logger.warning(f"LLM HTTP {e.response.status_code}, retrying in {delay:.1f}s (attempt {attempt + 1}/{self._max_retries})")
+                    await asyncio.sleep(delay)
+                    continue
+                raise
+            except (httpx.ConnectError, httpx.ReadTimeout) as e:
+                last_error = e
+                if attempt < self._max_retries:
+                    delay = min(self._retry_base_delay * (self._retry_backoff ** attempt), self._retry_max_delay)
+                    logger.warning(f"LLM connection error: {e}, retrying in {delay:.1f}s (attempt {attempt + 1}/{self._max_retries})")
+                    await asyncio.sleep(delay)
+                    continue
+                raise
+
+        raise last_error or RuntimeError("LLM request failed after retries")
+    
+    async def achat(
+        self,
+        message: str,
+        system_prompt: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+    ) -> str:
+        """Async send a message and get a response."""
+        try:
+            from .privacy import scrubber
+            message = scrubber.scrub(message)
+        except Exception:
+            pass
+        
+        base_url, api_key, model = self._get_endpoint()
+        
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.extend(self.conversation_history[-10:])
+        messages.append({"role": "user", "content": message})
+        
+        assistant_message = await self._achat_completion(
+            messages=messages,
+            model=model,
+            base_url=base_url,
+            api_key=api_key,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        
+        self.conversation_history.append({"role": "user", "content": message})
+        self.conversation_history.append({"role": "assistant", "content": assistant_message})
+        
+        if len(self.conversation_history) > 20:
+            self.conversation_history = self.conversation_history[-20:]
+        
+        return assistant_message
     
     def switch_to_ollama(self):
         """Switch to Ollama backend."""

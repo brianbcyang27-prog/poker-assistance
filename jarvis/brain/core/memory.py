@@ -167,8 +167,8 @@ class MemoryManager:
                     lines.append("Recent Decisions:")
                     for d in recent:
                         lines.append(f"  - {d.title}: {d.reason[:80]}")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to get recent decisions: %s", exc)
 
         if self._timeline:
             try:
@@ -177,8 +177,8 @@ class MemoryManager:
                     lines.append("Recent Events:")
                     for e in events:
                         lines.append(f"  - [{e.event_type}] {e.title}")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to get recent events: %s", exc)
 
         return "\n".join(lines) if lines else "No context available."
 
@@ -210,29 +210,29 @@ class MemoryManager:
                     "entities": kg.total_entities,
                     "relationships": kg.total_relationships,
                 }
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to get KG stats: %s", exc)
 
         if self._preferences:
             try:
                 prefs = await self._preferences.get_all()
                 stats["preferences_count"] = len(prefs)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to get preferences: %s", exc)
 
         if self._decisions:
             try:
                 decisions = await self._decisions.get_all()
                 stats["decisions_count"] = len(decisions)
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to get decisions: %s", exc)
 
         if self._timeline:
             try:
                 summary = await self._timeline.get_summary()
                 stats["timeline_events"] = summary.total_events
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("Failed to get timeline summary: %s", exc)
 
         return stats
 
