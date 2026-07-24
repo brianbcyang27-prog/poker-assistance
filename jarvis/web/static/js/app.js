@@ -44,6 +44,18 @@ function toggleSettings() {
     if (!document.getElementById('settings-overlay').classList.contains('hidden')) {
         loadVoiceCloneStatus();
         loadProviders();
+        setupVoiceFileUpload();
+        setupVoiceTabs();
+        loadVoiceProfiles();
+        loadBuiltinProviders();
+        // Setup textarea auto-resize
+        const textarea = document.getElementById('voice-test-text');
+        if (textarea) {
+            textarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = this.scrollHeight + 'px';
+            });
+        }
     }
 }
 
@@ -60,6 +72,18 @@ async function loadSettings() {
         }
         await loadVoiceModels();
         await loadPermissions();
+        setupVoiceFileUpload();
+        setupVoiceTabs();
+        loadVoiceProfiles();
+        loadBuiltinProviders();
+        // Setup textarea auto-resize
+        const textarea = document.getElementById('voice-test-text');
+        if (textarea) {
+            textarea.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = this.scrollHeight + 'px';
+            });
+        }
     } catch (_) {}
 }
 

@@ -1633,6 +1633,22 @@ body.system-error {
 }
 
 /* ============================================
+   SETTINGS SUBSECTIONS
+   ============================================ */
+.settings-subsection {
+    margin-top: var(--space-5);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--border);
+}
+
+.settings-subsection h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: var(--space-2);
+}
+
+/* ============================================
    VOICE WORKSPACE
    ============================================ */
 .voice-workspace {
