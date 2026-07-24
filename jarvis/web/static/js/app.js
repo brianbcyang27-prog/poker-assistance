@@ -599,7 +599,13 @@ async function toggleGraph() {
 /* ---- Workspace Switching ---- */
 
 async function switchWorkspace(workspace) {
+    const prev = currentWorkspace;
     currentWorkspace = workspace;
+
+    // Save state of previous workspace
+    if (prev && window.workspaceMgr) {
+        workspaceMgr.switchTo(workspace);
+    }
 
     // Update nav buttons
     document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -1047,6 +1053,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.livingUI.setState('idle');
         window.livingUI.startMissionPolling();
         window.livingUI.connectEvents();
+    }
+
+    // Initialize workspace state manager
+    if (window.WorkspaceManager) {
+        window.workspaceMgr = new WorkspaceManager();
+        window.workspaceMgr._hydrate();
     }
 
     // Wire up workspace navigation
