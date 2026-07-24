@@ -873,6 +873,27 @@
         <!-- Explainability Overlay -->
         <div id="explain-overlay"></div>
         <div id="explain-panel"></div>
+
+        <!-- Command Palette (⌘K) -->
+        <div id="command-palette">
+            <div class="cmd-dialog">
+                <div class="cmd-input-wrap">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                    </svg>
+                    <input type="text" id="cmd-input" placeholder="Type a command..." autocomplete="off">
+                </div>
+                <div id="cmd-results"></div>
+                <div class="cmd-footer">
+                    <span><kbd>↑↓</kbd> Navigate</span>
+                    <span><kbd>↵</kbd> Select</span>
+                    <span><kbd>Esc</kbd> Close</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Digital Twin (bottom-left corner) -->
+        <div id="digital-twin-container" class="digital-twin" style="position:fixed;bottom:16px;left:16px;z-index:100;"></div>
     </div>
 
     <script src="/static/js/jarvis-core.js?v=7.0.0"></script>
@@ -893,7 +914,9 @@
     <script src="/static/js/mission-timeline.js?v=7.5.0"></script>
     <script src="/static/js/vision-experience.js?v=7.6.0"></script>
     <script src="/static/js/workspace-manager.js?v=7.7.0"></script>
-    <script src="/static/js/app.js?v=7.7.0"></script>
+    <script src="/static/js/command-palette.js?v=7.8.0"></script>
+    <script src="/static/js/digital-twin.js?v=7.8.0"></script>
+    <script src="/static/js/app.js?v=7.8.0"></script>
     <script src="/static/js/voice.js?v=7.0.0"></script>
 </body>
 </html>

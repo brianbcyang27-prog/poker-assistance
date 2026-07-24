@@ -1068,6 +1068,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
+    // Initialize Command Palette (⌘K)
+    if (window.CommandPalette) {
+        window._cmdPalette = new CommandPalette();
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                window._cmdPalette.toggle();
+            }
+        });
+    }
+
+    // Initialize Digital Twin
+    if (window.DigitalTwin) {
+        window._digitalTwin = new DigitalTwin('digital-twin-container');
+        window._digitalTwin.init();
+        if (window.jarvisState) {
+            window.jarvisState.onStateChange(state => {
+                window._digitalTwin.setState(state);
+            });
+        }
+    }
+
     // Load settings and apply modes
     await loadSettings();
     try {
