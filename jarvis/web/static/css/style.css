@@ -522,6 +522,7 @@ input:focus, textarea:focus, select:focus {
     overflow: hidden;
     position: relative;
     min-height: 0;
+    padding-bottom: 72px;
 }
 
 #center-core {
@@ -894,7 +895,7 @@ input:focus, textarea:focus, select:focus {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: var(--space-6) var(--space-8) 140px;
+    padding: var(--space-6) var(--space-8) 160px;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
@@ -1878,9 +1879,12 @@ input:focus, textarea:focus, select:focus {
    BOTTOM PANEL — Input
    ============================================ */
 #bottom-panel {
-    position: relative;
+    position: fixed;
+    bottom: 0;
+    left: var(--nav-width);
+    right: 0;
     z-index: 20;
-    margin-top: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
 #terminal-log {
