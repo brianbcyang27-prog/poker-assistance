@@ -13,6 +13,10 @@ let currentChatMode = 'chat';
 let _startTime = Date.now();
 let _eventCount = 0;
 
+/* ---- Chat State ---- */
+let _chatStreaming = false;
+let _chatAbortController = null;
+
 /* ---- Golden Neural Core lifecycle ---- */
 
 let chatBg = null;
@@ -404,7 +408,11 @@ function sendMessageStreaming() {
     const input = document.getElementById('message-input');
     const message = input.value.trim();
     if (!message) return;
+    if (_chatStreaming) return;
     input.value = '';
+
+    // Hide empty state on first message
+    _hideChatEmptyState();
 
     addChatMessage('user', message);
     _addTerminalLine(`> ${message}`, 'info');
@@ -412,6 +420,16 @@ function sendMessageStreaming() {
     if (window.jarvisState) window.jarvisState.startThinking();
     if (window.livingUI) window.livingUI.setState('thinking');
     if (goldenCore) goldenCore.setState('thinking');
+
+    // Auto-create session if none exists
+    if (!currentSessionId) {
+        fetch('/api/chat/sessions', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.ok && data.session_id) currentSessionId = data.session_id;
+            })
+            .catch(() => {});
+    }
 
     const params = new URLSearchParams({ message });
     if (currentSessionId) params.set('session_id', currentSessionId);
@@ -421,11 +439,11 @@ function sendMessageStreaming() {
     let firstToken = true;
     let toolCalls = [];
 
-    // Add timeout to prevent loading forever
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    _chatStreaming = true;
+    _chatAbortController = new AbortController();
+    const timeout = setTimeout(() => _chatAbortController.abort(), 30000);
     
-    fetch(`/api/chat/stream?${params}`, { signal: controller.signal })
+    fetch(`/api/chat/stream?${params}`, { signal: _chatAbortController.signal })
         .then(response => {
             clearTimeout(timeout);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -472,6 +490,8 @@ function sendMessageStreaming() {
                                 }
                             } else if (evt.type === 'done') {
                                 currentSessionId = evt.session_id || currentSessionId;
+                                _chatStreaming = false;
+                                _chatAbortController = null;
                                 setErrorState(false);
                                 if (bubble && fullText) {
                                     bubble.remove();
@@ -480,6 +500,8 @@ function sendMessageStreaming() {
                                 if (window.jarvisState) window.jarvisState.set('idle');
                                 if (window.livingUI) window.livingUI.setState('idle');
                                 if (goldenCore) goldenCore.setState('idle');
+                                // Refresh sidebar to show updated conversation
+                                loadSessionList();
                             }
                         } catch (_) {}
                     }
@@ -501,6 +523,8 @@ function sendMessageStreaming() {
         })
         .catch(err => {
             clearTimeout(timeout);
+            _chatStreaming = false;
+            _chatAbortController = null;
             setErrorState(true);
             const errorMsg = err.name === 'AbortError' 
                 ? 'Request timed out. Please try again.'
@@ -793,7 +817,10 @@ async function loadChatHistory() {
         } catch (_) {}
     }
 
-    if (!currentSessionId) return;
+    if (!currentSessionId) {
+        _showChatEmptyState();
+        return;
+    }
 
     try {
         const res = await fetch(`/api/chat/history/${currentSessionId}`);
@@ -801,10 +828,17 @@ async function loadChatHistory() {
         const container = document.getElementById('chat-messages');
         if (!container) return;
         container.innerHTML = '';
-        for (const msg of messages) {
-            addChatMessage(msg.role, msg.content);
+
+        if (messages.length === 0) {
+            _showChatEmptyState();
+        } else {
+            for (const msg of messages) {
+                addChatMessage(msg.role, msg.content);
+            }
         }
-    } catch (_) {}
+    } catch (_) {
+        _showChatEmptyState();
+    }
 }
 
 /* ---- Knowledge Graph Workspace ---- */
@@ -959,6 +993,17 @@ function _addAgentConversation(data) {
 /* ---- Session Management ---- */
 
 async function startNewChat() {
+    // 1. Abort any in-flight streaming request
+    if (_chatAbortController) {
+        _chatAbortController.abort();
+        _chatAbortController = null;
+    }
+    _chatStreaming = false;
+
+    // 2. Reset all temporary chat state
+    _resetChatState();
+
+    // 3. Create new session on server
     try {
         const res = await fetch('/api/chat/sessions', { method: 'POST' });
         const data = await res.json();
@@ -971,12 +1016,65 @@ async function startNewChat() {
         console.warn('Failed to create session:', e);
         currentSessionId = null;
     }
+
+    // 4. Clear the chat messages container
     const container = document.getElementById('chat-messages');
     if (container) container.innerHTML = '';
+
+    // 5. Show empty state
+    _showChatEmptyState();
+
+    // 6. Hide mission timeline
+    const timeline = document.getElementById('timeline-panel');
+    if (timeline) timeline.style.display = 'none';
+
+    // 7. Switch to chat workspace
     switchWorkspace('chat');
+
+    // 8. Reload session sidebar
     await loadSessionList();
+
+    // 9. Focus input
     const input = document.getElementById('message-input');
     if (input) input.focus();
+}
+
+function _resetChatState() {
+    // Reset streaming state
+    _chatStreaming = false;
+    _chatAbortController = null;
+
+    // Reset UI state managers
+    if (window.jarvisState) window.jarvisState.set('idle');
+    if (window.livingUI) window.livingUI.setState('idle');
+    if (goldenCore) goldenCore.setState('idle');
+
+    // Clear terminal log
+    const entries = document.getElementById('terminal-entries');
+    if (entries) entries.innerHTML = '';
+
+    // Clear error state
+    setErrorState(false);
+}
+
+function _showChatEmptyState() {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    container.innerHTML = `
+        <div class="chat-empty-state">
+            <div class="chat-empty-icon">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+            </div>
+            <h3>How can I help you today?</h3>
+            <p>Start a conversation with JARVIS</p>
+        </div>`;
+}
+
+function _hideChatEmptyState() {
+    const emptyState = document.querySelector('.chat-empty-state');
+    if (emptyState) emptyState.remove();
 }
 
 async function loadSessionList() {
@@ -1029,6 +1127,12 @@ async function loadSessionList() {
             item.appendChild(header);
             item.appendChild(meta);
             item.addEventListener('click', () => {
+                // Save current state before switching (messages are saved per-message in DB)
+                if (_chatStreaming && _chatAbortController) {
+                    _chatAbortController.abort();
+                    _chatStreaming = false;
+                    _chatAbortController = null;
+                }
                 currentSessionId = session.session_id;
                 loadChatHistory();
                 document.querySelectorAll('.session-item').forEach(s => s.classList.remove('active'));
@@ -1063,11 +1167,15 @@ async function deleteSession(sessionId) {
         if (res.ok) {
             if (currentSessionId === sessionId) {
                 currentSessionId = null;
+                _resetChatState();
                 const container = document.getElementById('chat-messages');
                 if (container) container.innerHTML = '';
+                _showChatEmptyState();
             }
             await loadSessionList();
-            await loadChatHistory();
+            if (currentSessionId) {
+                await loadChatHistory();
+            }
         }
     } catch (_) {}
 }

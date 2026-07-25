@@ -56,6 +56,9 @@ async def chat(request: Request, req: ChatRequest):
     # Save user message
     db = await get_db()
     await db.index_conversation(session_id, "user", req.message)
+
+    # Ensure session row exists
+    await db.set_session_title(session_id, req.message[:80] if not req.session_id else "")
     
     # Load LLM conversation context for multi-turn
     if hasattr(web_main.jarvis, '_llm') and web_main.jarvis._llm:
@@ -139,6 +142,9 @@ async def chat_stream(message: str, session_id: Optional[str] = None):
         # Save user message to DB
         db = await get_db()
         await db.index_conversation(sid, "user", message)
+
+        # Ensure session row exists in conversation_sessions
+        await db.set_session_title(sid, message[:80] if not session_id else "")
 
         llm = getattr(web_main.jarvis, '_llm', None)
         if llm:
