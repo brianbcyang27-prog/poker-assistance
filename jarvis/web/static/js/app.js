@@ -40,7 +40,6 @@ function ensureGoldenCore() {
 
 function toggleSettings() {
     document.getElementById('settings-overlay').classList.toggle('hidden');
-    // Load voice clone status and providers when settings are opened
     if (!document.getElementById('settings-overlay').classList.contains('hidden')) {
         loadVoiceCloneStatus();
         loadProviders();
@@ -48,7 +47,6 @@ function toggleSettings() {
         setupVoiceTabs();
         loadVoiceProfiles();
         loadBuiltinProviders();
-        // Setup textarea auto-resize
         const textarea = document.getElementById('voice-test-text');
         if (textarea) {
             textarea.addEventListener('input', function() {
@@ -56,7 +54,46 @@ function toggleSettings() {
                 this.style.height = this.scrollHeight + 'px';
             });
         }
+        // Open first collapsible card in voice panel
+        document.querySelectorAll('#panel-voice .settings-card:has(.settings-card-header)').forEach(c => c.classList.add('open'));
     }
+}
+
+function switchSettingsSection(sectionId) {
+    document.querySelectorAll('.settings-nav-item').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.section === sectionId);
+    });
+    document.querySelectorAll('.settings-panel').forEach(panel => {
+        panel.classList.remove('active', 'search-match');
+    });
+    const panel = document.getElementById(`panel-${sectionId}`);
+    if (panel) panel.classList.add('active');
+}
+
+function filterSettings(query) {
+    const q = query.toLowerCase().trim();
+    if (!q) {
+        document.querySelectorAll('.settings-panel').forEach(p => {
+            p.classList.remove('search-match');
+            p.style.display = '';
+        });
+        document.querySelectorAll('.settings-nav-item').forEach(btn => {
+            btn.style.display = '';
+        });
+        switchSettingsSection(document.querySelector('.settings-nav-item.active')?.dataset.section || 'ai-model');
+        return;
+    }
+    document.querySelectorAll('.settings-panel').forEach(panel => {
+        const text = panel.textContent.toLowerCase();
+        const match = text.includes(q);
+        panel.classList.toggle('search-match', match);
+        panel.style.display = match ? '' : 'none';
+    });
+    document.querySelectorAll('.settings-nav-item').forEach(btn => {
+        const section = btn.dataset.section;
+        const panel = document.getElementById(`panel-${section}`);
+        btn.style.display = panel && panel.style.display !== 'none' ? '' : 'none';
+    });
 }
 
 async function loadSettings() {

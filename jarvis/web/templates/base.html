@@ -562,306 +562,376 @@
 
         <!-- SETTINGS OVERLAY -->
         <div id="settings-overlay" class="overlay hidden">
-            <div class="overlay-content">
-                <div class="overlay-header">
-                    <h2>Settings</h2>
-                    <button class="overlay-close" onclick="toggleSettings()">&times;</button>
+            <div class="settings-layout">
+                <!-- Sidebar -->
+                <div class="settings-sidebar">
+                    <div class="settings-sidebar-header">
+                        <h2>Settings</h2>
+                        <button class="overlay-close" onclick="toggleSettings()">&times;</button>
+                    </div>
+                    <div class="settings-search-wrap">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                        <input type="text" id="settings-search" placeholder="Search settings..." oninput="filterSettings(this.value)">
+                    </div>
+                    <nav class="settings-nav">
+                        <button class="settings-nav-item active" data-section="ai-model" onclick="switchSettingsSection('ai-model')">
+                            <span class="settings-nav-icon">🤖</span>
+                            <span class="settings-nav-label">AI Model</span>
+                        </button>
+                        <button class="settings-nav-item" data-section="voice" onclick="switchSettingsSection('voice')">
+                            <span class="settings-nav-icon">🎙</span>
+                            <span class="settings-nav-label">Voice</span>
+                        </button>
+                        <button class="settings-nav-item" data-section="interface" onclick="switchSettingsSection('interface')">
+                            <span class="settings-nav-icon">🖥</span>
+                            <span class="settings-nav-label">Interface</span>
+                        </button>
+                        <button class="settings-nav-item" data-section="agents" onclick="switchSettingsSection('agents')">
+                            <span class="settings-nav-icon">👥</span>
+                            <span class="settings-nav-label">Agents</span>
+                        </button>
+                        <button class="settings-nav-item" data-section="permissions" onclick="switchSettingsSection('permissions')">
+                            <span class="settings-nav-icon">🔐</span>
+                            <span class="settings-nav-label">Permissions</span>
+                        </button>
+                        <button class="settings-nav-item" data-section="server" onclick="switchSettingsSection('server')">
+                            <span class="settings-nav-icon">🌐</span>
+                            <span class="settings-nav-label">Server</span>
+                        </button>
+                    </nav>
                 </div>
-                <form id="settings-form" onsubmit="return false;">
-                    <div class="settings-section">
-                        <h3>AI Model</h3>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">NVIDIA API Key</div>
-                                <div class="setting-desc">API key for NVIDIA NIM inference</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="password" name="nvidia_api_key" placeholder="nvapi-...">
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Model</div>
-                                <div class="setting-desc">LLM model identifier</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="text" name="nvidia_model" value="meta/llama-3.1-8b-instruct">
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Temperature</div>
-                                <div class="setting-desc">Response randomness (0.0 - 1.0)</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="number" name="default_llm_temperature" value="0.7" min="0" max="1" step="0.1">
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Max Tokens</div>
-                                <div class="setting-desc">Maximum response length</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="number" name="max_tokens" value="4096" min="256" max="32768" step="256">
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="settings-section">
-                        <h3>Voice</h3>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Text-to-Speech</div>
-                                <div class="setting-desc">Enable voice output</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="checkbox" name="tts_enabled" checked>
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">TTS Provider</div>
-                                <div class="setting-desc">Active voice synthesis provider</div>
-                            </div>
-                            <div class="setting-control">
-                                <select name="tts_provider" id="tts-provider">
-                                    <option value="macos">macOS</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">TTS Voice</div>
-                                <div class="setting-desc">Voice for the chosen provider</div>
-                            </div>
-                            <div class="setting-control">
-                                <select name="tts_voice" id="tts-voice">
-                                    <option value="">Default</option>
-                                </select>
-                            </div>
-                        </div>
+                <!-- Content -->
+                <div class="settings-content">
+                    <form id="settings-form" onsubmit="return false;">
 
-                        <!-- Provider Management -->
-                        <div class="provider-management">
-                            <h4>Provider Management</h4>
-                            <p class="setting-desc">Install, enable, or remove TTS providers</p>
-                            <div id="providers-list" class="providers-list">
-                                <div class="providers-loading">Loading providers...</div>
+                        <!-- AI Model -->
+                        <div class="settings-panel active" id="panel-ai-model">
+                            <div class="settings-panel-header">
+                                <h3>AI Model</h3>
+                                <p>Configure the language model and inference settings</p>
                             </div>
-                        </div>
-
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">OpenAI API Key</div>
-                                <div class="setting-desc">For OpenAI TTS provider</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="password" name="openai_api_key" placeholder="sk-...">
-                            </div>
-                        </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Speech-to-Text</div>
-                                <div class="setting-desc">Enable microphone input</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="checkbox" name="stt_enabled" checked>
-                            </div>
-                        </div>
-
-                        <!-- Voice Profiles -->
-                        <div class="settings-subsection">
-                            <h4>Voice Profiles</h4>
-                            <p class="setting-desc">Upload or record audio to create voice profiles for cloning</p>
-                            
-                            <div id="voice-status" class="voice-status">
-                                <span class="status-dot"></span>
-                                <span class="status-text">Checking voice cloning...</span>
-                            </div>
-
-                            <div class="voice-create">
-                                <div class="voice-input-group">
-                                    <input type="text" id="voice-profile-name" placeholder="Profile name (e.g., John)" class="voice-input">
-                                    <div class="voice-source-tabs">
-                                        <button class="voice-tab active" data-source="upload">Upload File</button>
-                                        <button class="voice-tab" data-source="record">Record Live</button>
+                            <div class="settings-card">
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">NVIDIA API Key</div>
+                                        <div class="setting-desc">API key for NVIDIA NIM inference</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="password" name="nvidia_api_key" placeholder="nvapi-...">
                                     </div>
                                 </div>
-
-                                <!-- Upload Mode -->
-                                <div id="voice-upload-mode" class="voice-mode active">
-                                    <div class="voice-upload-area" id="voice-drop-zone">
-                                        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
-                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                                        </svg>
-                                        <p>Drop audio file here or click to browse</p>
-                                        <p class="upload-hint">6-30 seconds of clear speech recommended</p>
-                                        <input type="file" id="voice-file-input" accept="audio/*" hidden>
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Model</div>
+                                        <div class="setting-desc">LLM model identifier</div>
                                     </div>
-                                    <div id="voice-file-info" class="voice-file-info hidden">
-                                        <span class="file-name"></span>
-                                        <button class="btn-remove" onclick="removeVoiceFile()">&times;</button>
+                                    <div class="setting-control">
+                                        <input type="text" name="nvidia_model" value="meta/llama-3.1-8b-instruct">
                                     </div>
                                 </div>
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Temperature</div>
+                                        <div class="setting-desc">Response randomness (0.0 - 1.0)</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" name="default_llm_temperature" value="0.7" min="0" max="1" step="0.1">
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Max Tokens</div>
+                                        <div class="setting-desc">Maximum response length</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" name="max_tokens" value="4096" min="256" max="32768" step="256">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                                <!-- Record Mode -->
-                                <div id="voice-record-mode" class="voice-mode">
-                                    <div class="voice-record-controls">
-                                        <button id="voice-record-btn" class="btn-record" onclick="toggleVoiceRecord()">
-                                            <span class="record-icon"></span>
-                                            <span class="record-text">Start Recording</span>
-                                        </button>
-                                        <div id="voice-record-timer" class="record-timer hidden">
-                                            <span class="timer-display">00:00</span>
-                                            <span class="timer-hint">Aim for 6-30 seconds</span>
+                        <!-- Voice -->
+                        <div class="settings-panel" id="panel-voice">
+                            <div class="settings-panel-header">
+                                <h3>Voice</h3>
+                                <p>Text-to-speech, speech-to-text, and voice cloning</p>
+                            </div>
+                            <div class="settings-card">
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Text-to-Speech</div>
+                                        <div class="setting-desc">Enable voice output</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <label class="toggle-switch"><input type="checkbox" name="tts_enabled" checked><span class="toggle-slider"></span></label>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">TTS Provider</div>
+                                        <div class="setting-desc">Active voice synthesis provider</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <select name="tts_provider" id="tts-provider"><option value="macos">macOS</option></select>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">TTS Voice</div>
+                                        <div class="setting-desc">Voice for the chosen provider</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <select name="tts_voice" id="tts-voice"><option value="">Default</option></select>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Speech-to-Text</div>
+                                        <div class="setting-desc">Enable microphone input</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <label class="toggle-switch"><input type="checkbox" name="stt_enabled" checked><span class="toggle-slider"></span></label>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">OpenAI API Key</div>
+                                        <div class="setting-desc">For OpenAI TTS provider</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="password" name="openai_api_key" placeholder="sk-...">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Provider Management -->
+                            <div class="settings-card">
+                                <div class="settings-card-header" onclick="this.parentElement.classList.toggle('open')">
+                                    <span>Provider Management</span>
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                                </div>
+                                <div class="settings-card-body">
+                                    <div id="providers-list" class="providers-list">
+                                        <div class="providers-loading">Loading providers...</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Voice Profiles -->
+                            <div class="settings-card">
+                                <div class="settings-card-header" onclick="this.parentElement.classList.toggle('open')">
+                                    <span>Voice Profiles</span>
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                                </div>
+                                <div class="settings-card-body">
+                                    <div id="voice-status" class="voice-status">
+                                        <span class="status-dot"></span>
+                                        <span class="status-text">Checking voice cloning...</span>
+                                    </div>
+                                    <div class="voice-create">
+                                        <div class="voice-input-group">
+                                            <input type="text" id="voice-profile-name" placeholder="Profile name (e.g., John)" class="voice-input">
+                                            <div class="voice-source-tabs">
+                                                <button class="voice-tab active" data-source="upload">Upload File</button>
+                                                <button class="voice-tab" data-source="record">Record Live</button>
+                                            </div>
                                         </div>
-                                        <div id="voice-waveform" class="voice-waveform hidden">
-                                            <canvas id="waveform-canvas"></canvas>
+                                        <div id="voice-upload-mode" class="voice-mode active">
+                                            <div class="voice-upload-area" id="voice-drop-zone">
+                                                <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                                                </svg>
+                                                <p>Drop audio file here or click to browse</p>
+                                                <p class="upload-hint">6-30 seconds of clear speech recommended</p>
+                                                <input type="file" id="voice-file-input" accept="audio/*" hidden>
+                                            </div>
+                                            <div id="voice-file-info" class="voice-file-info hidden">
+                                                <span class="file-name"></span>
+                                                <button class="btn-remove" onclick="removeVoiceFile()">&times;</button>
+                                            </div>
                                         </div>
+                                        <div id="voice-record-mode" class="voice-mode">
+                                            <div class="voice-record-controls">
+                                                <button id="voice-record-btn" class="btn-record" onclick="toggleVoiceRecord()">
+                                                    <span class="record-icon"></span>
+                                                    <span class="record-text">Start Recording</span>
+                                                </button>
+                                                <div id="voice-record-timer" class="record-timer hidden">
+                                                    <span class="timer-display">00:00</span>
+                                                    <span class="timer-hint">Aim for 6-30 seconds</span>
+                                                </div>
+                                                <div id="voice-waveform" class="voice-waveform hidden">
+                                                    <canvas id="waveform-canvas"></canvas>
+                                                </div>
+                                            </div>
+                                            <div id="voice-recorded-audio" class="hidden">
+                                                <audio id="voice-recorded-player" controls></audio>
+                                                <button class="btn-action btn-small" onclick="clearRecording()">Re-record</button>
+                                            </div>
+                                        </div>
+                                        <button id="voice-create-btn" class="btn-action" onclick="createVoiceProfile()" disabled>Create Profile</button>
                                     </div>
-                                    <div id="voice-recorded-audio" class="hidden">
-                                        <audio id="voice-recorded-player" controls></audio>
-                                        <button class="btn-action btn-small" onclick="clearRecording()">Re-record</button>
+                                    <div id="voice-profiles-list" class="voice-profiles-list"></div>
+                                </div>
+                            </div>
+
+                            <!-- Test Voice -->
+                            <div class="settings-card">
+                                <div class="settings-card-header" onclick="this.parentElement.classList.toggle('open')">
+                                    <span>Test Voice</span>
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                                </div>
+                                <div class="settings-card-body">
+                                    <div class="voice-test-controls">
+                                        <select id="voice-test-profile" class="voice-select">
+                                            <option value="">Select a voice profile...</option>
+                                        </select>
+                                        <select id="voice-test-language" class="voice-select">
+                                            <option value="en">English</option>
+                                            <option value="es">Spanish</option>
+                                            <option value="fr">French</option>
+                                            <option value="de">German</option>
+                                            <option value="it">Italian</option>
+                                            <option value="pt">Portuguese</option>
+                                            <option value="ja">Japanese</option>
+                                            <option value="ko">Korean</option>
+                                            <option value="zh">Chinese</option>
+                                        </select>
+                                    </div>
+                                    <div class="voice-test-input">
+                                        <textarea id="voice-test-text" placeholder="Type text to speak..." rows="3"></textarea>
+                                        <button id="voice-speak-btn" class="btn-action" onclick="testVoiceSpeak()" disabled>Speak</button>
+                                    </div>
+                                    <div id="voice-test-status" class="voice-test-status hidden">
+                                        <span class="status-indicator"></span>
+                                        <span class="status-message"></span>
                                     </div>
                                 </div>
-
-                                <button id="voice-create-btn" class="btn-action" onclick="createVoiceProfile()" disabled>
-                                    Create Profile
-                                </button>
                             </div>
 
-                            <!-- Profiles List -->
-                            <div id="voice-profiles-list" class="voice-profiles-list"></div>
-                        </div>
-
-                        <!-- Voice Test -->
-                        <div class="settings-subsection">
-                            <h4>Test Voice</h4>
-                            <p class="setting-desc">Type text and hear it spoken with a cloned voice</p>
-                            
-                            <div class="voice-test-controls">
-                                <select id="voice-test-profile" class="voice-select">
-                                    <option value="">Select a voice profile...</option>
-                                </select>
-                                <select id="voice-test-language" class="voice-select">
-                                    <option value="en">English</option>
-                                    <option value="es">Spanish</option>
-                                    <option value="fr">French</option>
-                                    <option value="de">German</option>
-                                    <option value="it">Italian</option>
-                                    <option value="pt">Portuguese</option>
-                                    <option value="ja">Japanese</option>
-                                    <option value="ko">Korean</option>
-                                    <option value="zh">Chinese</option>
-                                </select>
-                            </div>
-                            <div class="voice-test-input">
-                                <textarea id="voice-test-text" placeholder="Type text to speak..." rows="3"></textarea>
-                                <button id="voice-speak-btn" class="btn-action" onclick="testVoiceSpeak()" disabled>
-                                    Speak
-                                </button>
-                            </div>
-                            <div id="voice-test-status" class="voice-test-status hidden">
-                                <span class="status-indicator"></span>
-                                <span class="status-message"></span>
-                            </div>
-                        </div>
-
-                        <!-- Built-in Voices -->
-                        <div class="settings-subsection">
-                            <h4>Built-in Voices</h4>
-                            <p class="setting-desc">Choose the provider and the voice used to generate audio.</p>
-                            
-                            <div class="voice-built-in">
-                                <div class="voice-built-in-field">
-                                    <label for="voice-builtin-provider">Provider</label>
-                                    <select id="voice-builtin-provider" class="voice-select" onchange="loadBuiltinVoices()">
-                                        <option value="">Select provider...</option>
-                                    </select>
+                            <!-- Built-in Voices -->
+                            <div class="settings-card">
+                                <div class="settings-card-header" onclick="this.parentElement.classList.toggle('open')">
+                                    <span>Built-in Voices</span>
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                                 </div>
-                                <div class="voice-built-in-field">
-                                    <label for="voice-builtin-voice">Voice</label>
-                                    <select id="voice-builtin-voice" class="voice-select">
-                                        <option value="">Select voice...</option>
-                                    </select>
+                                <div class="settings-card-body">
+                                    <div class="voice-built-in">
+                                        <div class="voice-built-in-field">
+                                            <label for="voice-builtin-provider">Provider</label>
+                                            <select id="voice-builtin-provider" class="voice-select" onchange="loadBuiltinVoices()">
+                                                <option value="">Select provider...</option>
+                                            </select>
+                                        </div>
+                                        <div class="voice-built-in-field">
+                                            <label for="voice-builtin-voice">Voice</label>
+                                            <select id="voice-builtin-voice" class="voice-select">
+                                                <option value="">Select voice...</option>
+                                            </select>
+                                        </div>
+                                        <button class="btn-action" onclick="testBuiltinVoice()">Test</button>
+                                    </div>
                                 </div>
-                                <button class="btn-action" onclick="testBuiltinVoice()">Test</button>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="settings-section">
-                        <h3>Interface</h3>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Chat Mode</div>
-                                <div class="setting-desc">Scrollable history or popup bubble</div>
+                        <!-- Interface -->
+                        <div class="settings-panel" id="panel-interface">
+                            <div class="settings-panel-header">
+                                <h3>Interface</h3>
+                                <p>Appearance and interaction preferences</p>
                             </div>
-                            <div class="setting-control">
-                                <select name="chat_mode" id="chat-mode">
-                                    <option value="chat">Normal Chat</option>
-                                    <option value="popup">Popup Bubble</option>
-                                </select>
+                            <div class="settings-card">
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Chat Mode</div>
+                                        <div class="setting-desc">Scrollable history or popup bubble</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <select name="chat_mode" id="chat-mode">
+                                            <option value="chat">Normal Chat</option>
+                                            <option value="popup">Popup Bubble</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="settings-section">
-                        <h3>Agents</h3>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Confidence Threshold</div>
-                                <div class="setting-desc">Minimum for task completion (0.0 - 1.0)</div>
+                        <!-- Agents -->
+                        <div class="settings-panel" id="panel-agents">
+                            <div class="settings-panel-header">
+                                <h3>Agents</h3>
+                                <p>Task execution and confirmation behavior</p>
                             </div>
-                            <div class="setting-control">
-                                <input type="number" name="confidence_threshold" value="0.9" min="0" max="1" step="0.05">
+                            <div class="settings-card">
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Confidence Threshold</div>
+                                        <div class="setting-desc">Minimum for task completion (0.0 - 1.0)</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" name="confidence_threshold" value="0.9" min="0" max="1" step="0.05">
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Require Confirmation</div>
+                                        <div class="setting-desc">Ask before system commands</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <label class="toggle-switch"><input type="checkbox" name="require_confirmation" checked><span class="toggle-slider"></span></label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Require Confirmation</div>
-                                <div class="setting-desc">Ask before system commands</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="checkbox" name="require_confirmation" checked>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="settings-section">
-                        <h3>Permissions</h3>
-                        <p class="settings-desc">Control what JARVIS can access on your computer</p>
-                        <div id="permissions-list"></div>
-                    </div>
+                        <!-- Permissions -->
+                        <div class="settings-panel" id="panel-permissions">
+                            <div class="settings-panel-header">
+                                <h3>Permissions</h3>
+                                <p>Control what JARVIS can access on your computer</p>
+                            </div>
+                            <div class="settings-card">
+                                <div id="permissions-list"></div>
+                            </div>
+                        </div>
 
-                    <div class="settings-section">
-                        <h3>Server</h3>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Host</div>
-                                <div class="setting-desc">Network interface</div>
+                        <!-- Server -->
+                        <div class="settings-panel" id="panel-server">
+                            <div class="settings-panel-header">
+                                <h3>Server</h3>
+                                <p>Network and hosting configuration</p>
                             </div>
-                            <div class="setting-control">
-                                <input type="text" name="host" value="127.0.0.1">
+                            <div class="settings-card">
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Host</div>
+                                        <div class="setting-desc">Network interface</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="text" name="host" value="127.0.0.1">
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <div class="setting-info">
+                                        <div class="setting-name">Port</div>
+                                        <div class="setting-desc">HTTP server port</div>
+                                    </div>
+                                    <div class="setting-control">
+                                        <input type="number" name="port" value="8000" min="1024" max="65535">
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="setting-row">
-                            <div class="setting-info">
-                                <div class="setting-name">Port</div>
-                                <div class="setting-desc">HTTP server port</div>
-                            </div>
-                            <div class="setting-control">
-                                <input type="number" name="port" value="8000" min="1024" max="65535">
-                            </div>
-                        </div>
-                    </div>
+
+                    </form>
 
                     <div class="settings-actions">
-                        <button type="button" class="btn-save" onclick="saveSettings()">Save</button>
-                        <button type="button" class="btn-reset" onclick="resetSettings()">Reset</button>
+                        <button type="button" class="btn-reset" onclick="resetSettings()">Reset Defaults</button>
+                        <button type="button" class="btn-save" onclick="saveSettings()">Save Changes</button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
 
