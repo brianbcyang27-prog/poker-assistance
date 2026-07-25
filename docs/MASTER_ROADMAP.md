@@ -2,7 +2,7 @@
 
 > **Single source of truth for the future of JARVIS.**
 > This document is maintained automatically after every release.
-> Last updated: v7.8.0
+> Last updated: v8.0.0
 
 ---
 
@@ -11,11 +11,21 @@
 1. [Project Vision](#1--project-vision)
 2. [Core Principles](#2--core-principles)
 3. [Current Architecture](#3--current-architecture)
-4. [Version History](#4--version-history)
-5. [Future Roadmap](#5--future-roadmap)
-6. [Design Philosophy](#6--design-philosophy)
-7. [Development Guidelines](#7--development-guidelines)
-8. [Self Updating](#8--self-updating)
+4. [Module Reference](#4--module-reference)
+5. [Version History](#5--version-history)
+6. [Future Roadmap](#6--future-roadmap)
+7. [Design Philosophy](#7--design-philosophy)
+8. [Animation Philosophy](#8--animation-philosophy)
+9. [Engineering Principles](#9--engineering-principles)
+10. [Security Philosophy](#10--security-philosophy)
+11. [Testing Philosophy](#11--testing-philosophy)
+12. [Coding Standards](#12--coding-standards)
+13. [Documentation Standards](#13--documentation-standards)
+14. [Performance Goals](#14--performance-goals)
+15. [Long-Term Vision](#15--long-term-vision)
+16. [Technical Debt](#16--technical-debt)
+17. [Known Issues](#17--known-issues)
+18. [Future Milestones](#18--future-milestones)
 
 ---
 
@@ -29,61 +39,60 @@ JARVIS is a **personal AI operating system** — a unified platform that combine
 
 The name stands for something larger than any single feature. JARVIS is the convergence of:
 
-- **Intelligence** — understands context, learns from experience, reasons about problems
-- **Autonomy** — plans, executes, verifies, and improves without constant supervision
-- **Control** — operates the computer, browses the web, controls applications, manages files
-- **Memory** — remembers everything permanently, recalls contextually, builds knowledge graphs
-- **Engineering** — writes code, designs systems, manages projects, generates documentation
+- **Intelligence** — Multi-agent architecture with specialized workers
+- **Memory** — Episodic, working, personal, and graph-based memory systems
+- **Autonomy** — Self-directed mission execution with verification
+- **Control** — Computer, browser, IoT, and voice interaction
+- **Trust** — Transparent tool execution with evidence-based results
 
-### Long-Term Goals
+### Identity
 
-| Goal | Status | Target |
-|------|--------|--------|
-| Personal AI assistant | ✅ Active | v1.0+ |
-| Multi-agent architecture | ✅ Active | v1.0+ |
-| Long-term memory | ✅ Active | v3.1+ |
-| Autonomous software engineer | ✅ Active | v5.1+ |
-| Computer control | ✅ Active | v4.3+ |
-| Research assistant | ✅ Active | v5.1+ |
-| Knowledge management system | ✅ Active | v3.1+ |
-| Daily life assistant | 🔜 Planned | v5.3+ |
-| Robotics assistant | 🔜 Planned | v6.3+ |
-| Personal AI operating system | ✅ Active | v7.0 |
+JARVIS is a **premium personal AI operating system**.
 
-### The Mission
+Every decision must improve one or more of these:
 
-Build a system that becomes **progressively smarter with every interaction**. Every completed task, every resolved bug, every discovered tool, every learned pattern makes JARVIS more capable. The goal is not to replace humans — it's to amplify human capability through intelligent automation.
+- Trust
+- Reliability
+- Usability
+- Beauty
+- Speed
+- Consistency
+- Intelligence
+- Transparency
+
+Do NOT optimize for feature count. Optimize for daily usability.
 
 ---
 
 ## 2 — Core Principles
 
-These principles are non-negotiable. They guide every design decision, every line of code, every architectural choice.
+### Design Principles
+
+1. **Clarity** — Every element has a purpose
+2. **Deference** — Content is the focus, not chrome
+3. **Depth** — Visual hierarchy through layering
+4. **Simplicity** — Complexity hidden, not removed
+5. **Consistency** — Same patterns everywhere
+6. **Meaningful Animation** — Every motion communicates state
+7. **Immediate Feedback** — Every action has a visible response
+8. **User Confidence** — The system feels reliable and predictable
 
 ### Engineering Principles
 
-| # | Principle | Meaning |
-|---|-----------|---------|
-| 1 | **Research before coding** | Never build what already exists. Search GitHub, PyPI, npm, docs first. |
-| 2 | **Verify before completion** | Never claim success without evidence. Browser checks, vision, tests, screenshots. |
-| 3 | **Reuse before rebuilding** | If a tool solves 80%+ of the problem, use it. Don't reinvent. |
-| 4 | **Everything is observable** | Every subsystem exposes metrics, logs, and status. Nothing is a black box. |
-| 5 | **Everything is explainable** | Every decision has a rationale. Every output can be traced to its source. |
-| 6 | **Everything is testable** | Every module has tests. Every integration is verified. No untested code in production. |
-| 7 | **Memory is permanent** | Nothing is forgotten. Every mission, every lesson, every discovery is stored permanently. |
-| 8 | **Security first** | Never expose secrets. Never execute untrusted code without sandboxing. Always validate. |
-| 9 | **Human stays in control** | JARVIS proposes, humans decide. Autonomous execution has limits and rollback. |
-| 10 | **Quality over features** | A small set of well-built features beats a large set of broken ones. |
+1. **Evidence First** — Never claim success without verification
+2. **Fail Gracefully** — Every error has a recovery path
+3. **Async by Default** — Never block the event loop
+4. **Defensive Coding** — Assume everything can fail
+5. **Structured Data** — Every tool returns typed results
+6. **Observable** — Every action is logged and traceable
+7. **Secure** — Defense in depth, least privilege
+8. **Testable** — Every feature has a test path
 
-### Architecture Principles
+### The Golden Rule
 
-| # | Principle | Meaning |
-|---|-----------|---------|
-| 1 | **Modular by default** | Every feature is a self-contained module with clear interfaces. |
-| 2 | **Async everywhere** | All I/O is asynchronous. No blocking calls in hot paths. |
-| 3 | **Stdlib first** | Prefer standard library. Minimize external dependencies. |
-| 4 | **Fail gracefully** | Every error is caught, logged, and recovered from. No crashes. |
-| 5 | **Backward compatible** | New versions never break existing APIs without migration paths. |
+> **The Golden 3D Neural Core must remain and never be removed.**
+
+It is the heart of JARVIS. Never remove it again. Instead, improve it.
 
 ---
 
@@ -91,535 +100,176 @@ These principles are non-negotiable. They guide every design decision, every lin
 
 ### System Overview
 
-```mermaid
-graph TB
-    subgraph User["User Interface"]
-        WEB["Web UI<br/>FastAPI + Jinja2"]
-        CLI["CLI<br/>Rich TUI"]
-        VOICE["Voice<br/>STT + TTS"]
-    end
-
-    subgraph Brain["Brain — Intelligence Layer"]
-        LLM["LLM Router<br/>Model Selection"]
-        RAG["RAG<br/>Retrieval-Augmented Gen"]
-        SKILLS["Skill Evolution<br/>Learning"]
-        PLANNER["DAG Planner<br/>Task Decomposition"]
-        REVIEW["Review Pipeline<br/>Self-Reflection"]
-    end
-
-    subgraph Agents["Agent Hierarchy"]
-        JARVIS["JARVIS<br/>Central Coordinator"]
-        KING_E["♥ Engineering"]
-        KING_P["♥ Personal"]
-        KING_R["♦ Research"]
-        KING_S["♠ System"]
-        WORKERS["Workers<br/>8 Specialized Agents"]
-    end
-
-    subgraph Memory["Memory System"]
-        EPISODIC["Episodic Memory"]
-        WORKING["Working Memory"]
-        GRAPH["Knowledge Graph"]
-        RETRIEVAL["Retrieval Engine"]
-        CONSOLIDATION["Consolidation"]
-    end
-
-    subgraph Computer["Computer Control"]
-        COMP_MGR["Computer Manager<br/>38+ Actions"]
-        BROWSER["Browser Manager<br/>Playwright"]
-        ACCESS["Accessibility Tree<br/>Native"]
-        VISION["Vision Core<br/>Screenshot Analysis"]
-        OS_INT["OS Integration<br/>Notifications/Clipboard/Hotkeys"]
-    end
-
-    subgraph Mission["Mission Pipeline"]
-        PIPELINE["10-Stage Pipeline<br/>Understand→Research→Plan→Execute→Verify"]
-        MGR["Mission Manager<br/>Long-Running"]
-    end
-
-    subgraph Engineering["Engineering Suite"]
-        REPO["Repo Intelligence"]
-        INDEX["Codebase Index"]
-        ARCH["Architecture Graph"]
-        DASH["Engineering Dashboard"]
-        REFACTOR["Refactoring Engine"]
-        DOCS["Documentation Engine"]
-    end
-
-    subgraph Platform["Platform Services"]
-        PLUGIN["Plugin SDK"]
-        MONITOR["Self Monitoring"]
-        LEARNING["Continuous Learning"]
-        EVENT["Event Bus"]
-    end
-
-    subgraph Data["Data Layer"]
-        DB["SQLite Database"]
-        FILES["File System"]
-        CONFIG["Configuration"]
-    end
-
-    WEB --> JARVIS
-    CLI --> JARVIS
-    VOICE --> JARVIS
-    JARVIS --> KING_E & KING_P & KING_R & KING_S
-    KING_E & KING_P & KING_R & KING_S --> WORKERS
-    JARVIS --> LLM
-    JARVIS --> PIPELINE
-    PIPELINE --> REPO & INDEX & ARCH & DASH & REFACTOR & DOCS
-    JARVIS --> COMP_MGR
-    COMP_MGR --> BROWSER & ACCESS & VISION & OS_INT
-    JARVIS --> EPISODIC & WORKING & GRAPH
-    EPISODIC --> CONSOLIDATION
-    CONSOLIDATION --> RETRIEVAL
-    RETRIEVAL --> RAG
-    JARVIS --> PLUGIN & MONITOR & LEARNING
-    PLUGIN --> EVENT
-    MONITOR --> EVENT
-    JARVIS --> DB & FILES & CONFIG
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    JARVIS Web Interface                      │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐       │
+│  │  Home   │  │  Chat   │  │ Memory  │  │Projects │ ...   │
+│  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘       │
+│       │            │            │            │              │
+│  ┌────┴────────────┴────────────┴────────────┴────┐        │
+│  │              FastAPI Router Layer               │        │
+│  │  /api/chat  /api/memory  /api/workspace  ...   │        │
+│  └────────────────────┬───────────────────────────┘        │
+│                       │                                     │
+│  ┌────────────────────┴───────────────────────────┐        │
+│  │              Brain Core (LLM + Agents)          │        │
+│  │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐      │        │
+│  │  │ King │  │ King │  │ King │  │ King │      │        │
+│  │  └──┬───┘  └──┬───┘  └──┬───┘  └──┬───┘      │        │
+│  │     │         │         │         │            │        │
+│  │  ┌──┴───┐  ┌──┴───┐  ┌──┴───┐  ┌──┴───┐      │        │
+│  │  │Worker│  │Worker│  │Worker│  │Worker│      │        │
+│  │  └──────┘  └──────┘  └──────┘  └──────┘      │        │
+│  └────────────────────────────────────────────────┘        │
+│                                                             │
+│  ┌────────────────────────────────────────────────┐        │
+│  │              Memory Systems                     │        │
+│  │  Working │ Episodic │ Personal │ Graph │ RAG   │        │
+│  └────────────────────────────────────────────────┘        │
+│                                                             │
+│  ┌────────────────────────────────────────────────┐        │
+│  │              Tool Layer                         │        │
+│  │  Browser │ Terminal │ Vision │ Voice │ IoT     │        │
+│  └────────────────────────────────────────────────┘        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Agent Hierarchy
+### Technology Stack
 
-```mermaid
-graph TD
-    USER["User"] --> JARVIS["JARVIS<br/>Central Coordinator"]
-    
-    JARVIS --> KE["♥ Engineering King"]
-    JARVIS --> KP["♥ Personal King"]
-    JARVIS --> KR["♦ Research King"]
-    JARVIS --> KS["♠ System King"]
-    
-    KE --> W1["🔧 Code Worker"]
-    KE --> W2["🏗️ Build Worker"]
-    KE --> W3["🧪 Test Worker"]
-    
-    KP --> W4["📋 Task Worker"]
-    KP --> W5["📅 Schedule Worker"]
-    KP --> W6["📝 Note Worker"]
-    
-    KR --> W7["🔍 Search Worker"]
-    KR --> W8["📊 Analyze Worker"]
-    
-    KS --> W9["🖥️ System Worker"]
-    KS --> W10["🔒 Security Worker"]
-    
-    style JARVIS fill:#1a1a2e,stroke:#e94560,color:#fff
-    style KE fill:#c0392b,stroke:#e74c3c,color:#fff
-    style KP fill:#c0392b,stroke:#e74c3c,color:#fff
-    style KR fill:#2c3e50,stroke:#34495e,color:#fff
-    style KS fill:#2c3e50,stroke:#34495e,color:#fff
-```
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.9.6+, FastAPI, uvicorn |
+| Database | SQLite (aiosqlite, WAL mode) |
+| LLM | NVIDIA API (Llama 3.1), OpenAI-compatible |
+| Frontend | Vanilla JS (no build tools), HTML5, CSS3 |
+| 3D | Three.js (Neural Core, Knowledge Graph, Memory Galaxy) |
+| Voice | Kokoro TTS, Whisper STT |
+| WebSocket | Native WebSocket API |
 
-### Mission Pipeline
+### Key Metrics
 
-```mermaid
-graph LR
-    A["1. Understand<br/>Goal"] --> B["2. Research<br/>Existing Solutions"]
-    B --> C["3. Tool<br/>Discovery"]
-    C --> D["4. Architecture<br/>Planning"]
-    D --> E["5. Execution<br/>Code Generation"]
-    E --> F["6. Verification<br/>Multi-Channel"]
-    F --> G["7. Testing<br/>Auto-Generated"]
-    G --> H["8. Self<br/>Review"]
-    H --> I["9. Memory<br/>Update"]
-    I --> J["10. Skill<br/>Evolution"]
-    
-    style A fill:#3498db,stroke:#2980b9,color:#fff
-    style B fill:#3498db,stroke:#2980b9,color:#fff
-    style C fill:#3498db,stroke:#2980b9,color:#fff
-    style D fill:#2ecc71,stroke:#27ae60,color:#fff
-    style E fill:#e74c3c,stroke:#c0392b,color:#fff
-    style F fill:#f39c12,stroke:#e67e22,color:#fff
-    style G fill:#f39c12,stroke:#e67e22,color:#fff
-    style H fill:#9b59b6,stroke:#8e44ad,color:#fff
-    style I fill:#1abc9c,stroke:#16a085,color:#fff
-    style J fill:#1abc9c,stroke:#16a085,color:#fff
-```
-
-### Data Flow
-
-```mermaid
-graph TB
-    subgraph Input["Input Sources"]
-        CHAT["Chat Messages"]
-        VOICE_IN["Voice Input"]
-        FILE_IN["File Uploads"]
-        SENSOR["Sensors/IoT"]
-        SCHEDULE["Scheduled Tasks"]
-    end
-
-    subgraph Processing["Processing Pipeline"]
-        PARSE["Intent Parsing"]
-        CONTEXT["Context Assembly"]
-        DECIDE["Action Selection"]
-        EXEC["Execution"]
-        VERIFY["Verification"]
-    end
-
-    subgraph Output["Output Channels"]
-        TEXT["Text Response"]
-        VOICE_OUT["Voice Output"]
-        ACTION["Computer Actions"]
-        FILE_OUT["File Generation"]
-        NOTIF["Notifications"]
-    end
-
-    CHAT --> PARSE
-    VOICE_IN --> PARSE
-    FILE_IN --> PARSE
-    SENSOR --> PARSE
-    SCHEDULE --> PARSE
-    
-    PARSE --> CONTEXT --> DECIDE --> EXEC --> VERIFY
-    
-    VERIFY --> TEXT
-    VERIFY --> VOICE_OUT
-    VERIFY --> ACTION
-    VERIFY --> FILE_OUT
-    VERIFY --> NOTIF
-```
-
-### Module Map
-
-| Module | Files | Purpose |
-|--------|-------|---------|
-| `jarvis/agents/` | 16 | Agent hierarchy (Kings, Workers, Orchestration) |
-| `jarvis/brain/` | 22 | Intelligence (LLM, RAG, Memory, Skills, Planning) |
-| `jarvis/browser/` | 8 | Browser automation (Playwright, Security, Sessions) |
-| `jarvis/computer/` | 18 | Computer control (Accessibility, Vision, Actions) |
-| `jarvis/core/` | 6 | Core infrastructure (Config, Database, Events, Models) |
-| `jarvis/dashboard/` | 4 | Engineering metrics (9 analyzers) |
-| `jarvis/docs_engine/` | 3 | Documentation generation |
-| `jarvis/engineering/` | 10 | Engineering suite (CAD, PCB, Embedded, Mechanical) |
-| `jarvis/execution/` | 1 | Code execution engine |
-| `jarvis/learning/` | 3 | Continuous learning from missions |
-| `jarvis/mission/` | 3 | Mission pipeline + long-running manager |
-| `jarvis/monitoring/` | 3 | Self-monitoring and health checks |
-| `jarvis/os/` | 6 | OS integration (Notifications, Clipboard, Hotkeys) |
-| `jarvis/plugins/` | 3 | Plugin SDK with auto-discovery |
-| `jarvis/planner/` | 1 | Architecture planning |
-| `jarvis/refactoring/` | 3 | Autonomous refactoring engine |
-| `jarvis/repo_intelligence/` | 3 | Repository analysis |
-| `jarvis/research/` | 1 | Research engine |
-| `jarvis/review/` | 1 | Post-mission review |
-| `jarvis/safety/` | 2 | Safety validation |
-| `jarvis/testing/` | 1 | Automated testing |
-| `jarvis/verification/` | 1 | Multi-channel verification |
-| `jarvis/vision/` | 9 | Computer vision (Screenshot, Detection, Grounding) |
-| `jarvis/voice/` | 3 | Voice I/O (STT, TTS) |
-| `jarvis/web/` | 20 | Web interface (FastAPI, WebSocket, Templates) |
-| `jarvis/workspace/` | 2 | Workspace management |
-| **Total** | **197** | **38,057 lines of Python** |
+| Metric | Value |
+|--------|-------|
+| Python files | 346 |
+| JavaScript files | 25 custom + 7 vendor |
+| CSS files | 2 (4,686 lines) |
+| HTML templates | 7 |
+| API endpoints | 223 (222 HTTP + 1 WebSocket) |
+| Test files | 42 |
+| Test lines | 12,677 |
+| Total codebase | ~50,000+ lines |
 
 ---
 
-## 4 — Version History
+## 4 — Module Reference
+
+### Core (`jarvis/core/`)
+
+| Module | Purpose | Lines |
+|--------|---------|-------|
+| database.py | Async SQLite with WAL mode | 938 |
+| capabilities.py | Capability registry and prompts | 273 |
+| reliability.py | Timeout, retry, backoff patterns | 242 |
+| events.py | Event bus for cross-component messaging | 214 |
+| models.py | Pydantic data models | 195 |
+| diagnostics.py | System health diagnostics | 191 |
+| workflows.py | Workflow orchestration | 159 |
+| permissions.py | Permission system | 123 |
+| config.py | Configuration management | 104 |
+
+### Brain (`jarvis/brain/`)
+
+| Module | Purpose | Lines |
+|--------|---------|-------|
+| llm.py | Async LLM interface (achat, achat_stream) | 571 |
+| mission_executor.py | Mission planning and execution | 332 |
+| dag_planner.py | DAG-based task planning | 320 |
+| model_router.py | Model selection and routing | 275 |
+| aci.py | Agent Communication Interface | 261 |
+| skills.py | Skill management | 154 |
+| world_model.py | Digital twin / world understanding | 197 |
+
+### Memory (`jarvis/brain/memory/`)
+
+| Module | Purpose | Lines |
+|--------|---------|-------|
+| retrieval.py | Memory retrieval and ranking | 421 |
+| episodic.py | Episode storage and recall | 393 |
+| consolidation.py | Memory consolidation (short→long) | 340 |
+| working.py | Working memory (active context) | 318 |
+| journal.py | Daily journal system | 309 |
+| personal.py | Personal facts and preferences | 300 |
+| graph.py | Knowledge graph (custom, NOT codebase-memory-mcp) | 234 |
+| importance.py | Memory importance scoring | 202 |
+| extractor.py | Memory extraction from text | 159 |
+
+### Web (`jarvis/web/`)
+
+| Module | Purpose | Lines |
+|--------|---------|-------|
+| main.py | App factory, middleware, lifespan | 304 |
+| routers/system.py | System/brain/graph API (mega-router) | 1,013 |
+| routers/voice.py | Voice/TTS/STT/clone API | 474 |
+| routers/websocket.py | WebSocket agent status stream | 360 |
+| routers/engineering.py | Hardware engineering tools | 318 |
+| routers/memory.py | Memory system API | 282 |
+| routers/chat.py | Chat and session management | 249 |
+| routers/workspace.py | Workspace/mission tracking | 190 |
+| routers/security.py | Security/vault API | 189 |
+
+### Frontend (`jarvis/web/static/`)
+
+| File | Purpose | Lines |
+|------|---------|-------|
+| js/app.js | Main application logic | 2,354 |
+| js/graph-3d.js | 3D knowledge graph visualization | 994 |
+| js/command-map.js | Command center visualization | 985 |
+| js/unified-timeline.js | Mission timeline rendering | 749 |
+| js/living-interface.js | AI presence and living UI | 417 |
+| js/knowledge-graph.js | Knowledge graph UI | 414 |
+| js/memory-galaxy.js | Memory visualization | 347 |
+| css/style.css | Main design system | 4,136 |
+| css/command-map.css | Command center styles | 550 |
+
+---
+
+## 5 — Version History
+
+### v8.0.0 — Comprehensive Audit & Quality Gate
+
+> Full system audit, security hardening, documentation overhaul.
+
+- Completed full codebase audit (346 Python, 25 JS, 2 CSS files)
+- Generated SYSTEM_AUDIT.md, SECURITY_REPORT.md, PERFORMANCE_REPORT.md
+- Updated MASTER_ROADMAP.md with architecture, modules, philosophy
+- Identified 8 critical security issues, 7 high, 6 medium
+- Identified 120+ endpoints missing error handling
+- Identified XSS vectors in innerHTML usage
+- Identified accessibility gaps (no prefers-reduced-motion, no focus traps)
+- Identified CSS variable bleed from command-map.css
+- Identified version drift between __init__.py and pyproject.toml
+- Version bumped to 8.0.0
+
+### v7.9.1 — Bug Fixes + Projects Button
+
+> Session management fixes and new project creation.
+
+- Added `POST /api/chat/sessions` endpoint for creating new sessions
+- Added `startNewChat()` function (was undefined, called by command palette)
+- Wired `new-chat-btn` click handler in chat sidebar
+- Added "New Project" button to Projects workspace header
+- Fixed `loadProjects()` to handle both array and object API responses
+
+### v7.9.0 — Settings Redesign + Chat Fix
+
+> Two-column settings sidebar, chat input spacing fix.
 
-### v1.0.0 — Initial Multi-Agent System
-
-> The beginning.
-
-- Multi-agent AI system with poker-card hierarchy
-- 3D Neural Core visualization
-- Web interface with chat
-- Basic task routing
-
-### v2.0.0 — Enhanced Intelligence
-
-- Improved LLM integration
-- Voice synthesis with model selection
-- Persistent memory
-- Task history and replay
-
-### v3.1.0 — Brain Upgrade (5 Phases)
-
-> JARVIS starts thinking.
-
-- **Phase 0:** Event Bus, Capability Registry, Pluggable Memory
-- **Phase 1:** Model Router, Speculative Planning, Review Pipeline
-- **Phase 2:** RAG Memory, Knowledge Graph, Skill Evolution
-- **Phase 3:** ACI (Agent Communication), Demo Learning
-- **Phase 4:** DAG Planner, Dynamic Teams, Mission Timeline
-- **Phase 5:** Observability Dashboard, Developer Mode
-
-### v3.2.0 — Living Intelligence Interface
-
-- Graphify knowledge graph integration
-- Living intelligence UI updates
-
-### v3.3.0 — Engineering Suite
-
-- CAD integration (Fusion 360, FreeCAD, Blender)
-- PCB design (KiCad)
-- Embedded systems support
-- Mechanical engineering tools
-
-### v4.0.0 — Living Intelligence OS
-
-> JARVIS becomes an operating system.
-
-- Unified dashboard with streaming
-- Missions system
-- World model
-- 3D Neural Core redesign
-
-### v4.3.0 — Digital Navigator
-
-> JARVIS gains sight and control.
-
-- Browser automation (Playwright)
-- Memory system
-- Computer control
-- Screen interaction
-
-### v4.4.0 — Eyes Update
-
-> JARVIS understands what it sees.
-
-- Accessibility Intelligence
-- Application understanding (6 app profiles)
-- Native accessibility tree parsing
-- Smart interaction patterns
-
-### v4.5.0 — Vision Core
-
-> JARVIS sees and reasons about visuals.
-
-- Screenshot analysis
-- Multi-provider vision (local + cloud)
-- Visual grounding
-- Object detection
-- Vision memory
-
-### v5.0.0 — Personal AI Operating System
-
-> JARVIS becomes autonomous.
-
-- OS integration (Notifications, Clipboard, Hotkeys, Menu Bar, File Watcher)
-- Agent orchestration (TaskOrchestrator, WorkerPool, DAGWorkflow)
-- 38+ computer actions
-- Smart multi-perception actions
-
-### v5.1.0 — Autonomous Research & Execution Engine
-
-> JARVIS plans before coding.
-
-- 10-stage mission pipeline
-- Research engine (GitHub, PyPI, npm, docs)
-- Tool discovery engine
-- Architecture planner
-- Execution engine with auto-repair
-- Verification engine (multi-channel)
-- Testing engine (auto-generate + run)
-- Self-review engine
-
-### v5.2.0 — Autonomous Software Engineering Platform
-
-> JARVIS understands entire codebases.
-
-- Repository Intelligence (analyze any project)
-- Codebase Indexing (every symbol searchable)
-- Architecture Graph (live visualization)
-- Engineering Dashboard (9 metrics)
-- Refactoring Engine (PR-style proposals)
-- Documentation Engine (auto-generate docs)
-- Mission Manager (long-running with persistence)
-- Continuous Learning (post-mission analysis)
-- Plugin SDK (11 plugin types)
-- Self Monitoring (health, latency, memory)
-- 12 CLI commands
-
-### v5.2.1 — Stability & Integration Update
-
-> Production-quality stabilization pass.
-
-- Full system audit (imports, circular deps, dead code)
-- Removed broken legacy `main.py` (imported non-existent modules)
-- Removed orphaned `web/routers/` directory (7 unused router files)
-- Fixed hardcoded version strings (v4.2.0 → using `__version__`)
-- Fixed stale version in `run.py` (v4.0.0 → using `__version__`)
-- Cleaned unused imports in `mission/pipeline.py`
-- Updated `.env.example` with missing fields (TTS, OpenAI, UI config)
-- 225 tests passing, 0 failures
-
-### v5.3.0 — Living Intelligence
-
-> JARVIS becomes continuously aware.
-
-- LivingBrain: background observe→understand→predict→plan→assist cycle
-- ContextEngine: real-time context tracking (files, apps, missions)
-- SuggestionEngine: 10 smart suggestion rules with confidence scoring
-- ProjectManager: living project objects with context restore
-- JournalEngine: daily journals + weekly reviews
-- EngineeringIntel: 8 analyzers (duplication, naming, docs, complexity, dead code, stale API, missing tests, architecture drift)
-- LivingDashboard: unified WebSocket dashboard facade
-- Privacy: opt-in monitoring with audit log
-- 190 new tests (415+ total)
-
-### v5.4.0 — Second Brain & Personal Knowledge Graph
-
-> JARVIS builds a true personal knowledge system.
-
-- Knowledge Graph: 15 entity types (Person, Project, Organization, Technology, Skill, Concept, Decision, Goal, Task, Document, Codebase, Device, Location, Event, Resource)
-- Relationship Engine: 15 relation types, BFS path finding, cluster expansion, type-based suggestions
-- Memory Extraction: auto-detect facts, decisions, preferences, projects, technologies, people, lessons
-- Memory Consolidation: dedup, merge, strengthen, forget low-value memories
-- Personal Timeline: chronological events with date range queries, evolution tracking
-- Semantic Memory Search: hybrid keyword + graph traversal + recency + importance ranking
-- Preference Learning: coding, hardware, communication, tools, workflow, design, deployment
-- Decision Memory: record decisions with reasons, alternatives, impact, outcome tracking
-- Memory Privacy: pause, forget topics, private projects, audit log, full export
-- 312 new tests (727+ total)
-
-### v5.5.0 — Autonomous Agent Reliability Update
-
-> JARVIS becomes a reliable personal AI operating system.
-
-- System Audit: full v5.4.0 analysis, duplicate detection, dead code identification
-- Unified Brain: JARVISBrain facade (think, reason, decide, remember, recall, explain_why)
-- BrainContext: complete context for every agent (goal, preferences, memories, decisions, tools)
-- MemoryManager: unified interface over all memory sources
-- ReasoningEngine: evidence-based reasoning chains with risk assessment
-- BrainDecisionEngine: action decisions with explanations and learning
-- Agent Personas: 10 playing-card identities with personality, expertise, strengths/weaknesses
-- Tool Intelligence: 15 tool definitions with capabilities, failures, and fixes
-- Mission Replay: event recording, timeline views, mission reports
-- Autonomous Loop: 8-step cognitive cycle (observe→understand→plan→act→verify→reflect→remember→improve)
-- Self-Improvement: error memory, auto-recovery, lesson engine
-- Command Center UI: unified single-page dashboard with 3D golden core
-- Mission Replay API: 14 REST endpoints for brain/missions/agents/tools
-- 227 new tests (954+ total)
-
-### v6.0.0 — Visual & Design System Rewrite
-
-> JARVIS becomes premium.
-
-- Complete UI rewrite (base.html, style.css, app.js)
-- Gold particle sphere (Graph3D) — 800 particles, bloom post-processing, mouse parallax, neural pulses
-- Workspace-based UI (Core, Chat, Engineering, Research, Memory, Settings)
-- Agent Command Map — SVG hierarchy visualization
-- Knowledge Graph — canvas-based force-directed layout
-- Memory Galaxy — Three.js star field
-- Cache-busting static assets
-- No-cache middleware for development
-
-### v6.0.1 — Browser Cache Fix
-
-- Root-caused Graph3D pulsePool error (stale browser cache)
-- Added `?v=6.0.1` cache-busting to all 23 static assets
-- Added `Cache-Control: no-cache` middleware
-- Defensive pulsePool guard in graph-3d.js
-
-### v6.0.2 — Resource Leak Fixes & Rate Limiting
-
-> Production hardening.
-
-- Full codebase resource audit (56 issues: 4 critical, 23 high, 19 medium, 10 low)
-- Database: busy_timeout, 8 new indexes, LIMIT guards, singleton Lock
-- WebSocket: 30s heartbeat, dead-client cleanup, task tracking
-- Agents: background task tracking with cleanup callbacks
-- Events: 50-handler cap per type, efficient trim
-- Frontend: GPU cleanup in destroy(), stored listener references
-- Rate limiting: global 30/min POST middleware + per-endpoint decorators
-
-### v6.2.0 — Production Stability & System Integration
-
-> Priority shift: NO MORE FEATURES. Focus on reliability, stability, maintainability, and production readiness.
-
-- **Startup Fix**: Added missing `app` module-level export (uvicorn couldn't find ASGI app)
-- **Memory Import Fixes**: Fixed broken import paths in 6 memory modules (`..core` → `...core`)
-- **Import-Time Side Effects**: Fixed relative paths in graph.py and note.py (were creating dirs in CWD)
-- **Resource Leak Fixes**: LLM httpx.Client close/del, audio MediaStream stop, command-map WS destroy
-- **Frontend Stability**: graph-3d _boundDrag cleanup, knowledge-graph canvas removal, mission-dag removable listeners
-- **API Health**: Added `/api/health` endpoint, fixed dead `/api/memory/stats` references
-- **Error Handling**: FTS5 syntax error safety, mission_executor logging, JSON.parse safety in WS
-- **Code Cleanup**: Removed dead command_center.py, orchestration/ module, test_orchestration.py
-- **Performance**: 2.34s startup, 2-14ms API latency, 223 tests passing
-
-### v7.0.0 — Experience Revolution
-
-> **Design Philosophy**: Calm. Elegant. Fast. Premium. Alive.
-
-- Premium design system with glass, depth, spring transitions
-- 5 primary workspaces: Home, Chat, Memory, Projects, Settings
-- Developer Mode toggle (`Cmd+Shift+D`) — dev panels hidden by default
-- Single chat experience — ONE input, always consistent
-- AI Presence — real system state messages, living Neural Core states
-- Professional typography, spacing, shadows, and motion design
-- Apple/Arc/Raycast-inspired premium feel
-
-### v7.1.0 — Premium Chat Experience
-
-> Chat becomes Apple-quality.
-
-- Collapsible thinking blocks with dimmer text
-- Tool call summary footer (✓/✗ status)
-- Streaming token display with SSE
-- Premium glass sidebar with session list
-- Background canvas animation (particles)
-- Scroll fix for chat container
-
-### v7.2.0 — UI Audit & Workspace Planning
-
-> Full UI audit and roadmap expansion.
-
-- Created `docs/UI_UX_AUDIT_v7.md` — scored current UI 4.3/10
-- Expanded MASTER_ROADMAP.md with 12 phases
-- Documented all workspace status (completed vs pending)
-- Added design philosophy, animation philosophy, coding standards
-
-### v7.3.0 — Reliability Foundation
-
-> Fix silent failures and async bottlenecks.
-
-- Async LLM chat with `httpx.AsyncClient` + `asyncio.sleep()` retries
-- Async SQLite migration with `aiosqlite` (non-blocking)
-- Added logging to 43+ silent `except: pass` handlers
-- WebSocket consolidation (3 connections → 1 shared `JarvisWS`)
-- JS test infrastructure (Jest + ws-manager unit tests)
-- Version bumped to 7.3.0
-
-### v7.4.0 — Premium Voice Experience
-
-> Voice interaction with visual feedback.
-
-- Created `voice-experience.js` with streaming STT/TTS support
-- Audio waveform visualization with canvas + frequency analysis
-- Voice state machine (idle → listening → thinking → speaking)
-- Premium CSS animations for voice states (pulse, dot pulse)
-- Version bumped to 7.4.0
-
-### v7.5.0 — Mission Timeline + Tool Cards
-
-> Transparent step-by-step execution.
-
-- Created `mission-timeline.js` with premium timeline visualization
-- Timeline panel in chat workspace (collapsible)
-- Tool card CSS (compact inline pills with status colors)
-- Timeline CSS with slide-in animations and status dots
-- Wired `tool_calls` SSE events to timeline rendering
-- Version bumped to 7.5.0
-
-### v7.6.0 — Premium Vision Experience
-
-> Screen and camera analysis with AI.
-
-- Created `vision-experience.js` with screen/camera capture
-- Rebuilt Computer workspace as Vision workspace with live viewport
-- Frame capture → `/api/chat` → analysis result flow
-- Vision CSS (viewport, overlay, analysis panel, empty state)
-- Version bumped to 7.6.0
-
-### v7.7.0 — Workspace System
-
-> Persistent context per workspace.
-
-- Created `workspace-manager.js` with per-workspace state persistence
-- Saves/restores scroll position on workspace switch
-- SessionStorage hydration for cross-page persistence
-- Hooked into `switchWorkspace()` in app.js
-- Version bumped to 7.7.0
+- Settings overlay redesigned with two-column sidebar layout
+- 6 navigation categories, search bar, toggle switches
+- Collapsible voice sub-panels, responsive breakpoints
+- Chat input pinned to viewport bottom (`position: fixed`)
+- Added padding to chat messages container
 
 ### v7.8.0 — Command Palette + Digital Twin
 
@@ -631,740 +281,642 @@ graph TB
 - Created `digital-twin.js` with state-driven mini avatar
 - SVG energy ring with live drain/charge animation
 - State pulse animations (thinking, speaking, listening)
-- Version bumped to 7.8.0 — **ROADMAP COMPLETE**
+
+### v7.7.0 — Workspace System
+
+> Persistent per-workspace state with sessionStorage.
+
+- Created `workspace-manager.js`
+- Per-workspace state persistence (scroll, inputs, settings)
+- SessionStorage hydration on workspace switch
+- Hooked into `switchWorkspace()` lifecycle
+
+### v7.6.0 — Premium Vision Experience
+
+> Screen and camera capture with AI analysis.
+
+- Created `vision-experience.js`
+- Screen capture via getDisplayMedia
+- Camera capture via getUserMedia
+- Frame analysis via `/api/chat` endpoint
+- Vision workspace (rebuilt from Computer)
+
+### v7.5.0 — Mission Timeline + Tool Cards
+
+> Visual execution tracking with expandable tool cards.
+
+- Created `mission-timeline.js`
+- Timeline panel in chat sidebar
+- Tool card CSS with status indicators
+- Wired `tool_calls` SSE to timeline rendering
+
+### v7.4.0 — Premium Voice Experience
+
+> Streaming STT/TTS with waveform visualization.
+
+- Created `voice-experience.js`
+- Streaming speech recognition
+- Audio waveform visualization
+- Voice state machine (idle, listening, thinking, speaking)
+
+### v7.3.0 — Reliability Foundation
+
+> Async LLM, async SQLite, logging overhaul.
+
+- Async LLM (`achat()`, `achat_stream()`)
+- Async SQLite (aiosqlite, WAL mode)
+- Logging to 43+ silent `except: pass` handlers
+- WebSocket consolidation (`ws-manager.js`)
+- JS test infrastructure (Jest + `ws-manager.test.js`)
+
+### v7.2.0 — UI Audit & Workspace Planning
+
+> Comprehensive UX audit, workspace redesigns.
+
+- Created `docs/UI_UX_AUDIT_v7.md` — scored current UI 4.3/10
+- Redesigned all 6 workspaces to premium quality
+- Research, Memory, Projects, Computer, Metrics, Logs
+
+### v7.1.0 — Premium Chat Experience
+
+> Collapsible thinking blocks, tool summaries, streaming.
+
+- Collapsible thinking blocks
+- Tool call summary footer
+- Streaming token display
+- Premium glass sidebar
+- Background canvas animation
+
+### v7.0.0 — Experience Revolution
+
+> Foundation for premium OS experience.
+
+- Unified navigation (Home, Chat, Memory, Projects, Settings)
+- Premium glass design tokens
+- Single chat experience
+- AI presence (real system state messages)
+- Loading screen with Golden Core
+- Settings overlay
 
 ### v6.1.0 — System Integration & Engineering Workspace
 
 > JARVIS becomes one unified operating system.
 
-- **Unified Workspace**: Merged Workspace + Mission into single persistent model (24 fields, SQLite-backed)
-- **Cross-Agent Collaboration**: Workers can request help, share results, broadcast discoveries via event bus
-- **Peer Context Passing**: King passes previous worker results to subsequent workers
-- **Unified Mission Timeline**: Live event stream UI with filters, search, export
-- **Developer Dashboard**: `/dashboard` — 7 panels (System Health, Workspaces, Workers, Event Stream, Memory, API Performance, Tools)
-- **Reliability Config**: Centralized timeouts, retry logic, backoff, safe_execute
-- **LLM Retry**: Exponential backoff with configurable retries on connection/HTTP errors
-- **Workspace Search**: `GET /api/workspace/search?q=query`
-- **Workspace Timeline API**: `GET /api/workspace/{id}/timeline`
-- **Stage Tracking API**: `POST /api/workspace/{id}/stage`
-- **Realtime Collaboration Events**: `worker.help_request`, `worker.help_response`, `worker.result_shared`, `worker.broadcast.*`
+- Unified Workspace + Mission model
+- Cross-Agent Collaboration
+- Peer Context Passing
+- Unified Mission Timeline
+- Developer Dashboard
+- Reliability Config
+- LLM Retry with exponential backoff
+- Workspace Search & Timeline APIs
 
 ---
 
-## 5 — Future Roadmap
+## 6 — Future Roadmap
 
-### Phase 0 — Master Roadmap ✅
+### Phase 1 — Security Hardening (v8.1)
 
-> This document is the single source of truth.
-
-| Feature | Description | Priority | Status |
-|---------|-------------|----------|--------|
-| Architecture Documentation | Current system diagrams | High | ✅ |
-| UI Status Tracking | Which workspaces are premium | High | ✅ |
-| Phase Planning | All future versions documented | High | ✅ |
-| Design Philosophy | Apple/Arc/Raycast guidelines | High | ✅ |
-| Animation Philosophy | Spring easings, purposeful motion | High | ✅ |
-| Coding Standards | Python 3.9.6+, async patterns | High | ✅ |
-| Testing Strategy | 300+ tests per release | High | ✅ |
-
-### Phase 1 — Premium Workspace Completion (v7.1) ✅
-
-> Every workspace matches Home, Chat, Settings, Command Map quality.
-
-| Workspace | Status | Notes |
-|-----------|--------|-------|
-| Home | ✅ Done | 3D Golden Neural Core, premium glass |
-| Chat | ✅ Done | Full premium: thinking, tools, streaming |
-| Settings | ✅ Done | Premium glass overlay, spring animation |
-| Command Map | ✅ Done | Custom SVG agent visualization |
-| Research | ✅ Done | Knowledge graph with premium glass |
-| Memory | ✅ Done | Memory galaxy with premium glass |
-| Projects | ✅ Done | Premium grid with empty states |
-| Computer | ✅ Done | Vision workspace with live viewport |
-| Metrics | ✅ Done | Premium dashboard layout |
-| Logs | ✅ Done | Premium log viewer |
-
-**Requirements:**
-- Premium layouts with glassmorphism
-- Consistent spacing (var(--space-*) tokens)
-- Skeleton loading states
-- Smooth transitions (var(--ease-spring))
-- Custom empty states with illustrations
-- Beautiful icons (Lucide or custom SVG)
-- Context-aware controls
-- Animated cards with hover effects
-- Adaptive layouts (responsive)
-- No generic Bootstrap-style containers
-
-### Phase 2 — Voice Experience (v7.2) ✅
-
-> Completely redesign voice interaction.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Streaming Speech Recognition | Real-time transcription | High |
-| Streaming TTS | Token-by-token synthesis | High |
-| Interruptible Speech | Stop/continue naturally | High |
-| Voice Activity Detection | Auto-start/stop | High |
-| Speaking Animation | Visual feedback | Medium |
-| Listening Animation | Waveform visualization | Medium |
-| Neural Core Reacts to Voice | Core pulses with speech | Medium |
-| Voice Settings | Voice, speed, microphone | High |
-| Audio Diagnostics | Mic test, volume levels | Medium |
-
-### Phase 3 — Mission Timeline (v7.3) ✅
-
-> Every mission exposes a transparent timeline.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Timeline Visualization | Step-by-step execution | High |
-| Tool Cards | Compact tool status in conversation | High |
-| Duration Tracking | Time per step | High |
-| Expandable Details | Logs, files, screenshots | High |
-| Verification Status | Pass/fail per step | High |
-| Replace Reasoning Popups | Timeline > reasoning | High |
-
-### Phase 4 — Unified Tool Cards ✅
-
-> Compact tool cards in conversation.
-
-| Tool | Card Example |
-|------|--------------|
-| 🌐 Browser | ✓ searched documentation (0.8s) |
-| 📂 Files | ✓ scanned 23 files |
-| 🧠 Memory | ✓ loaded previous project |
-| 💻 Terminal | ✓ pytest completed |
-| 👁 Vision | ✓ verified webpage |
-
-Cards expand when clicked. Never spam the user.
-
-### Phase 5 — Vision Experience (v7.4) ✅
-
-> Improve vision capabilities.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Screenshots | Capture and analyze | High |
-| OCR | Text extraction | High |
-| Window Understanding | App context | High |
-| Accessibility Summary | UI structure | High |
-| UI Verification | Visual regression | High |
-| Error Detection | Bug identification | Medium |
-| Browser Verification | Cross-check results | Medium |
-| Mission Verification | Goal completion | High |
-| Image Understanding | Describe visuals | High |
-| Camera Foundation | Future-ready | Low |
-
-### Phase 6 — Workspace System (v7.5) ✅
-
-> Every conversation belongs to a workspace.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Workspace Persistence | Goal, missions, files, notes | High |
-| Mission History | All missions in workspace | High |
-| Browser State | Tabs, history | High |
-| Terminal State | Command history | High |
-| File Context | Related files | High |
-| Notes | User notes | Medium |
-| Memories | Workspace-specific | High |
-| Timeline | Mission timeline | High |
-| Artifacts | Generated files | High |
-
-### Phase 7 — Digital Twin Foundation (v7.6) ✅
-
-> Build understanding of user's digital life.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Project Registry | All projects indexed | High |
-| Folder Graph | Directory relationships | High |
-| Git Awareness | Repos, branches, commits | High |
-| Application Map | Installed apps | Medium |
-| Device Registry | Connected devices | Medium |
-| File Index | Important files | High |
-| Skill Graph | Learned capabilities | High |
-| Goal Tracker | User objectives | High |
-| Preference Engine | User habits | High |
-| Activity Timeline | Recent actions | High |
-
-### Phase 8 — Command Palette ✅
-
-> Keyboard-first global commands.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| ⌘K Trigger | Global palette | High |
-| Open Workspace | Quick navigation | High |
-| Run Mission | Execute tasks | High |
-| Search Memory | Recall information | High |
-| Launch App | Open applications | High |
-| Search Projects | Find projects | High |
-| Run Terminal | Execute commands | High |
-| Open Settings | Quick settings | Medium |
-| Switch Model | Change LLM | Medium |
-
-### Phase 9 — Performance ⏳
-
-> Audit and optimize entire frontend.
-
-| Metric | Target |
-|--------|--------|
-| FPS | 60fps consistent |
-| Startup | < 2s |
-| Memory | < 200MB |
-| Animation | Smooth, no jank |
-| Layout Shifts | Zero CLS |
-| Long Tasks | < 50ms |
-
-### Phase 10 — Polish ⏳
-
-> Remove dead code, unused CSS, duplicates.
-
-| Task | Description |
-|------|-------------|
-| Dead Code | Remove unused functions |
-| Unused CSS | Remove unreferenced styles |
-| Duplicate Components | Merge similar |
-| Duplicate Icons | Consolidate |
-| Obsolete Pages | Remove old UI |
-| Developer UI | Clean up dev tools |
-
-### Phase 11 — Testing ⏳
-
-> Test everything.
-
-| Area | Tests |
-|------|-------|
-| UI | Component rendering |
-| API | Endpoint responses |
-| Memory | CRUD operations |
-| Browser | Automation flows |
-| Voice | STT/TTS accuracy |
-| Workspace | Persistence |
-| Vision | Screenshot analysis |
-| Timeline | Mission tracking |
-| Tool Cards | Status display |
-| Command Palette | Search accuracy |
-| Developer Mode | Toggle behavior |
-| Dark Mode | Theme consistency |
-| Responsive | Mobile/tablet |
-| Accessibility | ARIA, keyboard |
-
-### Phase 12 — Documentation ⏳
-
-> Update all documentation.
-
-| Document | Action |
-|----------|--------|
-| CHANGELOG | Add v7.x entries |
-| PROJECT_INDEX | Update module list |
-| SYSTEM_ARCHITECTURE | Update diagrams |
-| MASTER_ROADMAP | This document |
-| VOICE_ARCHITECTURE | Create new |
-| WORLD_MODEL | Create new |
-| WORKSPACE_SYSTEM | Create new |
-| MISSION_TIMELINE | Create new |
-| ANIMATION_SYSTEM | Create new |
-| TOOL_EXECUTION | Create new |
-
-### v5.3 — Living Intelligence ✅
-
-> JARVIS becomes aware of its environment.
+> Authentication, authorization, and input validation.
 
 | Feature | Description | Priority | Status |
 |---------|-------------|----------|--------|
-| Continuous Observation | Background monitoring of user activity | High | ✅ |
-| Context Awareness | Understand current project state | High | ✅ |
-| Proactive Suggestions | Suggest improvements without being asked | High | ✅ |
-| Background Thinking | Analyze problems during idle time | Medium | ✅ |
-| Mission Monitoring | Watch running missions and intervene | High | ✅ |
-| Environment Awareness | Detect changes in filesystem, browser, apps | Medium | ✅ |
-| Adaptive Notifications | Smart notification timing and priority | Medium | ✅ |
+| Auth middleware | Bearer token or API key on all `/api/` routes | Critical | ⬜ |
+| CORS middleware | `CORSMiddleware` for cross-origin control | High | ⬜ |
+| Input validation | Pydantic models for all `dict` body params | High | ⬜ |
+| Path traversal fix | Validate file paths stay within allowed dirs | Critical | ⬜ |
+| File size limits | Upload size caps on voice/engineering endpoints | High | ⬜ |
+| HTTP status codes | Fix error-in-200-OK patterns | Medium | ⬜ |
 
-### v5.4 — Personal Knowledge Graph ✅
+### Phase 2 — Error Handling Overhaul (v8.2)
 
-> JARVIS builds a graph of everything it knows.
-
-| Feature | Description | Priority | Status |
-|---------|-------------|----------|--------|
-| Graph Memory | Entity-relationship knowledge graph | High | ✅ |
-| Timeline | Chronological event tracking | High | ✅ |
-| Project Graph | Project dependency visualization | High | ✅ |
-| Life Graph | Personal knowledge organization | Medium | ✅ |
-| Decision Graph | Track decisions and outcomes | Medium | ✅ |
-| Visualization | Interactive graph exploration | High | ✅ |
-| Semantic Recall | Find related memories by context | High | ✅ |
-
-### v5.5 — Long-Term Planning
-
-> JARVIS helps plan and track goals.
+> Every endpoint has structured error handling.
 
 | Feature | Description | Priority | Status |
 |---------|-------------|----------|--------|
-| Goals | Long-term goal tracking | High | ✅ |
-| Milestones | Progress tracking with deadlines | High | ✅ |
-| Dependencies | Task dependency management | High | ✅ |
-| Adaptive Scheduling | Smart schedule optimization | Medium | ✅ |
-| Daily Planner | Morning briefing and task list | High | ✅ |
-| Weekly Planner | Weekly review and planning | Medium | ✅ |
-| Priority Optimization | Dynamic priority adjustment | Medium | ✅ |
+| Global exception handler | `@app.exception_handler` for 500, 404, etc. | High | ⬜ |
+| Per-endpoint try/except | Add to 120+ unprotected endpoints | High | ⬜ |
+| Structured error responses | `{"error": "...", "code": "..."}` format | Medium | ⬜ |
+| Frontend error toasts | Show API errors in UI, not silent catches | Medium | ⬜ |
+| Request logging | Access logging with request IDs | Low | ⬜ |
 
-### v5.6 — Multi-Device Brain
+### Phase 3 — Frontend Cleanup (v8.3)
 
-> JARVIS works everywhere.
+> XSS prevention, accessibility, performance.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Mac Support | Full native support | High |
-| Windows Support | Full native support | High |
-| Linux Support | Full native support | High |
-| Phone Companion | Mobile notification and quick actions | Medium |
-| ESP32 Integration | IoT device control | Medium |
-| Arduino Support | Microcontroller programming | Medium |
-| Raspberry Pi | Edge computing node | Medium |
-| Cloud Sync | Cross-device synchronization | High |
-| Shared Memory | Multi-device memory | High |
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| XSS sanitization | Add DOMPurify or escape all innerHTML | High | ⬜ |
+| prefers-reduced-motion | Disable animations for motion-sensitive users | High | ⬜ |
+| Focus management | Focus traps in modals, visible focus states | Medium | ⬜ |
+| CSS variable bleed | Fix command-map.css :root override | Medium | ⬜ |
+| transition:all → specific | Convert 35+ `transition: all` to specific properties | Medium | ⬜ |
+| Responsive breakpoints | Add breakpoints for command-map, fix ordering | Low | ⬜ |
 
-### v5.7 — Digital Twin
+### Phase 4 — Performance Audit (v8.4)
 
-> JARVIS learns who you are.
+> Memory leaks, layout shifts, startup time.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Habit Learning | Learn user patterns | High |
-| Tool Preferences | Remember preferred tools | High |
-| Coding Style | Match user's code style | High |
-| Learning Patterns | Adapt to how user learns | Medium |
-| Working Hours | Respect schedule | Medium |
-| Project Preferences | Remember project conventions | High |
-| Adaptive Automation | Customize automation to user | High |
-| Predictive Assistance | Anticipate needs | Medium |
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| Memory leak audit | Verify all setInterval/requestAnimationFrame cleanup | Medium | ⬜ |
+| Layout shift audit | Add dimensions to images/skeletons | Medium | ⬜ |
+| Startup time | Measure and optimize initial load | Medium | ⬜ |
+| Bundle size | Audit JS payload (8,544 lines unminified) | Low | ⬜ |
+| CSS modularization | Split 4,136-line style.css | Low | ⬜ |
 
-### v6.0 — JARVIS Studio
+### Phase 5 — system.py Decomposition (v8.5)
 
-> A completely new interface.
+> Break the 1,013-line mega-router into focused modules.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Mission Control | Central mission dashboard | High |
-| Live Worker Dashboard | Real-time worker status | High |
-| Interactive Knowledge Graph | Graph exploration UI | High |
-| Mission Timeline | Visual mission history | High |
-| AI Debugger | Debug AI decisions | Medium |
-| Visual Memory Explorer | Browse memories visually | High |
-| Drag-and-Drop Workflows | Visual workflow builder | Medium |
-| Integrated Engineering | All tools in one view | High |
-| 3D Neural Core | Remains the visual centerpiece | High |
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| Split system.py | Create routers: graph.py, evolution.py, aci.py, dag.py, teams.py, demos.py, dev.py, graphify.py | High | ⬜ |
+| Add Pydantic models | Replace raw `dict` params with typed models | High | ⬜ |
+| Error handling | Add try/except to all new router endpoints | High | ⬜ |
 
-### v6.1 — Plugin Marketplace
+### Phase 6 — Testing & Documentation (v8.6)
 
-> Community-driven extensibility.
+> Fill test gaps, update all documentation.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Plugin Installation | Browse and install plugins | High |
-| Community Workers | User-contributed workers | Medium |
-| Community Kings | User-contributed kings | Medium |
-| Tool Ecosystem | Third-party tool integration | High |
-| One-Click Install | Simple plugin installation | High |
-| Version Management | Plugin version control | Medium |
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| API integration tests | Test all 223 endpoints | High | ⬜ |
+| Frontend component tests | Test JS components | Medium | ⬜ |
+| Accessibility audit | WCAG 2.1 AA compliance check | Medium | ⬜ |
+| UI_GUIDELINES.md | Design system documentation | Medium | ⬜ |
+| ANIMATION_GUIDELINES.md | Motion principles and patterns | Low | ⬜ |
+| SECURITY_REPORT.md | Updated after hardening | High | ⬜ |
 
-### v6.2 — Engineering Professional Suite
+### Phase 7 — Permission Center (v9.0)
 
-> Professional-grade engineering tools.
+> Complete permission system with profiles.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Fusion 360 Integration | Native CAD via API | High |
-| Onshape Integration | Cloud CAD | High |
-| FreeCAD Integration | Open-source CAD | High |
-| Blender Integration | 3D modeling | Medium |
-| KiCad Integration | PCB design | High |
-| Altium Integration | Professional PCB | Low |
-| Simulation Support | FEA, CFD, thermal | Medium |
-| CAM Support | Manufacturing paths | Medium |
-| Manufacturing Pipeline | End-to-end production | Low |
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| Permission UI | Settings page with per-tool controls | High | ⬜ |
+| Profiles | Safe, Balanced, Developer, Fully Autonomous | High | ⬜ |
+| Import/Export | Permission profiles as JSON | Medium | ⬜ |
+| Integration | Connect to ComputerManager, BrowserManager, Tool Layer | High | ⬜ |
 
-### v6.6 — Workspace Engine
+### Phase 8 — Voice & Vision Polish (v9.1)
 
-> Every request becomes a persistent workspace.
+> Premium voice and vision experiences.
 
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Workspace Persistence | Goal, members, files, notes, timeline | High |
-| Artifact Registry | Track files, screenshots, terminals, outputs | High |
-| Workspace Search | Find old missions and unfinished work | High |
-| Resume Context | Restore prior work automatically | High |
-| Tool Audit Trail | Capture every tool call and result | High |
-| Conversation Linking | Tie chat turns to workspace state | Medium |
-| Project Handoff | Keep project state across sessions | High |
-| Timeline Replay | Review what happened step by step | Medium |
-
-### v6.7 — Multi-Agent Collaboration
-
-> Workers ask other workers for help.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Worker-to-Worker Requests | One worker can delegate to another | High |
-| Peer Review | Test worker, docs worker, analysis worker chains | High |
-| Shared Context Packets | Structured handoff between agents | High |
-| Collaboration Graph | Show who asked whom and why | Medium |
-| Cross-Agent Memory | Shared project notes and findings | High |
-
-### v6.8 — Learning From Success
-
-> Every successful mission should teach JARVIS something durable.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Success Lessons | Store outcome, reason, and pattern | High |
-| Preference Learning | Remember user defaults and habits | High |
-| Pattern Extraction | Convert repeated wins into rules | High |
-| Mission Retrospectives | Summaries of what worked and why | Medium |
-| Better Next-Time Plans | Use past success before planning new work | High |
-
-### v6.9 — Autonomous Project Manager
-
-> "Continue working on JARVIS" should just work.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Auto-Resume Projects | Open repo, read status, continue work | High |
-| Pending Work Discovery | Detect TODOs, roadmap gaps, open branches | High |
-| Git Awareness | Read recent commits and branch state | High |
-| Workspace Revival | Restore relevant apps, notes, and files | High |
-| Continuation Suggestions | Recommend the next logical action | Medium |
-
-### v7.0 — Personal AI Operating System
-
-> The ultimate goal.
-
-| Feature | Description | Priority |
-|---------|-------------|----------|
-| Desktop Environment | Complete desktop OS | High |
-| Persistent Memory | Lifetime memory | High |
-| Mission Scheduler | Background task execution | High |
-| Background Automation | Autonomous daily tasks | High |
-| Cross-Device Intelligence | Unified multi-device | High |
-| Natural Conversation | Fluid human interaction | High |
-| Computer Control | Full OS control | High |
-| Engineering Suite | Professional tools | High |
-| Research Engine | Autonomous research | High |
-| Learning System | Continuous improvement | High |
-| **Workspace Engine** | **Persistent continuous workspaces** | **High** |
-| **Everything Unified** | **One coherent system** | **High** |
+| Feature | Description | Priority | Status |
+|---------|-------------|----------|--------|
+| Interruptible TTS | Stop speaking on user input | High | ⬜ |
+| Voice Activity Detection | Auto-start/stop based on audio levels | Medium | ⬜ |
+| OCR improvements | Better text recognition | Medium | ⬜ |
+| Screenshot understanding | Before/after comparison | Medium | ⬜ |
 
 ---
 
-## 6 — Design Philosophy
+## 7 — Design Philosophy
 
-### Design Philosophy (Apple Quality)
+### Apple HIG Principles
 
-The UI should feel like:
+The entire UI/UX must follow **Apple's Human Interface Guidelines**.
 
-| Inspiration | Quality |
-|-------------|---------|
-| **Apple** | Clean, refined, premium materials |
-| **Arc Browser** | Bold, modern, workspace-first |
-| **Raycast** | Fast, keyboard-first, command-driven |
-| **Linear** | Minimal, beautiful, professional |
-| **ChatGPT** | Conversational, streaming, responsive |
+That DOES NOT mean copying Apple's appearance.
 
-NOT like:
-- Admin dashboard
-- Developer console
-- Bootstrap template
-- Random collection of pages
+It means following Apple's principles:
 
-### Core Qualities
-
-| Quality | Meaning |
-|---------|---------|
-| **Calm** | No visual noise, peaceful |
-| **Elegant** | Refined details, no clutter |
-| **Fast** | Instant responses, smooth |
-| **Premium** | High-quality materials, depth |
-| **Alive** | Constant subtle motion, breathing |
+- **Clarity** — Text is legible, icons are understandable, decorations are subtle
+- **Deference** — The UI helps users focus on content, not chrome
+- **Depth** — Visual layers and realistic motion convey hierarchy
+- **Simplicity** — Every word, pixel, and feature earns its place
+- **Consistency** — Same patterns, same behaviors, everywhere
 
 ### Visual Identity
 
-The **3D Neural Core** (gold particle sphere) is the visual centerpiece of JARVIS. It represents:
+- **Dark-first** — Deep blacks (#080c14) with cyan accent (#00dcff)
+- **Glassmorphism** — `backdrop-filter: blur(40px) saturate(1.4)`
+- **Golden 3D Neural Core** — Visual centerpiece, never removed
+- **Premium typography** — Inter, SF Pro, system fonts
+- **Meaningful icons** — SVG, consistent stroke width
 
-- Intelligence — the brain of the system
-- Life — constant motion, always active
-- Premium quality — gold, elegant, sophisticated
-- Connection — particles flowing, representing data flow
+### What JARVIS Should Feel Like
 
-Everything else in the interface should **support the Neural Core**, not compete with it.
+The user should immediately feel:
 
-### Interface Principles
+> "This feels like a real operating system."
 
-| Element | Design |
-|---------|--------|
-| **Left Navigation** | Glass sidebar, 56px, primary items |
-| **Center Workspace** | Primary interaction area |
-| **Right Panel** | Dev-only, hidden by default |
-| **Bottom Input** | Glass bar, voice + text |
-| **3D Neural Core** | Always visible, always animated |
+Not a dashboard. Not an admin panel. Not a chatbot wrapper.
 
-### Animation Philosophy
-
-| Principle | Meaning |
-|-----------|---------|
-| **Purposeful** | Every animation has a reason |
-| **Spring-based** | Natural, physical motion |
-| **Subtle** | Never distracting |
-| **Consistent** | Same timing, same easing |
-| **Fast** | 150-300ms transitions |
-
-### Color System
-
-| Token | Value | Usage |
-|-------|-------|-------|
-| `--accent` | `#e94560` | Primary accent |
-| `--accent-glow` | `rgba(233, 69, 96, 0.4)` | Glow effects |
-| `--success` | `#34d399` | Success states |
-| `--warning` | `#fbbf24` | Warning states |
-| `--danger` | `#f87171` | Error states |
-| `--info` | `#00dcff` | Information |
-
-### Typography
-
-| Element | Style |
-|---------|-------|
-| **Headings** | Inter, -0.02em tracking |
-| **Body** | Inter, 1.6 line-height |
-| **Code** | JetBrains Mono, 0.88em |
-| **Sizes** | xs=12, sm=14, base=16, lg=18, xl=20, 2xl=24 |
-
-### Spacing System
-
-```
---space-1: 4px
---space-2: 8px
---space-3: 12px
---space-4: 16px
---space-5: 20px
---space-6: 24px
---space-8: 32px
---space-10: 40px
---space-12: 48px
---space-16: 64px
-```
-
-### Glass Effects
-
-| Level | Usage |
-|-------|-------|
-| `backdrop-filter: blur(40px) saturate(1.4)` | Main glass |
-| `background: rgba(12, 18, 32, 0.5)` | Glass tint |
-| `border: 1px solid rgba(255, 255, 255, 0.06)` | Glass border |
-| `box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4)` | Depth |
+An **operating system** that happens to be powered by AI.
 
 ---
 
-## 7 — Development Guidelines
+## 8 — Animation Philosophy
 
-### Coding Standards
+### Principles
+
+1. **Purposeful** — Every animation communicates state
+2. **Smooth** — 60fps minimum, spring easings
+3. **Brief** — 200-400ms for most transitions
+4. **Consistent** — Same timing for same type of action
+5. **Respectful** — Honors `prefers-reduced-motion`
+
+### Animation Taxonomy
+
+| Type | Duration | Easing | Use Case |
+|------|----------|--------|----------|
+| Micro | 100-200ms | ease-out | Button press, toggle |
+| Standard | 200-300ms | ease-in-out | Panel open, tab switch |
+| Complex | 300-500ms | spring | Workspace transition |
+| Emphasis | 400-700ms | spring(0.3) | Loading, state change |
+
+### Custom Easings
+
+```css
+--ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+--ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+```
+
+### The Neural Core
+
+The Golden 3D Neural Core reacts to system state:
+
+| State | Animation |
+|-------|-----------|
+| Idle | Slow pulse, gentle float |
+| Thinking | Rapid pulse, particles flowing inward |
+| Speaking | Rhythmic expansion, outward particles |
+| Listening | Gentle rotation, microphone glow |
+| Working | Orbits spinning, connections forming |
+| Success | Green flash, particle burst |
+| Error | Red pulse, contraction |
+| Sleep | Slow breathing, dim glow |
+
+---
+
+## 9 — Engineering Principles
+
+### Code Quality
+
+- **Python 3.9.6+** — Type hints, async/await, f-strings
+- **No global state** — Dependency injection where possible
+- **Structured errors** — Custom exception classes
+- **Logging** — Use `logging` module, never `print()` in production
+- **Type safety** — Pydantic models for all API boundaries
+
+### Async Patterns
 
 ```python
-# ✅ Do
-async def process_data(items: List[str]) -> Dict[str, Any]:
-    """Process items and return results."""
-    results = {}
-    for item in items:
-        results[item] = await transform(item)
-    return results
-
-# ❌ Don't
-def process_data(items):
-    results = {}
-    for item in items:
-        results[item] = transform(item)
-    return results
+# Good: Async all the way down
+async def handler():
+    db = await get_db()
+    result = await db.execute("SELECT ...")
+    
+# Bad: Blocking calls in async context
+async def handler():
+    result = subprocess.run(...)  # BLOCKS EVENT LOOP
 ```
 
-### Python Compatibility
+### Error Handling
 
-- **Target:** Python 3.9.6+
-- **No union types:** Use `Optional[X]` instead of `X | None`
-- **No walrus operator:** Use explicit assignments
-- **No f-string `=` debugging:** Use separate print statements
-- **Type hints required** for all public APIs
+```python
+# Good: Structured error response
+@router.get("/items/{item_id}")
+async def get_item(item_id: str):
+    try:
+        item = await db.get_item(item_id)
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        return item
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get item {item_id}: {e}")
+        raise HTTPException(status_code=500, detail="Internal error")
 
-### Architecture Rules
-
-1. **Every module gets its own directory** with `__init__.py`
-2. **Every module has a `models.py`** for data classes
-3. **Every module has an `engine.py` or `manager.py`** for logic
-4. **All async methods** — no blocking I/O in hot paths
-5. **All errors caught and logged** — never crash
-6. **All data serializable** — `to_dict()` on every model
-
-### Folder Organization
-
-```
-jarvis/
-├── __init__.py          # Version only
-├── core/                # Infrastructure (config, database, events)
-├── brain/               # Intelligence (LLM, RAG, memory, skills)
-├── agents/              # Agent hierarchy (kings, workers, orchestration)
-├── mission/             # Mission pipeline and management
-├── [feature]/           # Each feature as a self-contained module
-│   ├── __init__.py      # Public API exports
-│   ├── models.py        # Data classes
-│   ├── engine.py        # Main logic
-│   └── [submodule]/     # Sub-features if needed
-└── web/                 # Web interface
-    ├── main.py          # FastAPI app
-    ├── routers/         # API endpoints
-    ├── templates/       # HTML templates
-    └── static/          # JS, CSS, images
+# Bad: Silent failure
+@router.get("/items/{item_id}")
+async def get_item(item_id: str):
+    try:
+        return await db.get_item(item_id)
+    except Exception:
+        pass  # WHAT WENT WRONG? WHO KNOWS!
 ```
 
-### Testing Expectations
+### Tool Execution
 
-- **Every new module** must have a test file
-- **Minimum 5 tests** per module
-- **Test data models** (creation, serialization, defaults)
-- **Test core logic** (main methods, edge cases)
-- **Test integration** (module interactions)
-- **300+ tests** minimum for any release
-- **All tests must pass** before merge
+Every tool must return structured data:
 
-### Documentation Requirements
+```python
+{
+    "success": True,
+    "verified": True,
+    "duration_ms": 847,
+    "stdout": "...",
+    "stderr": "",
+    "exit_code": 0,
+    "artifacts": ["file.txt"],
+    "verification": "File exists at /path/to/file.txt"
+}
+```
 
-- **Every public class** must have a docstring
-- **Every public method** must have a docstring
-- **Every complex algorithm** must have inline comments
-- **README.md** must be kept current
-- **CHANGELOG.md** must document all changes
+The AI must never hallucinate success. If verification is impossible, state:
 
-### Performance Targets
-
-| Metric | Target |
-|--------|--------|
-| Startup time | < 2 seconds |
-| Memory usage | < 200MB idle |
-| Response time | < 500ms |
-| Search latency | < 100ms |
-| Index time | < 30s for 10K files |
-| Graph build | < 10s for 1K nodes |
-
-### Security Rules
-
-1. **Never log secrets** — API keys, passwords, tokens
-2. **Never commit secrets** — use .env files
-3. **Sandbox execution** — untrusted code runs in isolation
-4. **Validate all input** — never trust user data
-5. **Rate limit APIs** — prevent abuse
-6. **Encrypt sensitive data** — at rest and in transit
-
-### Naming Conventions
-
-| Element | Convention | Example |
-|---------|------------|---------|
-| Files | snake_case | `mission_manager.py` |
-| Classes | PascalCase | `MissionManager` |
-| Functions | snake_case | `get_mission()` |
-| Constants | UPPER_SNAKE | `MAX_RETRIES` |
-| Private | _prefix | `_internal_method()` |
-| Modules | snake_case | `repo_intelligence` |
-
-### Versioning Policy
-
-- **Major (X.0.0):** Breaking changes, major new features
-- **Minor (x.Y.0):** New features, backward compatible
-- **Patch (x.y.Z):** Bug fixes, security patches
-- **Every release** gets: git tag, GitHub release, updated docs
+> "I could not verify the result."
 
 ---
 
-## 8 — Self Updating
+## 10 — Security Philosophy
 
-### Auto-Update Framework
+### Principles
 
-After every release, JARVIS should automatically update this document:
+1. **Defense in Depth** — Multiple layers of protection
+2. **Least Privilege** — Minimum required permissions
+3. **Zero Trust** — Verify everything, trust nothing
+4. **Secure by Default** — Safe defaults, opt-in risk
+5. **Transparent** — User can see and control all permissions
 
-1. **Version History** — Add new version entry with features
-2. **Statistics** — Update file counts, line counts, test counts
-3. **Architecture Diagrams** — Regenerate if modules changed
-4. **Roadmap Progress** — Mark completed features
-5. **Future Priorities** — Reorder based on dependencies
-6. **Known Issues** — Track unresolved problems
-7. **Technical Debt** — Update debt score
-8. **Benchmarks** — Update performance numbers
+### Security Layers
 
-### Update Commands
-
-```bash
-# After a release, run:
-python3 -m jarvis.cli_v2 doctor      # Check system health
-python3 -m jarvis.cli_v2 benchmark   # Update benchmarks
-python3 -m jarvis.cli_v2 dashboard . # Update metrics
+```
+┌─────────────────────────────────┐
+│  Layer 1: Authentication        │  Who are you?
+├─────────────────────────────────┤
+│  Layer 2: Authorization         │  What can you do?
+├─────────────────────────────────┤
+│  Layer 3: Input Validation      │  Is this data safe?
+├─────────────────────────────────┤
+│  Layer 4: Rate Limiting         │  Are you overloading us?
+├─────────────────────────────────┤
+│  Layer 5: Output Sanitization   │  Is our response safe?
+├─────────────────────────────────┤
+│  Layer 6: Audit Logging         │  What did you do?
+└─────────────────────────────────┘
 ```
 
-### Maintenance Schedule
+### Current Status
 
-| Task | Frequency |
-|------|-----------|
-| Update version history | Every release |
-| Update statistics | Every release |
-| Regenerate diagrams | Every major release |
-| Review roadmap | Monthly |
-| Update benchmarks | Monthly |
-| Review technical debt | Monthly |
-| Update dependencies | Weekly |
+| Layer | Status |
+|-------|--------|
+| Authentication | ❌ Missing |
+| Authorization | ❌ Missing |
+| Input Validation | ⚠️ Partial (Pydantic on some endpoints) |
+| Rate Limiting | ✅ Global POST/PUT/PATCH limiter |
+| Output Sanitization | ⚠️ Partial (some innerHTML unsanitized) |
+| Audit Logging | ❌ Missing |
+
+### Vault System
+
+JARVIS includes an encrypted vault for secrets:
+
+- AES-256-GCM encryption
+- PBKDF2 key derivation
+- Master password protection
+- Secrets stored encrypted at rest
+
+**Current Issue:** The vault is accessible without authentication. Anyone who can reach the server can create, unlock, or modify the vault.
 
 ---
 
-## Appendix A — Project Statistics
+## 11 — Testing Philosophy
 
-| Metric | Value |
-|--------|-------|
-| **Current Version** | 7.2.0 |
-| **Python Files** | 264+ |
-| **Total Lines** | 50,000+ |
-| **Test Files** | 39 |
-| **Test Lines** | 10,500+ |
-| **Total Tests** | 954+ |
-| **Modules** | 53 |
-| **Major Releases** | 15 |
-| **Contributors** | 1 |
-| **License** | MIT |
-| **Python** | ≥ 3.9.6 |
+### Principles
 
-## Appendix B — Dependency Map
+1. **Test What Matters** — Focus on critical paths
+2. **Fast Feedback** — Tests should run in seconds
+3. **Deterministic** — No flaky tests
+4. **Readable** — Test names describe behavior
+5. **Comprehensive** — Happy path, edge cases, errors
+
+### Test Pyramid
 
 ```
-Core:     fastapi, uvicorn, jinja2, aiosqlite, websockets
-Brain:    openai, python-dotenv
-Browser:  playwright (optional)
-Vision:   Pillow (optional)
-Voice:    soundfile (optional)
-CLI:      rich
-All stdlib modules used: ast, asyncio, json, os, re, hashlib, uuid, 
-datetime, collections, dataclasses, enum, typing, pathlib, glob, 
-subprocess, importlib, tracemalloc, time, abc, functools, operator
+        ╱╲
+       ╱  ╲      E2E Tests (5%)
+      ╱    ╲     - Full user workflows
+     ╱──────╲
+    ╱        ╲   Integration Tests (25%)
+   ╱          ╲  - API endpoints, database
+  ╱────────────╲
+ ╱              ╲ Unit Tests (70%)
+╱────────────────╲ - Business logic, utilities
 ```
 
-## Appendix C — Release Checklist
+### Current Coverage
 
-Every release must include:
-
-- [ ] All tests passing (954+)
-- [ ] Version bumped in `jarvis/__init__.py`, `pyproject.toml`, `web/main.py`
-- [ ] Git commit with descriptive message
-- [ ] Git tag created
-- [ ] Pushed to origin
-- [ ] GitHub release created
-- [ ] This roadmap updated
-- [ ] CHANGELOG.md updated (if exists)
+| Area | Tests | Lines | Status |
+|------|-------|-------|--------|
+| Vision | 614 | test_vision.py | ✅ |
+| Mission | 564 | test_mission.py | ✅ |
+| Knowledge Graph | 551 | test_knowledge_graph.py | ✅ |
+| Accessibility | 539 | test_accessibility.py | ✅ |
+| Security | 521 | test_security.py | ✅ |
+| WebSocket | JS | ws-manager.test.js | ✅ |
+| **Total** | **42 files** | **12,677 lines** | ✅ |
 
 ---
 
-> *"The best way to predict the future is to build it."*
-> — JARVIS Development Team
+## 12 — Coding Standards
+
+### Python
+
+- **Style**: PEP 8, enforced by `ruff`
+- **Line length**: 100 characters max
+- **Imports**: `isort` compatible grouping
+- **Types**: Type hints on all function signatures
+- **Docstrings**: Google style for public functions
+- **Async**: `async def` for all I/O-bound functions
+
+### JavaScript
+
+- **Style**: Modern ES2020+, no transpilation
+- **Modules**: `<script>` tags (no bundler)
+- **DOM**: `querySelector` / `getElementById` with null checks
+- **Async**: `async/await` for all fetch calls
+- **Error handling**: Always catch, never silent swallow
+- **Naming**: camelCase for variables/functions, PascalCase for classes
+
+### CSS
+
+- **Methodology**: BEM-inspired naming
+- **Custom Properties**: All colors, spacing, timing via `--var`
+- **Responsive**: Mobile-first with `min-width` breakpoints
+- **Animations**: `transform` and `opacity` only (GPU-accelerated)
+- **No `!important`**: Unless absolutely necessary (max 7 per file)
+
+---
+
+## 13 — Documentation Standards
+
+### Required Documents
+
+| Document | Purpose | Update Frequency |
+|----------|---------|-----------------|
+| MASTER_ROADMAP.md | Single source of truth | Every release |
+| CHANGELOG.md | Version-by-version changes | Every release |
+| SYSTEM_ARCHITECTURE.md | Technical architecture | Major versions |
+| UI_GUIDELINES.md | Design system docs | Design changes |
+| API_REFERENCE.md | Endpoint documentation | API changes |
+
+### Code Documentation
+
+- **Module docstrings**: Every `.py` file
+- **Function docstrings**: All public functions
+- **JSDoc comments**: Complex JS functions
+- **CSS comments**: Section headers, non-obvious rules
+- **Inline comments**: Why, not what
+
+---
+
+## 14 — Performance Goals
+
+### Targets
+
+| Metric | Target | Current |
+|--------|--------|---------|
+| First Contentful Paint | < 1.5s | Unknown |
+| Largest Contentful Paint | < 2.5s | Unknown |
+| Time to Interactive | < 3.5s | Unknown |
+| Cumulative Layout Shift | < 0.1 | Unknown |
+| API P95 Latency | < 500ms | Unknown |
+| Memory Usage | < 200MB | Unknown |
+| JS Bundle Size | < 500KB | ~200KB (unminified) |
+
+### Measurement
+
+- Chrome DevTools Performance tab
+- Lighthouse audit
+- `performance.mark()` / `performance.measure()` in JS
+- Python `time.perf_counter()` for API timing
+
+---
+
+## 15 — Long-Term Vision
+
+### Year 1: Personal AI OS
+
+- [ ] Complete security hardening
+- [ ] Permission center with profiles
+- [ ] Voice and vision polish
+- [ ] Performance optimization
+- [ ] Mobile responsive
+
+### Year 2: Autonomous Agent
+
+- [ ] Long-running task execution
+- [ ] Proactive suggestions
+- [ ] Cross-session learning
+- [ ] Multi-user support
+- [ ] Plugin system
+
+### Year 3: World Model
+
+- [ ] Full digital twin
+- [ ] Predictive modeling
+- [ ] Cross-device orchestration
+- [ ] Enterprise features
+- [ ] API marketplace
+
+---
+
+## 16 — Technical Debt
+
+### Critical
+
+| Debt | Impact | Effort | Priority |
+|------|--------|--------|----------|
+| No authentication | Security vulnerability | High | P0 |
+| system.py mega-router (1,013 lines) | Maintainability | Medium | P1 |
+| 120+ endpoints missing error handling | Reliability | Medium | P1 |
+| Version drift (__init__.py vs pyproject.toml) | Confusion | Low | P1 |
+
+### High
+
+| Debt | Impact | Effort | Priority |
+|------|--------|--------|----------|
+| Raw `dict` body params (25+ endpoints) | Type safety | Medium | P2 |
+| `transition: all` overuse (35+) | Performance | Low | P2 |
+| innerHTML without sanitization | XSS risk | Medium | P2 |
+| No `prefers-reduced-motion` | Accessibility | Low | P2 |
+| command-map.css `:root` bleed | Visual bugs | Low | P2 |
+| Silent `catch (_) {}` blocks (13+) | Debugging | Low | P2 |
+
+### Medium
+
+| Debt | Impact | Effort | Priority |
+|------|--------|--------|----------|
+| No CORS middleware | Cross-origin issues | Low | P3 |
+| Subprocess blocking in voice.py | Event loop blocking | Low | P3 |
+| 4,136-line monolithic CSS | Maintainability | High | P3 |
+| 2,354-line monolithic JS | Maintainability | High | P3 |
+| No ES modules | Code organization | High | P3 |
+| requirements.txt incomplete | Dependency confusion | Low | P3 |
+
+---
+
+## 17 — Known Issues
+
+### Active Bugs
+
+1. **Chat session 500 error** — `POST /api/chat/sessions/{id}` had no handler (fixed in v7.9.1)
+2. **`startNewChat()` undefined** — Called by command palette but never defined (fixed in v7.9.1)
+3. **Projects "New Project" button missing** — No way to create projects from UI (fixed in v7.9.1)
+4. **Version drift** — `__init__.py` says 7.9.1, `pyproject.toml` says 6.4.2 (fixed in v8.0.0)
+
+### Limitations
+
+1. **No mobile responsive** — UI designed for desktop/large screens
+2. **No dark/light toggle** — Dark-only by design (intentional)
+3. **No offline support** — Requires server connection
+4. **No multi-user** — Single-user system
+5. **No plugin system** — All features built-in
+
+---
+
+## 18 — Future Milestones
+
+### v8.1 — Security Hardening
+
+**Target:** All endpoints authenticated, input validated, paths secured.
+
+### v8.2 — Error Handling Overhaul
+
+**Target:** Zero unhandled exceptions, structured error responses everywhere.
+
+### v8.3 — Frontend Cleanup
+
+**Target:** XSS-safe, accessible, performant.
+
+### v8.4 — Performance Audit
+
+**Target:** Sub-second load, smooth animations, low memory.
+
+### v8.5 — system.py Decomposition
+
+**Target:** Mega-router split into 8+ focused routers.
+
+### v8.6 — Testing & Documentation
+
+**Target:** All endpoints tested, all docs updated.
+
+### v9.0 — Permission Center
+
+**Target:** Complete permission system with profiles.
+
+### v9.1 — Voice & Vision Polish
+
+**Target:** Interruptible TTS, VAD, improved OCR.
+
+---
+
+## Quality Gate
+
+Before considering any release complete, ask:
+
+1. Would Apple ship this interaction?
+2. Does this reduce friction?
+3. Does this improve user trust?
+4. Is the animation meaningful?
+5. Is the UI consistent?
+6. Is every successful action verified with evidence?
+7. Can a new user understand this without documentation?
+8. Does this feel like one operating system instead of many webpages?
+
+If the answer to any question is "No", redesign it before shipping.

@@ -1,81 +1,249 @@
 # JARVIS Performance Report
 
-**Date:** 2025-07-18  
-**Version:** 6.2.0  
-**Environment:** Production
+> Generated: v8.0.0
+> Scope: Frontend, backend, database, network
 
 ---
 
-## Server Startup
+## Executive Summary
 
-| Metric | Value | Target | Status |
-|--------|-------|--------|--------|
-| Cold start time | 2.34s | < 5s | PASS |
-| Import resolution | — | — | All 6 memory modules now resolve correctly |
-
-**Notes:** Prior to v6.2.0, startup was unreliable due to missing `app` export and broken imports. The 2.34s figure represents the first clean startup in several versions.
+JARVIS has **good architectural foundations** for performance (async I/O, WAL mode, GPU-accelerated animations) but has several areas that need optimization. The most impactful issues are blocking I/O in voice.py, `transition: all` overuse in CSS, and the lack of performance measurement infrastructure.
 
 ---
 
-## API Latency
+## 1. Backend Performance
 
-| Endpoint Category | Avg Latency | Status |
-|-------------------|-------------|--------|
-| Health checks (`/api/health`, `/api/system/health`) | 2-3ms | PASS |
-| Memory stats (`/api/system/memory/stats`) | 2-4ms | PASS |
-| Workspace search | 3-8ms | PASS |
-| Mission endpoints | 5-14ms | PASS |
-| **Overall average** | **2-14ms** | **PASS** |
+### Blocking I/O Issues
 
-**Notes:** All API endpoints are within acceptable latency bounds. The search endpoint (3-8ms) includes FTS5 query time.
+| Location | Issue | Impact | Fix |
+|----------|-------|--------|-----|
+| `voice.py:124-141` | `subprocess.run()` in async handler | Blocks event loop up to 40s | Use `asyncio.create_subprocess_exec` |
+| `voice.py:38-39` | `shutil.copyfileobj()` in async | Blocks on large files | Use `run_in_executor` |
+| `voice.py:453-458` | Synchronous model inference | Blocks during TTS | Make async or run in executor |
+| `chat.py:65` | `process_user_request()` | Potentially blocking LLM calls | Verify async path |
+
+### Database Performance
+
+| Metric | Status |
+|--------|--------|
+| WAL mode | ✅ Enabled (concurrent reads) |
+| Busy timeout | ✅ 5000ms |
+| Foreign keys | ✅ Enabled |
+| Connection pooling | ⚠️ Single connection with lock |
+| Indexes | ✅ Appropriate indexes on key columns |
+
+**Recommendation:** Consider connection pooling for high-concurrency scenarios.
+
+### API Latency
+
+| Endpoint | Expected | Actual | Status |
+|----------|----------|--------|--------|
+| `GET /api/health` | < 10ms | Unknown | ⬜ Measure |
+| `GET /api/chat/sessions` | < 50ms | Unknown | ⬜ Measure |
+| `POST /api/chat` | < 5s | Unknown | ⬜ Measure |
+| `GET /api/workspace` | < 100ms | Unknown | ⬜ Measure |
+| `GET /api/memory` | < 100ms | Unknown | ⬜ Measure |
 
 ---
 
-## Test Suite Performance
+## 2. Frontend Performance
+
+### JavaScript Bundle
 
 | Metric | Value |
 |--------|-------|
-| Total tests | 223 |
-| All passing | Yes |
-| Suite execution time | Not measured (add `--durations=10` to identify slow tests) |
+| Total JS lines | 11,278 |
+| Custom JS files | 25 |
+| Vendor JS files | 7 |
+| Estimated size (unminified) | ~200KB |
+| Estimated size (minified) | ~60KB |
+| Module system | None (global `<script>` tags) |
+| Bundler | None |
+| Tree shaking | None |
+
+**Recommendation:** Consider adding a bundler for production builds.
+
+### DOM Operations
+
+| Pattern | Count | Impact |
+|---------|-------|--------|
+| `innerHTML` | 71 | High (full re-render) |
+| `textContent` | ~20 | Low (text only) |
+| `createElement` + `appendChild` | ~15 | Low (incremental) |
+| `querySelector` | ~50 | Low |
+| `getElementById` | ~30 | Low |
+
+**Recommendation:** Batch DOM reads and writes, use `requestAnimationFrame` for visual updates.
+
+### Animation Performance
+
+| Issue | Count | Impact |
+|-------|-------|--------|
+| `transition: all` | 35+ | Layout thrashing |
+| `will-change` hints | 0 | Missing GPU hints |
+| `transform` animations | Most | ✅ GPU-accelerated |
+| `opacity` animations | Many | ✅ GPU-accelerated |
+| `filter: drop-shadow` | 1 | Expensive on large elements |
+| `backdrop-filter: blur` | Many | ⚠️ Can be expensive on large areas |
+
+**Recommendation:** Convert `transition: all` to specific properties, add `will-change` hints.
+
+### Three.js Scenes
+
+| Scene | Location | Status |
+|-------|----------|--------|
+| Neural Core | `jarvis-core.js` | ✅ RAF loop managed |
+| Knowledge Graph | `graph-3d.js` | ✅ RAF loop managed |
+| Memory Galaxy | `memory-galaxy.js` | ✅ RAF loop managed |
+| Command Map | `command-map.js` | ✅ RAF loop managed |
+
+All Three.js scenes properly store `requestAnimationFrame` IDs and cancel them in `destroy()`.
+
+### Memory Leaks
+
+| Component | Cleanup | Status |
+|-----------|---------|--------|
+| `command-map.js` | `destroy()` method | ✅ |
+| `knowledge-graph.js` | `destroy()` method | ✅ |
+| `memory-galaxy.js` | `destroy()` method | ✅ |
+| `graph-3d.js` | `destroy()` method | ✅ |
+| `jarvis-core.js` | `destroy()` method | ✅ |
+| `audio-analyzer.js` | `destroy()` method | ✅ |
+| `digital-twin.js` | `destroy()` method | ✅ |
+| `mission-dag.js` | `destroy()` method | ✅ |
+| `app.js` | No global teardown | ⚠️ |
+
+**Recommendation:** Add global teardown path for hot-reload scenarios.
 
 ---
 
-## Resource Usage
+## 3. Network Performance
 
-### Fixed in v6.2.0
+### WebSocket
 
-| Resource | Issue | Fix | Impact |
-|----------|-------|-----|--------|
-| TCP connections | httpx.Client never closed | Added `close()` and `__del__` | Prevents FD exhaustion |
-| WebSocket connections | `command-map.js` destroy used wrong property name | Fixed `this._ws` → `this.ws` | Prevents WS leak per component lifecycle |
-| MediaStream (microphone) | Audio analyzer never stopped tracks | Added `destroy()` with track cleanup | Prevents mic staying active |
-| DOM event listeners | 3 components leaked listeners on destroy | Fixed in `graph-3d.js`, `mission-dag.js`, `knowledge-graph.js` | Prevents memory leak in SPA |
-| Canvas elements | `knowledge-graph.js` orphaned canvas on destroy | Added canvas removal | Prevents GPU memory leak |
-| Async task references | Fire-and-forget tasks not tracked | Tasks stored in `_bg_tasks` set | Prevents silent task loss |
+| Metric | Status |
+|--------|--------|
+| Connection | ✅ Single persistent connection |
+| Reconnection | ✅ Exponential backoff |
+| Message format | ✅ JSON (compact) |
+| Heartbeat | ⚠️ No explicit ping/pong |
 
-### Remaining Concerns
+### SSE (Server-Sent Events)
 
-| Resource | Issue | Risk | Recommended Fix |
-|----------|-------|------|-----------------|
-| Event loop | LLM `chat()` uses `time.sleep()` in async context | Medium — blocks event loop during retries | Convert to `asyncio.sleep()` + async httpx |
-| SQLite connections | Synchronous `sqlite3` in async methods | Medium — event loop starvation under load | Migrate to `aiosqlite` |
-| WebSocket connections | 3 separate WS to `/ws/agents` | Low — redundant connections | Consolidate to single multiplexed WS |
+| Endpoint | Rate Limit | Status |
+|----------|------------|--------|
+| `/api/chat/stream` | ❌ None | ⚠️ Vulnerable to connection exhaustion |
 
----
+### HTTP Caching
 
-## Throughput Estimate
-
-Based on current latency numbers:
-- Single-threaded: ~70-500 req/s depending on endpoint
-- With uvicorn workers: scales linearly with worker count
-- Bottleneck: synchronous LLM calls and SQLite under concurrent load
+| Resource | Cache Header | Status |
+|----------|-------------|--------|
+| `/static/*` | `no-cache, no-store, must-revalidate` | ✅ Development mode |
+| API responses | ❌ None | ⚠️ No caching |
+| HTML templates | ❌ None | ⚠️ No caching |
 
 ---
 
-## Recommendations
+## 4. Database Performance
 
-1. **Add `pytest-benchmark`** to track latency regressions across versions.
-2. **Monitor FD count** in production to validate the httpx.Client leak fix.
-3. **Add request tracing** to identify slow paths beyond the 2-14ms average.
-4. **Profile event loop utilization** under load to quantify the SQLite/LLM blocking impact.
+### Query Analysis
+
+| Query | Frequency | Complexity | Status |
+|-------|-----------|------------|--------|
+| `get_all_sessions` | High | Medium (JOIN + subquery) | ⚠️ Optimize |
+| `get_conversation` | High | Low (simple SELECT) | ✅ |
+| `index_conversation` | High | Low (INSERT) | ✅ |
+| `search_task_history` | Medium | High (FTS5 MATCH) | ✅ |
+| `get_all_workspaces` | Medium | Low (SELECT) | ✅ |
+
+### Connection Management
+
+- **Single connection**: The database uses a single `aiosqlite` connection with an `asyncio.Lock`
+- **WAL mode**: Allows concurrent reads while writing
+- **Busy timeout**: 5000ms prevents immediate failures under contention
+
+**Recommendation:** For high-concurrency scenarios, consider connection pooling with `aiosqlite` pool.
+
+---
+
+## 5. Startup Performance
+
+| Phase | Expected | Actual | Status |
+|-------|----------|--------|--------|
+| Python import | < 1s | Unknown | ⬜ Measure |
+| Database init | < 500ms | Unknown | ⬜ Measure |
+| LLM connection | < 2s | Unknown | ⬜ Measure |
+| Static file mount | < 100ms | Unknown | ⬜ Measure |
+| First request | < 3s | Unknown | ⬜ Measure |
+
+---
+
+## 6. Performance Measurement Infrastructure
+
+### Current State
+
+- **No `performance.mark()`** calls in JavaScript
+- **No `time.perf_counter()`** in API handlers
+- **No Prometheus/metrics endpoint**
+- **No APM integration**
+
+### Recommendations
+
+1. Add `performance.mark()` to critical JS paths
+2. Add timing middleware to FastAPI
+3. Add `/api/system/metrics` endpoint (already defined, not implemented)
+4. Consider Prometheus client for metrics export
+
+---
+
+## 7. Optimization Recommendations
+
+### Immediate Impact (v8.4)
+
+1. **Fix blocking I/O** in voice.py — Replace `subprocess.run` with async subprocess
+2. **Convert `transition: all`** to specific properties (35+ instances)
+3. **Add `will-change` hints** for animated elements
+4. **Add file size limits** on uploads
+
+### Medium Impact (v8.5)
+
+5. **Add performance middleware** — Request timing, slow query logging
+6. **Optimize `get_all_sessions`** — Consider caching or materialized view
+7. **Add HTTP caching** for static assets and API responses
+8. **Add `performance.mark()`** to critical JS paths
+
+### Long-term Impact (v9.0+)
+
+9. **Add bundler** for JS/CSS minification and tree shaking
+10. **Add connection pooling** for database
+11. **Add Prometheus metrics** for monitoring
+12. **Add APM integration** for production monitoring
+
+---
+
+## 8. Performance Budget
+
+| Metric | Budget | Current | Status |
+|--------|--------|---------|--------|
+| JS bundle (minified) | < 500KB | ~60KB est. | ✅ |
+| CSS bundle (minified) | < 200KB | ~80KB est. | ✅ |
+| First Contentful Paint | < 1.5s | Unknown | ⬜ |
+| Largest Contentful Paint | < 2.5s | Unknown | ⬜ |
+| Time to Interactive | < 3.5s | Unknown | ⬜ |
+| Cumulative Layout Shift | < 0.1 | Unknown | ⬜ |
+| API P95 Latency | < 500ms | Unknown | ⬜ |
+| Memory Usage | < 200MB | Unknown | ⬜ |
+| WebSocket Messages/sec | < 100 | Unknown | ⬜ |
+
+---
+
+## Conclusion
+
+JARVIS has solid performance foundations (async I/O, WAL mode, GPU-accelerated animations) but needs measurement infrastructure and optimization of blocking paths. The most impactful fixes are:
+
+1. Fix blocking I/O in voice.py
+2. Convert `transition: all` to specific properties
+3. Add performance measurement infrastructure
+4. Add file size limits on uploads
+
+**Overall Performance Grade: B** (Good foundations, needs measurement and optimization)

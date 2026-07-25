@@ -1,3 +1,3 @@
 """JARVIS - Multi-Agent AI Operating System"""
 
-__version__ = "7.9.0"
+__version__ = "8.0.0"

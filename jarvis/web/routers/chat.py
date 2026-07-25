@@ -221,6 +221,15 @@ async def list_sessions(
     return {"sessions": sessions, "total": total}
 
 
+@router.post("/sessions")
+async def create_session():
+    """Create a new empty conversation session."""
+    session_id = str(uuid.uuid4())[:8]
+    db = await get_db()
+    await db.set_session_title(session_id, "New conversation")
+    return {"ok": True, "session_id": session_id, "title": "New conversation"}
+
+
 @router.post("/sessions/{session_id}/rename")
 async def rename_session(session_id: str, req: SessionRenameRequest):
     """Rename a conversation session."""

@@ -946,7 +946,17 @@ function _addAgentConversation(data) {
     }
 }
 
-/* ---- Session List ---- */
+/* ---- Session Management ---- */
+
+async function startNewChat() {
+    currentSessionId = null;
+    const container = document.getElementById('chat-messages');
+    if (container) container.innerHTML = '';
+    switchWorkspace('chat');
+    await loadSessionList();
+    const input = document.getElementById('message-input');
+    if (input) input.focus();
+}
 
 async function loadSessionList() {
     try {
@@ -1147,6 +1157,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load session list for chat sidebar
     loadSessionList();
 
+    // Wire new-chat button
+    const newChatBtn = document.getElementById('new-chat-btn');
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', () => startNewChat());
+    }
+
     // Intercept WebSocket messages for right panel
     if (window.livingUI) {
         const orig = window.livingUI._handleWSMessage.bind(window.livingUI);
@@ -1272,23 +1288,56 @@ async function loadProjects() {
     try {
         const res = await fetch('/api/workspace');
         const data = await res.json();
-        const projects = data.workspaces || [];
+        const projects = Array.isArray(data) ? data : (data.workspaces || []);
         
+        const emptyEl = document.getElementById('projects-empty');
         if (projects.length === 0) {
-            container.innerHTML = '<p class="empty-state">No projects found</p>';
+            container.innerHTML = '';
+            if (emptyEl) emptyEl.style.display = '';
             return;
         }
+        if (emptyEl) emptyEl.style.display = 'none';
         
         container.innerHTML = projects.map(p => `
-            <div class="project-card">
-                <h3>${p.name || 'Untitled'}</h3>
-                <p>${p.description || 'No description'}</p>
-                <span class="project-status">${p.status || 'unknown'}</span>
+            <div class="project-card" onclick="showProjectDetail('${p.id || ''}')">
+                <h3>${p.goal || p.name || 'Untitled'}</h3>
+                <p>${p.user_request || p.description || 'No description'}</p>
+                <span class="project-status">${p.status || 'active'}</span>
             </div>
         `).join('');
     } catch (e) {
         container.innerHTML = '<p class="empty-state">Failed to load projects</p>';
     }
+}
+
+function refreshProjects() {
+    loadProjects();
+}
+
+async function createNewProject() {
+    const goal = prompt('Project goal:');
+    if (!goal || !goal.trim()) return;
+    
+    try {
+        const res = await fetch('/api/workspace', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ goal: goal.trim(), owner: 'user', user_request: goal.trim() }),
+        });
+        if (res.ok) {
+            showToast('Project created');
+            loadProjects();
+        } else {
+            showToast('Failed to create project');
+        }
+    } catch (e) {
+        showToast('Error: ' + e.message);
+    }
+}
+
+function showProjectDetail(id) {
+    if (!id) return;
+    showToast('Project: ' + id);
 }
 
 /* ---- Metrics ---- */
