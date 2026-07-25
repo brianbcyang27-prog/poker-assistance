@@ -768,6 +768,16 @@ async function switchWorkspace(workspace) {
     if (workspace !== 'memory' && memoryGalaxy) {
         memoryGalaxy.stop();
     }
+
+    // Show/hide global new-chat FAB (hidden when on chat, since sidebar button is available)
+    const fab = document.getElementById('global-new-chat');
+    if (fab) {
+        if (workspace === 'chat') {
+            fab.classList.remove('visible');
+        } else {
+            fab.classList.add('visible');
+        }
+    }
 }
 
 /* ---- Chat History ---- */
@@ -949,7 +959,18 @@ function _addAgentConversation(data) {
 /* ---- Session Management ---- */
 
 async function startNewChat() {
-    currentSessionId = null;
+    try {
+        const res = await fetch('/api/chat/sessions', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok && data.session_id) {
+            currentSessionId = data.session_id;
+        } else {
+            currentSessionId = null;
+        }
+    } catch (e) {
+        console.warn('Failed to create session:', e);
+        currentSessionId = null;
+    }
     const container = document.getElementById('chat-messages');
     if (container) container.innerHTML = '';
     switchWorkspace('chat');
@@ -1111,7 +1132,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Wire up workspace navigation
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            if (btn.dataset.workspace) switchWorkspace(btn.dataset.workspace);
+            if (btn.dataset.workspace) {
+                if (btn.dataset.workspace === 'chat' && currentWorkspace === 'chat') {
+                    startNewChat();
+                } else {
+                    switchWorkspace(btn.dataset.workspace);
+                }
+            }
         });
     });
 
@@ -1163,6 +1190,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         newChatBtn.addEventListener('click', () => startNewChat());
     }
 
+    // Show global new-chat FAB on initial load (home workspace)
+    const globalFab = document.getElementById('global-new-chat');
+    if (globalFab) globalFab.classList.add('visible');
+
     // Intercept WebSocket messages for right panel
     if (window.livingUI) {
         const orig = window.livingUI._handleWSMessage.bind(window.livingUI);
@@ -1194,15 +1225,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             toggleGraph();
         }
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            e.preventDefault();
+            startNewChat();
+        }
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
             e.preventDefault();
             const devToggle = document.getElementById('dev-mode-toggle');
             if (devToggle) devToggle.click();
         }
         if (e.key === 'Escape') {
-            const ov = document.getElementById('settings-overlay');
-            if (ov && !ov.classList.contains('hidden')) toggleSettings();
-            else if (graphViz && graphViz.visible) graphViz.hide();
+            const pdOverlay = document.getElementById('project-detail-overlay');
+            if (pdOverlay && !pdOverlay.classList.contains('hidden')) closeProjectDetail();
+            else {
+                const ov = document.getElementById('settings-overlay');
+                if (ov && !ov.classList.contains('hidden')) toggleSettings();
+                else if (graphViz && graphViz.visible) graphViz.hide();
+            }
         }
     });
 
@@ -1335,9 +1374,108 @@ async function createNewProject() {
     }
 }
 
-function showProjectDetail(id) {
+async function showProjectDetail(id) {
     if (!id) return;
-    showToast('Project: ' + id);
+    
+    const overlay = document.getElementById('project-detail-overlay');
+    if (!overlay) return;
+    
+    try {
+        const res = await fetch(`/api/workspace/${id}`);
+        const ws = await res.json();
+        if (ws.error) {
+            showToast('Project not found');
+            return;
+        }
+        
+        // Title & status
+        document.getElementById('pd-title').textContent = ws.goal || ws.user_request || 'Untitled Project';
+        const statusEl = document.getElementById('pd-status');
+        statusEl.textContent = ws.status || 'active';
+        statusEl.className = 'project-status-badge ' + (ws.status || '');
+        
+        // Summary
+        document.getElementById('pd-goal').textContent = ws.goal || '';
+        const requestEl = document.getElementById('pd-request');
+        if (ws.user_request && ws.user_request !== ws.goal) {
+            requestEl.textContent = ws.user_request;
+            requestEl.style.display = '';
+        } else {
+            requestEl.style.display = 'none';
+        }
+        
+        // Progress
+        const pct = ws.progress || 0;
+        document.getElementById('pd-progress-fill').style.width = pct + '%';
+        document.getElementById('pd-progress-text').textContent = Math.round(pct) + '%';
+        
+        // Tasks
+        const tasksList = document.getElementById('pd-tasks-list');
+        const tasks = ws.tasks || [];
+        if (tasks.length === 0) {
+            tasksList.innerHTML = '<p style="color:var(--text-muted);font-size:var(--text-sm);">No tasks yet</p>';
+        } else {
+            tasksList.innerHTML = tasks.map(t => {
+                const st = (t.status || 'pending').toLowerCase();
+                return `<div class="pd-task-item">
+                    <span class="pd-task-dot ${st}"></span>
+                    <span class="pd-task-name">${t.name || t.description || 'Task'}</span>
+                    <span class="pd-task-status">${st}</span>
+                </div>`;
+            }).join('');
+        }
+        
+        // Timeline
+        const timelineList = document.getElementById('pd-timeline-list');
+        const events = ws.timeline_events || [];
+        if (events.length === 0) {
+            timelineList.innerHTML = '<p style="color:var(--text-muted);font-size:var(--text-sm);">No events yet</p>';
+        } else {
+            timelineList.innerHTML = events.slice(-10).reverse().map(e => `
+                <div class="pd-timeline-item">
+                    <span class="pd-timeline-dot"></span>
+                    <div class="pd-timeline-content">
+                        <div class="pd-timeline-desc">${e.description || e.type || ''}</div>
+                        <div class="pd-timeline-meta">${e.source || ''} ${e.timestamp ? '· ' + new Date(e.timestamp).toLocaleTimeString() : ''}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Research
+        const researchList = document.getElementById('pd-research-list');
+        const research = ws.research_findings || [];
+        if (research.length === 0) {
+            researchList.innerHTML = '<p style="color:var(--text-muted);font-size:var(--text-sm);">No research findings</p>';
+        } else {
+            researchList.innerHTML = research.map(r => `
+                <div class="pd-research-item">
+                    <p>${r.summary || r.finding || r.description || JSON.stringify(r).slice(0, 200)}</p>
+                </div>
+            `).join('');
+        }
+        
+        // Final report
+        const reportSection = document.getElementById('pd-report-section');
+        const reportEl = document.getElementById('pd-report');
+        if (ws.final_report) {
+            reportSection.style.display = '';
+            reportEl.textContent = ws.final_report;
+        } else {
+            reportSection.style.display = 'none';
+        }
+        
+        // Show overlay
+        overlay.classList.remove('hidden');
+    } catch (e) {
+        console.error('Failed to load project:', e);
+        showToast('Failed to load project details');
+    }
+}
+
+function closeProjectDetail() {
+    const overlay = document.getElementById('project-detail-overlay');
+    if (overlay) overlay.classList.add('hidden');
 }
 
 /* ---- Metrics ---- */

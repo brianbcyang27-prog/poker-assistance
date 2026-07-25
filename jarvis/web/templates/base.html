@@ -52,7 +52,7 @@
                         </svg>
                         <span>Home</span>
                     </button>
-                    <button class="nav-btn" data-workspace="chat" title="Chat">
+                    <button class="nav-btn" data-workspace="chat" title="Chat (click again for new conversation)">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                         </svg>
@@ -337,6 +337,49 @@
                                 <p>Start a conversation to create a project</p>
                             </div>
                             <div id="projects-list" class="projects-grid"></div>
+                        </div>
+                    </div>
+
+                    <!-- Project Detail Overlay -->
+                    <div id="project-detail-overlay" class="project-detail-overlay hidden">
+                        <div class="project-detail-panel">
+                            <div class="project-detail-header">
+                                <div class="project-detail-title-group">
+                                    <h2 id="pd-title">Project</h2>
+                                    <span id="pd-status" class="project-status-badge">active</span>
+                                </div>
+                                <button class="overlay-close" onclick="closeProjectDetail()">&times;</button>
+                            </div>
+                            <div class="project-detail-body">
+                                <div class="pd-section pd-summary">
+                                    <h3>Summary</h3>
+                                    <p id="pd-goal"></p>
+                                    <p id="pd-request" class="pd-request"></p>
+                                </div>
+                                <div class="pd-section pd-progress-section">
+                                    <h3>Progress</h3>
+                                    <div class="pd-progress-bar">
+                                        <div id="pd-progress-fill" class="pd-progress-fill"></div>
+                                    </div>
+                                    <span id="pd-progress-text" class="pd-progress-text">0%</span>
+                                </div>
+                                <div class="pd-section pd-tasks">
+                                    <h3>Tasks</h3>
+                                    <div id="pd-tasks-list"></div>
+                                </div>
+                                <div class="pd-section pd-timeline">
+                                    <h3>Timeline</h3>
+                                    <div id="pd-timeline-list"></div>
+                                </div>
+                                <div class="pd-section pd-research">
+                                    <h3>Research</h3>
+                                    <div id="pd-research-list"></div>
+                                </div>
+                                <div class="pd-section pd-report" id="pd-report-section" style="display:none;">
+                                    <h3>Final Report</h3>
+                                    <div id="pd-report"></div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -968,6 +1011,15 @@
 
         <!-- Digital Twin (bottom-left corner) -->
         <div id="digital-twin-container" class="digital-twin" style="position:fixed;bottom:16px;left:16px;z-index:100;"></div>
+
+        <!-- Global New Chat FAB (always accessible) -->
+        <button id="global-new-chat" onclick="startNewChat()" title="New Chat (⌘N)">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                <line x1="12" y1="8" x2="12" y2="14"/>
+                <line x1="9" y1="11" x2="15" y2="11"/>
+            </svg>
+        </button>
     </div>
 
     <script src="/static/js/jarvis-core.js?v=7.0.0"></script>
