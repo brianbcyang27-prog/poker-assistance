@@ -232,17 +232,11 @@ class PrivacyScrubber:
         return counts
 
     def _apply_name(self, text: str) -> str:
-        """Replace name introductions with redacted tags.
+        """No-op: names are not scrubbed in a personal AI assistant.
         
-        Handles patterns like "my name is Alice", "I'm Bob Smith",
-        "I am Charlie" by preserving the intro and replacing only
-        the name portion.
+        The assistant needs to know the user's name to address them properly.
         """
-        return re.sub(
-            r"(?i)((?:my name is|i'm|i am)\s+)[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*",
-            r"\1[NAME]",
-            text,
-        )
+        return text
 
     def _check_allowlist(self, match: re.Match, replacement: str) -> str:
         """Return original text if matched value is in the allowlist."""

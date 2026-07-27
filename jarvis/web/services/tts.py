@@ -1,5 +1,6 @@
 """Voice engine service for web interface with provider pattern."""
 
+import asyncio
 from typing import Optional
 from pathlib import Path
 import subprocess
@@ -244,20 +245,17 @@ class VoiceEngine:
         return None
     
     def generate(self, text: str, output_path: str, voice: str = "", provider: str = "") -> Optional[str]:
-        """Generate speech audio file.
-        
-        If voice starts with "clone:", it will use the voice cloner with the profile ID.
-        Format: "clone:<profile_id>" or "clone:<profile_id>:<language>"
-        """
-        # Check if this is a cloned voice
+        """Generate speech audio file (synchronous)."""
         if voice.startswith("clone:"):
             return self._generate_cloned(text, output_path, voice)
-        
         tts_provider = self.get_provider(provider)
         if not tts_provider:
             return None
-        
         return tts_provider.generate(text, output_path, voice)
+    
+    async def agenerate(self, text: str, output_path: str, voice: str = "", provider: str = "") -> Optional[str]:
+        """Generate speech audio file (async, non-blocking)."""
+        return await asyncio.to_thread(self.generate, text, output_path, voice, provider)
     
     def _generate_cloned(self, text: str, output_path: str, voice: str) -> Optional[str]:
         """Generate speech using a cloned voice."""

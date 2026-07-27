@@ -1,14 +1,11 @@
 /**
- * JARVIS — Unified Dashboard Application v6.5.0
- * LEFT nav (workspace-based) | CENTER core | RIGHT conversations + health | BOTTOM input
+ * JARVIS — Unified Dashboard Application v8.0.0
+ * LEFT nav (3 items) | CENTER workspace | RIGHT context | BOTTOM input
  */
 
 let currentSessionId = null;
 let goldenCore = null;
-let commandMap = null;
-let knowledgeGraph = null;
-let memoryGalaxy = null;
-let currentWorkspace = 'core';
+let currentWorkspace = 'home';
 let currentChatMode = 'chat';
 let _startTime = Date.now();
 let _eventCount = 0;
@@ -20,25 +17,6 @@ let _chatAbortController = null;
 /* ---- Golden Neural Core lifecycle ---- */
 
 let chatBg = null;
-
-function ensureGoldenCore() {
-    if (goldenCore) return goldenCore;
-
-    const container = document.getElementById('golden-core-container');
-    if (!container || !window.Graph3D) return null;
-
-    try {
-        goldenCore = new Graph3D(container);
-        goldenCore.init();
-        goldenCore.loadData();
-        goldenCore.start();
-        return goldenCore;
-    } catch (e) {
-        console.warn('GoldenCore:', e);
-        goldenCore = null;
-        return null;
-    }
-}
 
 /* ---- Settings overlay ---- */
 
@@ -278,21 +256,6 @@ async function enableProvider(providerId) {
     }
 }
 
-async function disableProvider(providerId) {
-    try {
-        const res = await fetch(`/api/voice/providers/${providerId}/disable`, { method: 'POST' });
-        const data = await res.json();
-        
-        if (res.ok) {
-            await loadProviders();
-        } else {
-            alert(data.detail || 'Failed to disable provider');
-        }
-    } catch (_) {
-        alert('Failed to disable provider');
-    }
-}
-
 async function loadPermissions() {
     const container = document.getElementById('permissions-list');
     if (!container) return;
@@ -421,14 +384,17 @@ function sendMessageStreaming() {
     if (window.livingUI) window.livingUI.setState('thinking');
     if (goldenCore) goldenCore.setState('thinking');
 
-    // Auto-create session if none exists
+    _sendMessageAsync(message);
+}
+
+async function _sendMessageAsync(message) {
+    // Ensure session exists before streaming
     if (!currentSessionId) {
-        fetch('/api/chat/sessions', { method: 'POST' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.ok && data.session_id) currentSessionId = data.session_id;
-            })
-            .catch(() => {});
+        try {
+            const res = await fetch('/api/chat/sessions', { method: 'POST' });
+            const data = await res.json();
+            if (data.ok && data.session_id) currentSessionId = data.session_id;
+        } catch (_) {}
     }
 
     const params = new URLSearchParams({ message });
@@ -645,17 +611,6 @@ function setErrorState(isError) {
     document.body.classList.toggle('system-error', isError);
 }
 
-/* ---- Knowledge Graph ---- */
-
-let graphViz = null;
-
-async function toggleGraph() {
-    if (!graphViz) {
-        graphViz = new KnowledgeGraphViz();
-        await graphViz.init();
-    }
-    await graphViz.toggle();
-}
 
 /* ---- Workspace Switching ---- */
 
@@ -675,14 +630,8 @@ async function switchWorkspace(workspace) {
 
     // Get all workspace views
     const views = document.querySelectorAll('.workspace-view');
-    const coreCanvas = document.getElementById('golden-core-container');
+    const homeContainer = document.getElementById('home-container');
     const chatContainer = document.getElementById('chat-container');
-    const graphContainer = document.getElementById('graph-container');
-    const memoryContainer = document.getElementById('memory-container');
-    const projectsContainer = document.getElementById('projects-container');
-    const computerContainer = document.getElementById('computer-container');
-    const metricsContainer = document.getElementById('metrics-container');
-    const logsContainer = document.getElementById('logs-container');
     const responseDisplay = document.getElementById('response-display');
     const terminalLog = document.getElementById('terminal-log');
 
@@ -695,17 +644,24 @@ async function switchWorkspace(workspace) {
     if (terminalLog) terminalLog.classList.remove('visible');
     if (responseDisplay) responseDisplay.style.display = 'none';
 
+    // Lazy-load workspace-specific scripts
+    if (workspace === 'chat') {
+        await Promise.all([
+            window._loadScript('/static/js/chat-background.js?v=8.0.0'),
+            window._loadScript('/static/js/voice-experience.js?v=8.0.0'),
+            window._loadScript('/static/js/voice.js?v=8.0.0'),
+            window._loadScript('/static/js/vision-experience.js?v=8.0.0'),
+            window._loadScript('/static/js/computer-control.js?v=8.0.0'),
+        ]);
+    }
+
     switch (workspace) {
         case 'home':
-            if (coreCanvas) {
-                coreCanvas.style.display = 'block';
-                coreCanvas.classList.add('active');
+            if (homeContainer) {
+                homeContainer.style.display = 'block';
+                homeContainer.classList.add('active');
             }
             if (chatBg) { chatBg.stop(); chatBg = null; }
-            if (ensureGoldenCore()) {
-                goldenCore.setInteractionEnabled(true);
-                goldenCore.start();
-            }
             break;
 
         case 'chat':
@@ -718,64 +674,7 @@ async function switchWorkspace(workspace) {
                 chatBg = new ChatBackground(document.getElementById('chat-core-bg'));
                 chatBg.start();
             }
-            if (ensureGoldenCore()) {
-                goldenCore.setInteractionEnabled(false);
-                goldenCore.start();
-            }
             await loadChatHistory();
-            break;
-
-        case 'engineering':
-            if (graphContainer) {
-                graphContainer.style.display = 'block';
-                graphContainer.classList.add('active');
-                if (!commandMap) {
-                    try { commandMap = new CommandMap(); } catch (e) { console.warn('CommandMap:', e); }
-                }
-            }
-            break;
-
-        case 'research':
-            await showKnowledgeGraph();
-            break;
-
-        case 'memory':
-            if (memoryContainer) {
-                memoryContainer.style.display = 'block';
-                memoryContainer.classList.add('active');
-            }
-            await showMemoryGalaxy();
-            break;
-
-        case 'projects':
-            if (projectsContainer) {
-                projectsContainer.style.display = 'flex';
-                projectsContainer.classList.add('active');
-                await loadProjects();
-            }
-            break;
-
-        case 'computer':
-            if (computerContainer) {
-                computerContainer.style.display = 'flex';
-                computerContainer.classList.add('active');
-            }
-            break;
-
-        case 'metrics':
-            if (metricsContainer) {
-                metricsContainer.style.display = 'flex';
-                metricsContainer.classList.add('active');
-                await loadMetrics();
-            }
-            break;
-
-        case 'logs':
-            if (logsContainer) {
-                logsContainer.style.display = 'flex';
-                logsContainer.classList.add('active');
-                await loadLogs();
-            }
             break;
 
         case 'settings':
@@ -783,14 +682,10 @@ async function switchWorkspace(workspace) {
             return;
     }
 
-    // Performance: stop rendering behind other workspaces
-    if (workspace !== 'home' && workspace !== 'chat' && goldenCore) goldenCore.stop();
+    // Performance: stop chat background when not on chat
     if (workspace !== 'chat' && chatBg) {
         chatBg.stop();
         chatBg = null;
-    }
-    if (workspace !== 'memory' && memoryGalaxy) {
-        memoryGalaxy.stop();
     }
 
     // Show/hide global new-chat FAB (hidden when on chat, since sidebar button is available)
@@ -802,6 +697,9 @@ async function switchWorkspace(workspace) {
             fab.classList.add('visible');
         }
     }
+
+    // Update dynamic right sidebar context
+    _updateSidebarContext(workspace);
 }
 
 /* ---- Chat History ---- */
@@ -843,37 +741,6 @@ async function loadChatHistory() {
 
 /* ---- Knowledge Graph Workspace ---- */
 
-async function showKnowledgeGraph() {
-    const container = document.getElementById('research-container');
-    if (!container) return;
-    container.style.display = 'block';
-    container.innerHTML = '';
-
-    if (!knowledgeGraph) {
-        try {
-            knowledgeGraph = new KnowledgeGraphViz();
-            knowledgeGraph.container = container;
-            await knowledgeGraph.init();
-        } catch (e) { console.warn('KnowledgeGraph:', e); }
-    }
-}
-
-/* ---- Memory Galaxy Workspace ---- */
-
-async function showMemoryGalaxy() {
-    const container = document.getElementById('memory-container');
-    if (!container) return;
-    container.style.display = 'block';
-
-    if (!memoryGalaxy) {
-        try {
-            memoryGalaxy = new MemoryGalaxy(container);
-            memoryGalaxy.init();
-            await memoryGalaxy.loadMemories();
-        } catch (e) { console.warn('MemoryGalaxy:', e); }
-    }
-    memoryGalaxy?.start();
-}
 
 /* ---- Terminal Log ---- */
 
@@ -943,6 +810,24 @@ function _formatUptime(ms) {
     if (m < 60) return `${m}m`;
     const h = Math.floor(m / 60);
     return `${h}h ${m % 60}m`;
+}
+
+/* ---- Dynamic Sidebar Context ---- */
+
+function _updateSidebarContext(workspace) {
+    // Hide all contexts
+    document.querySelectorAll('.right-context').forEach(ctx => {
+        ctx.style.display = 'none';
+    });
+    // Show the matching context
+    const target = document.getElementById(`right-${workspace}`);
+    if (target) {
+        target.style.display = 'flex';
+    } else {
+        // Fallback to home context
+        const home = document.getElementById('right-home');
+        if (home) home.style.display = 'flex';
+    }
 }
 
 /* ---- Agent Conversation Stream ---- */
@@ -1180,9 +1065,123 @@ async function deleteSession(sessionId) {
     } catch (_) {}
 }
 
+/* ---- Home Workspace ---- */
+
+function _initHome() {
+    // Set greeting based on time of day
+    const hour = new Date().getHours();
+    const greetingEl = document.getElementById('home-greeting-text');
+    if (greetingEl) {
+        if (hour < 6) greetingEl.textContent = 'Good night';
+        else if (hour < 12) greetingEl.textContent = 'Good morning';
+        else if (hour < 17) greetingEl.textContent = 'Good afternoon';
+        else greetingEl.textContent = 'Good evening';
+    }
+
+    // Load project context
+    _loadHomeContext();
+
+    // Load recent conversations
+    _loadHomeRecent();
+
+    // Load suggestions
+    _loadHomeSuggestions();
+
+    // Wire input
+    const input = document.getElementById('home-message-input');
+    if (input) {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendHomeMessage();
+            }
+        });
+    }
+}
+
+async function _loadHomeContext() {
+    const el = document.getElementById('home-project-context');
+    if (!el) return;
+    try {
+        const res = await fetch('/api/workspace');
+        const data = await res.json();
+        const projects = Array.isArray(data) ? data : (data.workspaces || []);
+        if (projects.length > 0) {
+            const active = projects.find(p => p.status === 'active') || projects[0];
+            el.textContent = active.goal || active.name || '';
+        }
+    } catch (_) {}
+}
+
+async function _loadHomeRecent() {
+    const list = document.getElementById('home-recent-list');
+    const section = document.getElementById('home-recent-section');
+    if (!list || !section) return;
+    try {
+        const res = await fetch('/api/sessions');
+        const data = await res.json();
+        const sessions = data.sessions || data || [];
+        if (sessions.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+        list.innerHTML = sessions.slice(0, 5).map(s => `
+            <div class="home-list-item" onclick="loadSession('${s.id || s.session_id || ''}')">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>${s.title || s.name || 'Untitled conversation'}</span>
+            </div>
+        `).join('');
+    } catch (_) {
+        section.style.display = 'none';
+    }
+}
+
+function _loadHomeSuggestions() {
+    const container = document.getElementById('home-suggestions');
+    if (!container) return;
+    const suggestions = [
+        'Help me debug a problem',
+        'Explain this code',
+        'Write a function',
+        'Review my changes',
+        'What should I work on?',
+    ];
+    container.innerHTML = suggestions.map(s => `
+        <button class="home-suggestion-chip" onclick="sendHomeMessage('${s.replace(/'/g, "\\'")}')">${s}</button>
+    `).join('');
+}
+
+function sendHomeMessage(text) {
+    const input = document.getElementById('home-message-input');
+    const message = text || (input ? input.value.trim() : '');
+    if (!message) return;
+    if (input) input.value = '';
+    switchWorkspace('chat');
+    setTimeout(() => {
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput) {
+            chatInput.value = message;
+            chatInput.dispatchEvent(new Event('input'));
+        }
+        sendMessage(message);
+    }, 100);
+}
+
 /* ---- Init ---- */
 
+function dismissOnboarding() {
+    const overlay = document.getElementById('onboarding-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    localStorage.setItem('jarvis_onboarded', '1');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    // Show onboarding on first visit
+    if (!localStorage.getItem('jarvis_onboarded')) {
+        const overlay = document.getElementById('onboarding-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+    }
+
     // Initialize state machine
     try {
         window.jarvisState = new JarvisState();
@@ -1198,22 +1197,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.livingUI = new LivingInterface();
     } catch (e) { console.warn('LivingInterface:', e); }
 
-    // Initialize department identity badges
-    try {
-        window.deptIdentity = new DepartmentIdentity();
-        window.deptIdentity.renderAll();
-    } catch (e) { console.warn('DepartmentIdentity:', e); }
-
-    // Initialize explainability overlay
-    try {
-        window.explainability = new ExplainabilityOverlay();
-    } catch (e) { console.warn('ExplainabilityOverlay:', e); }
-
-    // Initialize mission DAG
-    try {
-        window.missionDAG = new MissionDAG(document.getElementById('mission-dag-container'));
-        window.missionDAG.init();
-    } catch (e) { console.warn('MissionDAG:', e); }
+    // Lazy-load explainability + mission DAG (not needed on initial load)
+    window._loadScript('/static/js/explainability.js?v=8.0.0').then(() => {
+        try { window.explainability = new ExplainabilityOverlay(); } catch (e) {}
+    }).catch(() => {});
+    window._loadScript('/static/js/mission-dag.js?v=8.0.0').then(() => {
+        try {
+            window.missionDAG = new MissionDAG(document.getElementById('mission-dag-container'));
+            window.missionDAG.init();
+        } catch (e) {}
+    }).catch(() => {});
+    window._loadScript('/static/js/mission-timeline.js?v=8.0.0').catch(() => {});
+    window._loadScript('/static/js/jarvis-core.js?v=8.0.0').catch(() => {});
+    window._loadScript('/static/js/digital-twin.js?v=8.0.0').then(() => {
+        if (window.DigitalTwin) {
+            window._digitalTwin = new DigitalTwin('digital-twin-container');
+            window._digitalTwin.init();
+            if (window.jarvisState) {
+                window.jarvisState.onStateChange(state => window._digitalTwin.setState(state));
+            }
+        }
+    }).catch(() => {});
 
     // Wire up state changes to all visual systems
     if (window.jarvisState) {
@@ -1261,17 +1265,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Initialize Digital Twin
-    if (window.DigitalTwin) {
-        window._digitalTwin = new DigitalTwin('digital-twin-container');
-        window._digitalTwin.init();
-        if (window.jarvisState) {
-            window.jarvisState.onStateChange(state => {
-                window._digitalTwin.setState(state);
-            });
-        }
-    }
-
     // Load settings and apply modes
     await loadSettings();
     try {
@@ -1282,8 +1275,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     } catch (_) {}
 
-    // Set default workspace to home (Neural Core)
+    // Set default workspace to home
     switchWorkspace('home');
+
+    // Initialize home workspace
+    _initHome();
 
     // Health polling
     setInterval(_refreshHealth, 10000);
@@ -1329,43 +1325,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             toggleSettings();
         }
-        if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
-            e.preventDefault();
-            toggleGraph();
-        }
         if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
             e.preventDefault();
             startNewChat();
         }
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
             e.preventDefault();
-            const devToggle = document.getElementById('dev-mode-toggle');
-            if (devToggle) devToggle.click();
         }
         if (e.key === 'Escape') {
-            const pdOverlay = document.getElementById('project-detail-overlay');
-            if (pdOverlay && !pdOverlay.classList.contains('hidden')) closeProjectDetail();
-            else {
-                const ov = document.getElementById('settings-overlay');
-                if (ov && !ov.classList.contains('hidden')) toggleSettings();
-                else if (graphViz && graphViz.visible) graphViz.hide();
-            }
+            const ov = document.getElementById('settings-overlay');
+            if (ov && !ov.classList.contains('hidden')) toggleSettings();
         }
     });
 
-    // Developer mode toggle
-    const devToggle = document.getElementById('dev-mode-toggle');
-    if (devToggle) {
-        devToggle.addEventListener('click', () => {
-            const devItems = document.querySelectorAll('.dev-only');
-            const isActive = devToggle.classList.toggle('active');
-            const dashboard = document.getElementById('dashboard');
-            if (dashboard) dashboard.classList.toggle('dev-mode', isActive);
-            devItems.forEach(el => {
-                el.style.display = isActive ? '' : 'none';
-            });
-        });
+    // Animate loading steps
+    const steps = document.querySelectorAll('.loading-step');
+    const statusEl = document.getElementById('loading-status');
+    const barFill = document.getElementById('loading-bar-fill');
+    const etaEl = document.getElementById('loading-eta');
+    const stepNames = ['Checking Python', 'Loading Dependencies', 'Connecting Database', 'Loading Configuration', 'Preparing Agents', 'Loading Voice', 'Connecting Browser', 'Almost Ready'];
+    
+    for (let i = 0; i < steps.length; i++) {
+        await new Promise(r => setTimeout(r, 150 + Math.random() * 200));
+        // Mark previous as done
+        if (i > 0) steps[i - 1].classList.remove('active'), steps[i - 1].classList.add('done');
+        steps[i].classList.add('active');
+        if (statusEl) statusEl.textContent = stepNames[i] || 'Loading...';
+        if (barFill) barFill.style.width = `${((i + 1) / steps.length) * 100}%`;
+        if (etaEl) {
+            const remaining = Math.ceil((steps.length - i - 1) * 0.2);
+            etaEl.textContent = remaining > 0 ? `~${remaining}s remaining` : 'Ready';
+        }
     }
+    // Mark last as done
+    if (steps.length > 0) {
+        steps[steps.length - 1].classList.remove('active');
+        steps[steps.length - 1].classList.add('done');
+    }
+    if (statusEl) statusEl.textContent = 'JARVIS Ready';
+    if (etaEl) etaEl.textContent = '';
 
     // Dismiss loading screen with premium fade
     requestAnimationFrame(() => {
@@ -1377,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 app.style.transition = 'opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
                 app.style.opacity = '1';
             }
-        }, 800);
+        }, 400);
     });
 });
 
@@ -1416,238 +1414,12 @@ async function computerAction(action, params = {}) {
     }
 }
 
-async function executeTerminal() {
-    const input = document.getElementById('terminal-command');
-    if (!input || !input.value.trim()) return;
-    
-    const command = input.value.trim();
-    input.value = '';
-    
-    await computerAction('shell_execute', { command });
-}
-
 /* ---- Projects ---- */
 
-async function loadProjects() {
-    const container = document.getElementById('projects-list');
-    if (!container) return;
-    
-    try {
-        const res = await fetch('/api/workspace');
-        const data = await res.json();
-        const projects = Array.isArray(data) ? data : (data.workspaces || []);
-        
-        const emptyEl = document.getElementById('projects-empty');
-        if (projects.length === 0) {
-            container.innerHTML = '';
-            if (emptyEl) emptyEl.style.display = '';
-            return;
-        }
-        if (emptyEl) emptyEl.style.display = 'none';
-        
-        container.innerHTML = projects.map(p => `
-            <div class="project-card" onclick="showProjectDetail('${p.id || ''}')">
-                <h3>${p.goal || p.name || 'Untitled'}</h3>
-                <p>${p.user_request || p.description || 'No description'}</p>
-                <span class="project-status">${p.status || 'active'}</span>
-            </div>
-        `).join('');
-    } catch (e) {
-        container.innerHTML = '<p class="empty-state">Failed to load projects</p>';
-    }
-}
-
-function refreshProjects() {
-    loadProjects();
-}
-
-async function createNewProject() {
-    const goal = prompt('Project goal:');
-    if (!goal || !goal.trim()) return;
-    
-    try {
-        const res = await fetch('/api/workspace', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ goal: goal.trim(), owner: 'user', user_request: goal.trim() }),
-        });
-        if (res.ok) {
-            showToast('Project created');
-            loadProjects();
-        } else {
-            showToast('Failed to create project');
-        }
-    } catch (e) {
-        showToast('Error: ' + e.message);
-    }
-}
-
-async function showProjectDetail(id) {
-    if (!id) return;
-    
-    const overlay = document.getElementById('project-detail-overlay');
-    if (!overlay) return;
-    
-    try {
-        const res = await fetch(`/api/workspace/${id}`);
-        const ws = await res.json();
-        if (ws.error) {
-            showToast('Project not found');
-            return;
-        }
-        
-        // Title & status
-        document.getElementById('pd-title').textContent = ws.goal || ws.user_request || 'Untitled Project';
-        const statusEl = document.getElementById('pd-status');
-        statusEl.textContent = ws.status || 'active';
-        statusEl.className = 'project-status-badge ' + (ws.status || '');
-        
-        // Summary
-        document.getElementById('pd-goal').textContent = ws.goal || '';
-        const requestEl = document.getElementById('pd-request');
-        if (ws.user_request && ws.user_request !== ws.goal) {
-            requestEl.textContent = ws.user_request;
-            requestEl.style.display = '';
-        } else {
-            requestEl.style.display = 'none';
-        }
-        
-        // Progress
-        const pct = ws.progress || 0;
-        document.getElementById('pd-progress-fill').style.width = pct + '%';
-        document.getElementById('pd-progress-text').textContent = Math.round(pct) + '%';
-        
-        // Tasks
-        const tasksList = document.getElementById('pd-tasks-list');
-        const tasks = ws.tasks || [];
-        if (tasks.length === 0) {
-            tasksList.innerHTML = '<p style="color:var(--text-muted);font-size:var(--text-sm);">No tasks yet</p>';
-        } else {
-            tasksList.innerHTML = tasks.map(t => {
-                const st = (t.status || 'pending').toLowerCase();
-                return `<div class="pd-task-item">
-                    <span class="pd-task-dot ${st}"></span>
-                    <span class="pd-task-name">${t.name || t.description || 'Task'}</span>
-                    <span class="pd-task-status">${st}</span>
-                </div>`;
-            }).join('');
-        }
-        
-        // Timeline
-        const timelineList = document.getElementById('pd-timeline-list');
-        const events = ws.timeline_events || [];
-        if (events.length === 0) {
-            timelineList.innerHTML = '<p style="color:var(--text-muted);font-size:var(--text-sm);">No events yet</p>';
-        } else {
-            timelineList.innerHTML = events.slice(-10).reverse().map(e => `
-                <div class="pd-timeline-item">
-                    <span class="pd-timeline-dot"></span>
-                    <div class="pd-timeline-content">
-                        <div class="pd-timeline-desc">${e.description || e.type || ''}</div>
-                        <div class="pd-timeline-meta">${e.source || ''} ${e.timestamp ? '· ' + new Date(e.timestamp).toLocaleTimeString() : ''}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
-        // Research
-        const researchList = document.getElementById('pd-research-list');
-        const research = ws.research_findings || [];
-        if (research.length === 0) {
-            researchList.innerHTML = '<p style="color:var(--text-muted);font-size:var(--text-sm);">No research findings</p>';
-        } else {
-            researchList.innerHTML = research.map(r => `
-                <div class="pd-research-item">
-                    <p>${r.summary || r.finding || r.description || JSON.stringify(r).slice(0, 200)}</p>
-                </div>
-            `).join('');
-        }
-        
-        // Final report
-        const reportSection = document.getElementById('pd-report-section');
-        const reportEl = document.getElementById('pd-report');
-        if (ws.final_report) {
-            reportSection.style.display = '';
-            reportEl.textContent = ws.final_report;
-        } else {
-            reportSection.style.display = 'none';
-        }
-        
-        // Show overlay
-        overlay.classList.remove('hidden');
-    } catch (e) {
-        console.error('Failed to load project:', e);
-        showToast('Failed to load project details');
-    }
-}
-
-function closeProjectDetail() {
-    const overlay = document.getElementById('project-detail-overlay');
-    if (overlay) overlay.classList.add('hidden');
-}
 
 /* ---- Metrics ---- */
 
-async function loadMetrics() {
-    const container = document.getElementById('metrics-content');
-    if (!container) return;
-    
-    try {
-        const [healthRes, agentsRes] = await Promise.all([
-            fetch('/api/system/health'),
-            fetch('/api/agents')
-        ]);
-        const health = await healthRes.json();
-        const agents = await agentsRes.json();
-        
-        container.innerHTML = `
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <h4>System Health</h4>
-                    <p class="metric-value">${health.status || 'unknown'}</p>
-                </div>
-                <div class="metric-card">
-                    <h4>Agents</h4>
-                    <p class="metric-value">${agents.length || 0}</p>
-                </div>
-                <div class="metric-card">
-                    <h4>Uptime</h4>
-                    <p class="metric-value">${health.uptime || '0s'}</p>
-                </div>
-            </div>
-        `;
-    } catch (e) {
-        container.innerHTML = '<p class="empty-state">Failed to load metrics</p>';
-    }
-}
 
-/* ---- Logs ---- */
-
-async function loadLogs() {
-    const container = document.getElementById('logs-content');
-    if (!container) return;
-    
-    try {
-        const res = await fetch('/api/system/events?limit=50');
-        const data = await res.json();
-        const events = data.events || [];
-        
-        if (events.length === 0) {
-            container.innerHTML = '<p class="empty-state">No events recorded</p>';
-            return;
-        }
-        
-        container.innerHTML = events.map(e => `
-            <div class="log-entry">
-                <span class="log-time">${e.timestamp || ''}</span>
-                <span class="log-type">${e.event_type || ''}</span>
-                <span class="log-message">${e.label || e.message || ''}</span>
-            </div>
-        `).join('');
-    } catch (e) {
-        container.innerHTML = '<p class="empty-state">Failed to load logs</p>';
-    }
-}
 
 /* ---- Voice Cloning ---- */
 
@@ -1695,87 +1467,6 @@ async function loadVoiceCloneStatus() {
     }
 }
 
-async function uploadCloneProfile() {
-    const nameInput = document.getElementById('clone-voice-name');
-    const fileInput = document.getElementById('clone-voice-file');
-    
-    if (!nameInput?.value || !fileInput?.files?.length) {
-        alert('Please enter a name and select an audio file');
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('name', nameInput.value);
-    formData.append('audio', fileInput.files[0]);
-    
-    try {
-        const res = await fetch('/api/voice/clone/profiles', {
-            method: 'POST',
-            body: formData
-        });
-        
-        const data = await res.json();
-        
-        if (res.ok) {
-            alert(`Voice profile "${data.profile.name}" created!`);
-            nameInput.value = '';
-            fileInput.value = '';
-            loadVoiceCloneStatus();
-        } else {
-            alert(`Error: ${data.detail || 'Failed to create profile'}`);
-        }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
-    }
-}
-
-async function deleteCloneProfile(profileId) {
-    if (!confirm('Delete this voice profile?')) return;
-    
-    try {
-        const res = await fetch(`/api/voice/clone/profiles/${profileId}`, {
-            method: 'DELETE'
-        });
-        
-        if (res.ok) {
-            loadVoiceCloneStatus();
-        } else {
-            alert('Failed to delete profile');
-        }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
-    }
-}
-
-async function testCloneVoice(profileId) {
-    const text = prompt('Enter text to speak with this voice:', 'Hello, this is a test of the voice cloning system.');
-    if (!text) return;
-    
-    try {
-        const formData = new FormData();
-        formData.append('text', text);
-        formData.append('profile_id', profileId);
-        formData.append('language', 'en');
-        
-        const res = await fetch('/api/voice/clone/generate', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (res.ok) {
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            audio.play();
-        } else {
-            const data = await res.json();
-            alert(`Error: ${data.detail || 'Failed to generate voice'}`);
-        }
-    } catch (e) {
-        alert(`Error: ${e.message}`);
-    }
-}
-
 /* ============================================================
    VOICE WORKSPACE
    ============================================================ */
@@ -1793,33 +1484,6 @@ let voiceState = {
     isListening: false,
     selectedProfile: null
 };
-
-// Initialize voice workspace
-function initVoiceWorkspace() {
-    // Load voice status
-    loadVoiceWorkspaceStatus();
-    
-    // Load voice profiles
-    loadVoiceProfiles();
-    
-    // Load built-in voices
-    loadBuiltinProviders();
-    
-    // Setup file upload handlers
-    setupVoiceFileUpload();
-    
-    // Setup tab switching
-    setupVoiceTabs();
-    
-    // Setup textarea auto-resize
-    const textarea = document.getElementById('voice-test-text');
-    if (textarea) {
-        textarea.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = this.scrollHeight + 'px';
-        });
-    }
-}
 
 // Load voice workspace status
 async function loadVoiceWorkspaceStatus() {
@@ -1888,11 +1552,16 @@ async function loadVoiceProfiles() {
 }
 
 // Setup file upload handlers
+let _voiceUploadInit = false;
+let _voiceTabsInit = false;
+
 function setupVoiceFileUpload() {
+    if (_voiceUploadInit) return;
     const dropZone = document.getElementById('voice-drop-zone');
     const fileInput = document.getElementById('voice-file-input');
     
     if (!dropZone || !fileInput) return;
+    _voiceUploadInit = true;
     
     // Click to browse
     dropZone.addEventListener('click', () => fileInput.click());
@@ -1958,7 +1627,10 @@ function removeVoiceFile() {
 
 // Setup voice tabs
 function setupVoiceTabs() {
+    if (_voiceTabsInit) return;
     const tabs = document.querySelectorAll('.voice-tab');
+    if (tabs.length === 0) return;
+    _voiceTabsInit = true;
     
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -2306,156 +1978,6 @@ async function testVoiceSpeak() {
     }
 }
 
-// Toggle live STT
-async function toggleLiveSTT() {
-    if (voiceState.isListening) {
-        stopLiveSTT();
-    } else {
-        await startLiveSTT();
-    }
-}
-
-// Start live STT
-async function startLiveSTT() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
-        // Use Web Speech API for live transcription
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            voiceState.liveSTT = new SpeechRecognition();
-            voiceState.liveSTT.continuous = true;
-            voiceState.liveSTT.interimResults = true;
-            voiceState.liveSTT.lang = 'en-US';
-            
-            voiceState.liveSTT.onresult = (event) => {
-                const sttOutput = document.getElementById('voice-stt-output');
-                const ttsOutput = document.getElementById('voice-tts-output');
-                
-                let interimTranscript = '';
-                let finalTranscript = '';
-                
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript;
-                    } else {
-                        interimTranscript += transcript;
-                    }
-                }
-                
-                // Update STT output
-                if (sttOutput) {
-                    sttOutput.innerHTML = `
-                        <p class="final-text">${finalTranscript}</p>
-                        <p class="interim-text">${interimTranscript}</p>
-                    `;
-                }
-                
-                // If we have final text, speak it with cloned voice
-                if (finalTranscript) {
-                    speakWithClonedVoice(finalTranscript);
-                }
-            };
-            
-            voiceState.liveSTT.start();
-            voiceState.isListening = true;
-            
-            // Update UI
-            const btn = document.getElementById('voice-stt-btn');
-            btn.textContent = 'Stop Listening';
-            btn.classList.add('recording');
-            
-        } else {
-            alert('Speech recognition not supported in this browser. Please use Chrome.');
-        }
-        
-    } catch (e) {
-        console.error('Failed to start STT:', e);
-        alert('Could not access microphone. Please allow microphone access.');
-    }
-}
-
-// Stop live STT
-function stopLiveSTT() {
-    if (voiceState.liveSTT) {
-        voiceState.liveSTT.stop();
-        voiceState.liveSTT = null;
-    }
-    
-    voiceState.isListening = false;
-    
-    // Update UI
-    const btn = document.getElementById('voice-stt-btn');
-    btn.textContent = 'Start Listening';
-    btn.classList.remove('recording');
-}
-
-// Speak with cloned voice
-async function speakWithClonedVoice(text) {
-    const profileId = document.getElementById('voice-test-profile')?.value;
-    const language = document.getElementById('voice-test-language')?.value || 'en';
-    const ttsOutput = document.getElementById('voice-tts-output');
-    const statusEl = document.getElementById('voice-tts-status');
-    
-    if (!profileId) {
-        if (ttsOutput) {
-            ttsOutput.innerHTML = '<p class="placeholder-text">Select a voice profile first</p>';
-        }
-        return;
-    }
-    
-    // Show typing effect
-    if (ttsOutput) {
-        ttsOutput.innerHTML = '<p class="typing-text"></p>';
-        const typingEl = ttsOutput.querySelector('.typing-text');
-        
-        // Typing animation
-        let i = 0;
-        const typeInterval = setInterval(() => {
-            if (i < text.length) {
-                typingEl.textContent += text.charAt(i);
-                i++;
-            } else {
-                clearInterval(typeInterval);
-            }
-        }, 50);
-    }
-    
-    // Show speaking status
-    statusEl?.classList.remove('hidden');
-    
-    try {
-        const formData = new FormData();
-        formData.append('text', text);
-        formData.append('profile_id', profileId);
-        formData.append('language', language);
-        
-        const res = await fetch('/api/voice/clone/generate', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (res.ok) {
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            
-            audio.onended = () => {
-                statusEl?.classList.add('hidden');
-            };
-            
-            audio.play();
-        } else {
-            console.error('Voice generation failed');
-            statusEl?.classList.add('hidden');
-        }
-    } catch (e) {
-        console.error('Voice generation error:', e);
-        statusEl?.classList.add('hidden');
-    }
-}
-
 // Load built-in TTS providers
 async function loadBuiltinProviders() {
     const providerSelect = document.getElementById('voice-builtin-provider');
@@ -2572,29 +2094,4 @@ function startVision(mode) {
             }
         });
     }
-}
-
-function captureVisionFrame() {
-    if (!_visionExperience) return;
-
-    const dataUrl = _visionExperience.captureFrame();
-    if (!dataUrl) return;
-
-    const analysis = document.getElementById('vision-analysis');
-    const result = document.getElementById('vision-result');
-    if (analysis) analysis.style.display = '';
-    if (result) result.textContent = 'Analyzing frame...';
-
-    fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            message: 'Analyze this screenshot. Describe what you see, identify UI elements, text, and any issues.',
-            image: dataUrl
-        })
-    }).then(r => r.json()).then(data => {
-        if (result) result.textContent = data.response || 'No analysis available';
-    }).catch(e => {
-        if (result) result.textContent = `Error: ${e.message}`;
-    });
 }

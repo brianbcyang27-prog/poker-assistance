@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from jarvis.core.config import get_config
+from jarvis.core.permissions import permission_center
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -108,3 +109,27 @@ def _save_to_env(config):
     with open(env_path, "w") as f:
         for key, value in existing.items():
             f.write(f"{key}={value}\n")
+
+
+# ------------------------------------------------------------------
+# Permissions
+# ------------------------------------------------------------------
+
+@router.get("/permissions")
+async def get_permissions():
+    """Get all permission states."""
+    return {"permissions": permission_center.get_all()}
+
+
+class PermissionUpdate(BaseModel):
+    name: str
+    enabled: bool
+
+
+@router.post("/permissions")
+async def update_permission(update: PermissionUpdate):
+    """Toggle a permission on/off."""
+    ok = permission_center.set(update.name, update.enabled)
+    if not ok:
+        return {"ok": False, "error": f"Unknown permission: {update.name}"}
+    return {"ok": True, "name": update.name, "enabled": update.enabled}

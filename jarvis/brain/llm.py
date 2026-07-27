@@ -57,6 +57,7 @@ class LLM:
         
         self.use_nvidia = bool(self.api_key)
         self.conversation_history: list[dict] = []
+        self._history_lock = asyncio.Lock()
         self._current_session_id: Optional[str] = None
         
         self._http = httpx.Client(timeout=self._timeout)
@@ -92,11 +93,8 @@ class LLM:
                 self._http.close()
             except Exception:
                 pass
-        if self._async_http and not self._async_http.is_closed:
-            try:
-                asyncio.get_event_loop().run_until_complete(self._async_http.aclose())
-            except Exception:
-                pass
+        # Note: async client should be closed with aclose() from async context
+        # The __del__ fallback is best-effort only
     
     def __del__(self):
         self.close()
@@ -238,13 +236,57 @@ class LLM:
             max_tokens=max_tokens,
         )
         
-        self.conversation_history.append({"role": "user", "content": message})
-        self.conversation_history.append({"role": "assistant", "content": assistant_message})
+        async with self._history_lock:
+            self.conversation_history.append({"role": "user", "content": message})
+            self.conversation_history.append({"role": "assistant", "content": assistant_message})
+            
+            if len(self.conversation_history) > 20:
+                self.conversation_history = self.conversation_history[-20:]
         
-        if len(self.conversation_history) > 20:
-            self.conversation_history = self.conversation_history[-20:]
+        # Compact context if history is getting long
+        await self._compact_context()
         
         return assistant_message
+    
+    async def _compact_context(self) -> None:
+        """Compact conversation context by summarizing old messages.
+        
+        When history exceeds 15 messages, summarize the older messages
+        into a single system message to preserve context while freeing space.
+        """
+        async with self._history_lock:
+            if len(self.conversation_history) <= 15:
+                return
+            
+            # Keep last 6 messages intact, summarize the rest
+            to_summarize = self.conversation_history[:-6]
+            keep = self.conversation_history[-6:]
+            
+            # Build a summary prompt
+            summary_messages = [
+                {"role": "system", "content": "Summarize this conversation into 2-3 sentences capturing key decisions, facts, and context. Be concise."},
+                {"role": "user", "content": json.dumps(to_summarize, default=str)[:4000]},
+            ]
+            
+            try:
+                base_url, api_key, model = self._get_endpoint()
+                summary = await self._achat_completion(
+                    messages=summary_messages,
+                    model=model,
+                    base_url=base_url,
+                    api_key=api_key,
+                    temperature=0.3,
+                    max_tokens=200,
+                )
+                # Replace old messages with summary
+                self.conversation_history = [
+                    {"role": "system", "content": f"[Conversation Summary] {summary}"}
+                ] + keep
+                logger.info("Compacted context: %d messages → summary + %d messages", len(to_summarize), len(keep))
+            except Exception as e:
+                # If compaction fails, just truncate
+                self.conversation_history = keep
+                logger.warning("Context compaction failed, truncated instead: %s", e)
     
     def switch_to_ollama(self):
         """Switch to Ollama backend."""
@@ -267,10 +309,11 @@ class LLM:
             db = await get_db()
             context = await db.get_llm_context(session_id)
             if context:
-                self.conversation_history = context
-                self._current_session_id = session_id
-        except Exception:
-            pass
+                async with self._history_lock:
+                    self.conversation_history = context
+                    self._current_session_id = session_id
+        except Exception as e:
+            logger.warning("Failed to load session context for %s: %s", session_id, e)
     
     async def save_session_context(self, session_id: str):
         """Save conversation context to database."""

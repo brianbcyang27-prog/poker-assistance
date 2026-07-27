@@ -85,6 +85,12 @@ async def lifespan(app: FastAPI):
     from jarvis.core.diagnostics import run_diagnostics
     diag_results = await run_diagnostics()
 
+    # === AUTH SETUP ===
+    from jarvis.web.auth import auth_manager
+    api_key = auth_manager.setup()
+    if api_key:
+        print(f"  🔑 API Key: {api_key[:12]}... (store securely)")
+
     failed = [r for r in diag_results if not r.ok]
     recovered = [r for r in diag_results if r.recovered]
 
@@ -264,13 +270,19 @@ def create_app() -> FastAPI:
             response.headers["Expires"] = "0"
         return response
 
+    # Authentication middleware (protects all /api/* endpoints)
+    from jarvis.web.auth import AuthMiddleware
+    app.add_middleware(AuthMiddleware)
+    
     # Global rate limiter for POST/PUT/PATCH
     from jarvis.web.rate_limit_middleware import RateLimitMiddleware
     app.add_middleware(RateLimitMiddleware, max_post=30, window=60)
     
     # Include routers
-    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system, engineering, world, security
+    from .routers import chat, agents, workspace, memory, voice, pages, websocket, settings, computer, iot, system, engineering, world, security, auth, checkpoints
     from .api import mission_replay
+    app.include_router(auth.router)
+    app.include_router(checkpoints.router)
     app.include_router(chat.router)
     app.include_router(agents.router)
     app.include_router(workspace.router)

@@ -18,7 +18,18 @@ _event_history: list[dict] = []
 MAX_EVENT_HISTORY = 100
 
 # Tracked background tasks
-_bridge_tasks: list = set()
+_bridge_tasks: set = set()
+
+
+def _on_bridge_task_done(t):
+    """Callback for event bridge tasks — log errors and allow re-setup."""
+    if t.cancelled():
+        return
+    exc = t.exception()
+    if exc:
+        import logging
+        logging.getLogger(__name__).error("Event bridge task failed: %s", exc)
+        _bridge_tasks.discard(t)
 
 # Event type to human-readable labels
 EVENT_LABELS = {
@@ -193,7 +204,8 @@ def _setup_event_bridge():
         ]
         for event_type, handler in subscriptions:
             t = loop.create_task(event_bus.on(event_type, handler))
-            _bridge_tasks.append(t)
+            t.add_done_callback(_on_bridge_task_done)
+            _bridge_tasks.add(t)
     except Exception:
         pass  # Don't fail WebSocket setup if event bus unavailable
 

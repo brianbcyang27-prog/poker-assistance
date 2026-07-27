@@ -1,7 +1,26 @@
 """Mouse and keyboard control via native macOS commands."""
 import asyncio
+import shlex
 import subprocess
 from typing import Optional
+
+_SUBPROCESS_TIMEOUT = 10  # seconds
+
+
+async def _run_subprocess(cmd: list[str], timeout: float = _SUBPROCESS_TIMEOUT) -> tuple[bytes, bytes]:
+    """Run a subprocess with timeout. Returns (stdout, stderr)."""
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        return stdout, stderr
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise TimeoutError(f"Command timed out after {timeout}s: {cmd[0]}")
 
 
 class MouseController:
@@ -9,16 +28,8 @@ class MouseController:
 
     async def move(self, x: int, y: int) -> dict:
         try:
-            script = f'''
-            tell application "System Events"
-                set position of mouse to {{{x}, {y}}}
-            end tell
-            '''
-            await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE
-            )
+            script = f'tell application "System Events" to set position of mouse to {{{x}, {y}}}'
+            await _run_subprocess(["osascript", "-e", script])
             return {"ok": True, "x": x, "y": y}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -28,25 +39,14 @@ class MouseController:
             if x is not None and y is not None:
                 await self.move(x, y)
                 await asyncio.sleep(0.1)
-
-            proc = await asyncio.create_subprocess_exec(
-                "cliclick", f"c:{x or 0},{y or 0}",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            await proc.communicate()
+            await _run_subprocess(["cliclick", f"c:{x or 0},{y or 0}"])
             return {"ok": True, "x": x, "y": y, "button": button}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
     async def double_click(self, x: int, y: int) -> dict:
         try:
-            proc = await asyncio.create_subprocess_exec(
-                "cliclick", f"dc:{x},{y}",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            await proc.communicate()
+            await _run_subprocess(["cliclick", f"dc:{x},{y}"])
             return {"ok": True, "x": x, "y": y}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -55,26 +55,13 @@ class MouseController:
         """Type text using clipboard paste (works with all characters)."""
         try:
             # Use pbcopy + Cmd+V for reliable typing
-            proc = await asyncio.create_subprocess_exec(
-                "bash", "-c", f"echo -n '{text.replace(chr(39), chr(39)+chr(92)+chr(39))}' | pbcopy",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            await proc.communicate()
+            safe_text = text.replace("'", "'\\''")
+            await _run_subprocess(["bash", "-c", f"printf %s {shlex.quote(text)} | pbcopy"])
             await asyncio.sleep(0.05)
 
             # Paste with Cmd+V
-            script = '''
-            tell application "System Events"
-                keystroke "v" using command down
-            end tell
-            '''
-            proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
-            )
-            await proc.communicate()
+            script = 'tell application "System Events" to keystroke "v" using command down'
+            await _run_subprocess(["osascript", "-e", script])
             return {"ok": True, "text": text}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -100,26 +87,13 @@ class MouseController:
             if not key:
                 return {"ok": False, "error": "No key specified"}
 
-            mod_str = " & ".join(f"{m}" for m in modifiers) if modifiers else ""
             if modifiers:
-                script = f'''
-                tell application "System Events"
-                    keystroke "{key}" using {{{mod_str}}}
-                end tell
-                '''
+                mod_str = " & ".join(modifiers)
+                script = f'tell application "System Events" to keystroke "{key}" using {{{mod_str}}}'
             else:
-                script = f'''
-                tell application "System Events"
-                    keystroke "{key}"
-                end tell
-                '''
+                script = f'tell application "System Events" to keystroke "{key}"'
 
-            proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE
-            )
-            _, stderr = await proc.communicate()
+            _, stderr = await _run_subprocess(["osascript", "-e", script])
             if stderr:
                 return {"ok": False, "error": stderr.decode().strip()}
             return {"ok": True, "keys": list(keys)}
@@ -139,17 +113,8 @@ class MouseController:
                 "pageup": "page up", "pagedown": "page down",
             }
             mapped = key_map.get(key.lower(), key)
-            script = f'''
-            tell application "System Events"
-                key code {self._key_code(mapped)}
-            end tell
-            '''
-            proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE
-            )
-            await proc.communicate()
+            script = f'tell application "System Events" to key code {self._key_code(mapped)}'
+            await _run_subprocess(["osascript", "-e", script])
             return {"ok": True, "key": key}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -167,22 +132,9 @@ class MouseController:
 
     async def scroll(self, direction: str = "down", amount: int = 5) -> dict:
         try:
-            delta_y = amount if direction == "down" else -amount
-            # Use two-finger scroll via osascript
-            for _ in range(abs(delta_y)):
+            for _ in range(abs(amount)):
                 sign = "1" if direction == "down" else "-1"
-                script = f'''
-                tell application "System Events"
-                    set scrollArea to mouse location
-                end tell
-                '''
-                # Use cliclick for scrolling
-                proc = await asyncio.create_subprocess_exec(
-                    "cliclick", f"sc:0,{sign * 3}",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                await proc.communicate()
+                await _run_subprocess(["cliclick", f"sc:0,{sign * 3}"])
             return {"ok": True, "direction": direction}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -195,12 +147,7 @@ class MouseController:
                 return item 1 of pos & "," & item 2 of pos
             end tell
             '''
-            proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, _ = await proc.communicate()
+            stdout, _ = await _run_subprocess(["osascript", "-e", script])
             pos = stdout.decode().strip().split(",")
             return {"ok": True, "x": int(pos[0]), "y": int(pos[1])}
         except Exception as e:
@@ -214,12 +161,7 @@ class MouseController:
                 return item 3 of screenBounds & "," & item 4 of screenBounds
             end tell
             '''
-            proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, _ = await proc.communicate()
+            stdout, _ = await _run_subprocess(["osascript", "-e", script])
             size = stdout.decode().strip().split(",")
             return {"ok": True, "width": int(size[0]), "height": int(size[1])}
         except Exception as e:

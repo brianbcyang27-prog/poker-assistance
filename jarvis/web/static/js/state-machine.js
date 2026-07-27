@@ -14,7 +14,8 @@ class JarvisState {
         const validStates = [
             'idle', 'listening', 'thinking', 'speaking', 'working',
             'retrieving', 'planning', 'delegating', 'reviewing',
-            'complete', 'error', 'mission_active'
+            'complete', 'error', 'mission_active',
+            'researching', 'coding', 'success', 'warning'
         ];
         if (!validStates.includes(state)) return;
 
@@ -59,6 +60,10 @@ class JarvisState {
     complete() { this.set('complete'); }
     setError() { this.set('error'); }
     missionActive() { this.set('mission_active'); }
+    startResearching() { this.set('researching'); }
+    startCoding() { this.set('coding'); }
+    setSuccess() { this.set('success'); }
+    setWarning() { this.set('warning'); }
 
     reset() { this.set('idle'); this.history = []; }
 }

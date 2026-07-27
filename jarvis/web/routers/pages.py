@@ -1,4 +1,4 @@
-"""Pages router — HTML templates (v6.1.0)."""
+"""Pages router — HTML templates (v8.0.0)."""
 
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
@@ -25,20 +25,14 @@ async def index(request: Request):
 
 @router.get("/command-map")
 async def command_map(request: Request):
-    """Agent Command Map page."""
-    return templates.TemplateResponse("command-map.html", {"request": request})
-
-
-@router.get("/settings")
-async def settings_page(request: Request):
-    """Settings page."""
-    return templates.TemplateResponse("settings.html", {"request": request})
+    """Agent Command Map page — redirects to engineering workspace."""
+    return templates.TemplateResponse("base.html", {"request": request})
 
 
 @router.get("/history")
 async def history_page(request: Request):
-    """Task History page."""
-    return templates.TemplateResponse("history.html", {"request": request})
+    """History page — redirects to main app chat history."""
+    return templates.TemplateResponse("base.html", {"request": request})
 
 
 @router.get("/dashboard")

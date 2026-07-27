@@ -170,15 +170,20 @@ class MissionManager:
     # ------------------------------------------------------------------
 
     async def save(self) -> None:
+        import tempfile
         data: List[Dict[str, Any]] = []
         for m in self._missions.values():
             entry = m.to_dict()
             entry["_progress"] = self._progress.get(m.id, {})
             data.append(entry)
-        self._storage.write_text(
+        
+        # Atomic write: write to temp file, then rename
+        tmp = self._storage.with_suffix('.tmp')
+        tmp.write_text(
             json.dumps(data, indent=2, ensure_ascii=False, default=str),
             encoding="utf-8",
         )
+        tmp.rename(self._storage)
         logger.info("Saved %d missions to %s", len(data), self._storage)
 
     async def load(self) -> None:

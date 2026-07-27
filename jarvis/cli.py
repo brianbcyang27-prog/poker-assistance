@@ -95,7 +95,7 @@ class JARVISTUI:
         table.add_row("Workers", "● 13 Active", "8 Software + 5 Hardware")
         table.add_row("Tools", "● 47 Available", "CAD, PCB, Firmware, Mech")
         table.add_row("Knowledge", "● Loaded", "10 materials, 18 bearings")
-        table.add_row("Server", "● Running", "http://127.0.0.1:8000")
+        table.add_row("Server", "● Running", "http://0.0.0.0:8000 (all interfaces)")
         
         # Right panel - Quick Actions
         actions = Table(title="Quick Actions", box=box.ROUNDED, expand=True)
@@ -826,65 +826,9 @@ def cmd_explain():
 
 
 def main():
-    """CLI entry point."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="JARVIS Engineering Suite")
-    parser.add_argument("--cli", action="store_true", help="Use CLI mode instead of TUI")
-    parser.add_argument("command", nargs="?", help="Command to run")
-    parser.add_argument("mission_desc", nargs="?", help="Mission description (for 'mission' command)")
-    args = parser.parse_args()
-
-    cmd = args.command
-    
-    if cmd == "doctor":
-        doctor()
-    elif cmd == "status":
-        from jarvis import __version__
-        console.print(f"[bold cyan]JARVIS v{__version__}[/bold cyan]")
-        console.print("System is operational.")
-    elif cmd == "agents":
-        from jarvis.agents.kings import EngineeringKing, PersonalKing, ResearchKing, SystemKing
-        eng = EngineeringKing()
-        per = PersonalKing()
-        res = ResearchKing()
-        sys_k = SystemKing()
-        console.print(f"[cyan]Engineering:[/cyan] {len(eng._workers)} workers")
-        console.print(f"[cyan]Personal:[/cyan] {len(per._workers)} workers")
-        console.print(f"[cyan]Research:[/cyan] {len(res._workers)} workers")
-        console.print(f"[cyan]System:[/cyan] {len(sys_k._workers)} workers")
-    elif cmd == "knowledge":
-        from jarvis.engineering.knowledge import engineering_knowledge
-        console.print(f"[cyan]Materials:[/cyan] {len(engineering_knowledge.materials)}")
-        console.print(f"[cyan]Bearings:[/cyan] {len(engineering_knowledge.bearings)}")
-        console.print(f"[cyan]Formulas:[/cyan] {len(engineering_knowledge.formulas)}")
-    elif cmd == "continue":
-        cmd_continue()
-    elif cmd == "mission":
-        desc = args.mission_desc
-        if not desc:
-            console.print("[red]Usage: jarvis-cli mission <description>[/red]")
-        else:
-            cmd_mission(desc)
-    elif cmd == "review":
-        cmd_review()
-    elif cmd == "world":
-        cmd_world()
-    elif cmd == "explain":
-        cmd_explain()
-    elif args.cli:
-        from . import __version__
-        console.print(f"[bold cyan]JARVIS v{__version__}[/bold cyan]")
-        console.print("Use 'jarvis-cli' without --cli for full TUI experience")
-    elif cmd is None:
-        tui = JARVISTUI()
-        tui.run()
-    else:
-        console.print(f"[red]Unknown command: {cmd}[/red]")
-        console.print(
-            "Available commands: doctor, status, agents, knowledge, "
-            "continue, mission, review, world, explain"
-        )
+    """CLI entry point — delegates to native launcher."""
+    from jarvis.launcher import main as launcher_main
+    launcher_main()
 
 
 if __name__ == "__main__":

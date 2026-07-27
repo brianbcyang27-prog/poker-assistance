@@ -64,8 +64,15 @@ async def chat(request: Request, req: ChatRequest):
     if hasattr(web_main.jarvis, '_llm') and web_main.jarvis._llm:
         await web_main.jarvis._llm.load_session_context(session_id)
     
-    # Process through JARVIS agent hierarchy
-    response = await web_main.jarvis.process_user_request(req.message)
+    # Process through JARVIS agent hierarchy (with timeout)
+    import asyncio
+    try:
+        response = await asyncio.wait_for(
+            web_main.jarvis.process_user_request(req.message),
+            timeout=120,
+        )
+    except asyncio.TimeoutError:
+        response = "Request timed out. Please try a simpler request or try again later."
     
     # Save assistant response
     await db.index_conversation(session_id, "assistant", response)
@@ -96,14 +103,13 @@ async def chat(request: Request, req: ChatRequest):
         if king_dict.get("state") != "idle":
             active_agents.append(king_dict)
     
-    # Generate TTS audio if enabled
+    # Generate TTS audio if enabled (async, non-blocking)
     audio_url = None
     config = get_config()
     if config.tts_enabled:
         try:
             from jarvis.web.services.tts import voice_engine
             import hashlib
-            import os
             
             # Generate audio filename
             audio_hash = hashlib.md5(f"{session_id}:{response[:50]}".encode()).hexdigest()[:12]
@@ -111,10 +117,9 @@ async def chat(request: Request, req: ChatRequest):
             audio_path = Path("audio_cache") / audio_filename
             audio_path.parent.mkdir(exist_ok=True)
             
-            # Generate audio (provider will add extension)
-            result = voice_engine.generate(response, str(audio_path))
+            # Generate audio async (non-blocking)
+            result = await voice_engine.agenerate(response, str(audio_path))
             if result:
-                # Get the actual filename with extension
                 actual_filename = Path(result).name
                 audio_url = f"/api/voice/audio/{actual_filename}"
         except Exception as e:
@@ -137,72 +142,76 @@ async def chat_stream(message: str, session_id: Optional[str] = None):
     tool_calls = []
 
     async def event_generator():
-        yield f"data: {json.dumps({'type': 'state', 'state': 'thinking'})}\n\n"
+        try:
+            yield f"data: {json.dumps({'type': 'state', 'state': 'thinking'})}\n\n"
 
-        # Save user message to DB
-        db = await get_db()
-        await db.index_conversation(sid, "user", message)
+            # Save user message to DB
+            db = await get_db()
+            await db.index_conversation(sid, "user", message)
 
-        # Ensure session row exists in conversation_sessions
-        await db.set_session_title(sid, message[:80] if not session_id else "")
+            # Ensure session row exists in conversation_sessions
+            await db.set_session_title(sid, message[:80] if not session_id else "")
 
-        llm = getattr(web_main.jarvis, '_llm', None)
-        if llm:
-            await llm.load_session_context(sid)
+            llm = getattr(web_main.jarvis, '_llm', None)
+            if llm:
+                await llm.load_session_context(sid)
 
-        # Generate capability-aware system prompt
-        from jarvis.core.capabilities import registry
-        capability_prompt = await registry.generate_capability_prompt()
-        
-        # Build system prompt with capabilities
-        system_prompt = capability_prompt if capability_prompt else None
+            # Generate capability-aware system prompt
+            from jarvis.core.capabilities import registry
+            capability_prompt = await registry.generate_capability_prompt()
+            
+            # Build system prompt with capabilities
+            system_prompt = capability_prompt if capability_prompt else None
 
-        # Use the async streaming LLM if available
-        if llm and hasattr(llm, 'achat_stream'):
-            full_response: list[str] = []
-            try:
-                async for token in llm.achat_stream(message, system_prompt=system_prompt):
-                    full_response.append(token)
-                    yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
-            except Exception as e:
-                error_msg = f"LLM error: {str(e)[:100]}"
-                yield f"data: {json.dumps({'type': 'token', 'content': error_msg})}\n\n"
-                full_response = [error_msg]
+            # Use the async streaming LLM if available
+            if llm and hasattr(llm, 'achat_stream'):
+                full_response: list[str] = []
+                try:
+                    async for token in llm.achat_stream(message, system_prompt=system_prompt):
+                        full_response.append(token)
+                        yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+                except Exception as e:
+                    error_msg = f"LLM error: {str(e)[:100]}"
+                    yield f"data: {json.dumps({'type': 'token', 'content': error_msg})}\n\n"
+                    full_response = [error_msg]
 
-            response = "".join(full_response)
+                response = "".join(full_response)
 
-            # Check for tool calls in the response
-            import re
-            tool_pattern = re.findall(r'\[TOOL:\s*(\w+)\]', response)
-            for tool_name in tool_pattern:
-                tool_calls.append({"name": tool_name, "ok": True})
+                # Check for tool calls in the response
+                import re
+                tool_pattern = re.findall(r'\[TOOL:\s*(\w+)\]', response)
+                for tool_name in tool_pattern:
+                    tool_calls.append({"name": tool_name, "ok": True})
 
-            await db.index_conversation(sid, "assistant", response)
-            await llm.save_session_context(sid)
-        else:
-            # Fallback: non-streaming path through agent hierarchy
-            try:
-                result = await web_main.jarvis.process_user_request(message)
-                response = result
-                # Extract tool calls from events
-                from jarvis.core.events import event_bus
-                recent_events = [e for e in getattr(event_bus, '_history', []) 
-                                if e.type == 'worker.tool_call'][-5:]
-                for evt in recent_events:
-                    tool_calls.append({
-                        "name": evt.data.get("action", "unknown"),
-                        "ok": True
-                    })
-            except Exception as e:
-                response = f"Error: {str(e)[:200]}"
-            await db.index_conversation(sid, "assistant", response)
-            yield f"data: {json.dumps({'type': 'token', 'content': response})}\n\n"
+                await db.index_conversation(sid, "assistant", response)
+                await llm.save_session_context(sid)
+            else:
+                # Fallback: non-streaming path through agent hierarchy
+                try:
+                    result = await web_main.jarvis.process_user_request(message)
+                    response = result
+                    # Extract tool calls from events
+                    from jarvis.core.events import event_bus
+                    recent_events = [e for e in getattr(event_bus, '_history', []) 
+                                    if e.type == 'worker.tool_call'][-5:]
+                    for evt in recent_events:
+                        tool_calls.append({
+                            "name": evt.data.get("action", "unknown"),
+                            "ok": True
+                        })
+                except Exception as e:
+                    response = f"Error: {str(e)[:200]}"
+                await db.index_conversation(sid, "assistant", response)
+                yield f"data: {json.dumps({'type': 'token', 'content': response})}\n\n"
 
-        # Send tool calls if any
-        if tool_calls:
-            yield f"data: {json.dumps({'type': 'tool_calls', 'calls': tool_calls})}\n\n"
+            # Send tool calls if any
+            if tool_calls:
+                yield f"data: {json.dumps({'type': 'tool_calls', 'calls': tool_calls})}\n\n"
 
-        yield f"data: {json.dumps({'type': 'done', 'session_id': sid})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)[:200]})}\n\n"
+        finally:
+            yield f"data: {json.dumps({'type': 'done', 'session_id': sid})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

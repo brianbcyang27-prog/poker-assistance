@@ -1,5 +1,70 @@
 # Changelog
 
+## v8.0.0 — Native Intelligence (2026-07-26)
+
+> **Design Philosophy**: A true AI operating system — native launcher, premium UI, polished experience.
+
+### NEW: Native Launcher
+- `jarvis` command auto-starts web server, checks dependencies, opens browser
+- Python version check, pip dependency verification, database initialization
+- Port conflict detection with auto-increment fallback
+- Graceful shutdown with cleanup handlers
+- `jarvis doctor` expanded to 19 health checks with repair hints
+
+### NEW: Premium Loading Experience
+- Apple-style boot sequence with animated step indicators (8 steps)
+- Progress bar with ETA estimation
+- Each step shows status: pending → active → done
+
+### REDESIGNED: Navigation
+- Simplified to 6 primary items: Home, Chat, Projects, Research, Memory, Settings
+- Computer moved to dev-only section
+- Clean icon-only design with SVG icons
+
+### NEW: Dynamic Right Sidebar
+- Context-aware panels per workspace
+- Home: system stats, quick actions, neural status
+- Chat: conversation tools, memory, agents
+- Research: sources, knowledge graph stats
+- Projects: active project, recent edits
+- Memory: episode/personal/journal/graph counts
+- Settings: quick settings access
+
+### NEW: Premium Input Bar
+- Floating card with glass morphism
+- Auto-resize textarea
+- Gradient send button with glow
+- Voice input button with state indicator
+- Focus glow animation
+
+### NEW: Motion System
+- Unified animation utilities (fadeInUp, scaleIn, slideIn, breathe, shimmer, ripple)
+- CSS animation delay helpers (anim-delay-1 through anim-delay-5)
+- `prefers-reduced-motion` support — disables all animations for accessibility
+
+### ENHANCED: Neural Core 2.0
+- 4 new visual states: researching (purple), coding (green), success (emerald), warning (amber)
+- State-aware pulse intensity — active states breathe faster
+- Three.js Graph3D updated with full state support
+- State machine expanded to 16 states
+
+### ENHANCED: Mission Timeline
+- Tool cards with status icons, duration, expandable details
+- Step-by-step execution visualization
+- Agent attribution per event
+
+### PERFORMANCE
+- CSS `contain` hints on scrollable and animated containers
+- `will-change` on animated elements
+- GPU layer promotion for nav items, cards, timeline
+- Smooth scroll with overscroll-behavior containment
+
+### RELIABILITY
+- Fixed dashboard grid to always show right panel (3-column on desktop)
+- Responsive breakpoints properly hide right panel on smaller screens
+- Removed dead `#health-events` reference
+- All 13 v8 core tests passing
+
 ## v7.0.0 — Experience Revolution (2026-07-24)
 
 > **Design Philosophy**: Calm. Elegant. Fast. Premium. Alive.

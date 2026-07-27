@@ -64,28 +64,27 @@ class LivingDashboardManager:
 
     async def _try_workers(self) -> List[Dict[str, Any]]:
         try:
-            from jarvis.agents import AgentRegistry
-            reg = AgentRegistry()
-            agents = reg.list_active()
+            from jarvis.agents.jarvis import JarvisAgent
+            agent = JarvisAgent()
+            status = getattr(agent, 'state', None)
             return [
                 {
-                    "name": getattr(a, "name", "unknown"),
-                    "role": getattr(a, "role", "agent"),
-                    "current_task": getattr(a, "current_task", "none"),
-                    "confidence": getattr(a, "confidence", 0.0),
-                    "status": getattr(a, "status", "idle"),
-                    "last_active": getattr(a, "last_active", self._now_iso()),
+                    "name": "JARVIS",
+                    "role": "chief",
+                    "current_task": getattr(status, 'current_task', 'idle') if status else 'idle',
+                    "confidence": 1.0,
+                    "status": "active",
+                    "last_active": self._now_iso(),
                 }
-                for a in agents
             ]
         except Exception:
             return []
 
     async def _try_memories(self, limit: int) -> List[Dict[str, Any]]:
         try:
-            from jarvis.memory import MemoryStore
-            store = MemoryStore()
-            entries = await store.recent(limit=limit)
+            from jarvis.memory import Database
+            db = Database()
+            entries = await db.recent(limit=limit)
             return [
                 {
                     "id": getattr(e, "id", ""),
@@ -102,7 +101,7 @@ class LivingDashboardManager:
         try:
             from jarvis.suggestions import SuggestionEngine
             engine = SuggestionEngine()
-            suggestions = await engine.get_active()
+            suggestions = await engine.get_suggestions()
             return [
                 {
                     "id": getattr(s, "id", ""),
@@ -156,8 +155,8 @@ class LivingDashboardManager:
     async def get_timeline(self, hours: int = 24) -> List[Dict[str, Any]]:
         """Return timeline events from the last *hours* hours."""
         try:
-            from jarvis.journal import Journal
-            journal = Journal()
+            from jarvis.journal import JournalEngine
+            journal = JournalEngine()
             cutoff = time.time() - (hours * 3600)
             events = await journal.events_since(cutoff)
             return [

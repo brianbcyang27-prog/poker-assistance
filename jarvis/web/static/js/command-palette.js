@@ -18,20 +18,12 @@ class CommandPalette {
         return [
             { id: 'home', label: 'Go to Home', category: 'Navigate', icon: '🏠', action: () => switchWorkspace('home') },
             { id: 'chat', label: 'Go to Chat', category: 'Navigate', icon: '💬', action: () => switchWorkspace('chat') },
-            { id: 'memory', label: 'Go to Memory', category: 'Navigate', icon: '🧠', action: () => switchWorkspace('memory') },
-            { id: 'projects', label: 'Go to Projects', category: 'Navigate', icon: '📂', action: () => switchWorkspace('projects') },
-            { id: 'computer', label: 'Go to Vision', category: 'Navigate', icon: '👁', action: () => switchWorkspace('computer') },
-            { id: 'metrics', label: 'Go to Metrics', category: 'Navigate', icon: '📊', action: () => switchWorkspace('metrics') },
-            { id: 'logs', label: 'Go to Logs', category: 'Navigate', icon: '📋', action: () => switchWorkspace('logs') },
             { id: 'settings', label: 'Open Settings', category: 'Navigate', icon: '⚙️', action: () => toggleSettings() },
             { id: 'new-chat', label: 'New Conversation', category: 'Chat', icon: '✨', action: () => { switchWorkspace('chat'); startNewChat(); } },
             { id: 'clear-chat', label: 'Clear Chat', category: 'Chat', icon: '🗑', action: () => { const el = document.getElementById('chat-messages'); if (el) el.innerHTML = ''; } },
             { id: 'voice-toggle', label: 'Toggle Voice', category: 'Tools', icon: '🎙', action: () => { const el = document.getElementById('voice-btn'); if (el) el.click(); } },
-            { id: 'screen-capture', label: 'Screen Capture', category: 'Tools', icon: '🖥', action: () => { switchWorkspace('computer'); startVision('screen'); } },
-            { id: 'camera', label: 'Camera Capture', category: 'Tools', icon: '📷', action: () => { switchWorkspace('computer'); startVision('camera'); } },
-            { id: 'refresh-core', label: 'Refresh Neural Core', category: 'Tools', icon: '🔄', action: () => { if (goldenCore) { goldenCore.loadData(); goldenCore.start(); } } },
             { id: 'system-status', label: 'System Status', category: 'Info', icon: '💓', action: () => fetch('/api/health').then(r => r.json()).then(d => console.log('Health:', d)) },
-            { id: 'keyboard', label: 'Keyboard Shortcuts', category: 'Info', icon: '⌨️', action: () => alert('⌘K: Command Palette\n⌘⇧D: Developer Mode\n⌘,: Settings\nEsc: Close overlay') },
+            { id: 'keyboard', label: 'Keyboard Shortcuts', category: 'Info', icon: '⌨️', action: () => alert('⌘K: Command Palette\n⌘,: Settings\nEsc: Close overlay') },
         ];
     }
 

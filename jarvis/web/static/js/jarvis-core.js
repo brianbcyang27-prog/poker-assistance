@@ -27,6 +27,10 @@ class JarvisCore {
             complete:       { core: '#2ecc71', aura: 'rgba(46,204,113,0.15)', ring: '#2ecc71' },
             error:          { core: '#ff3366', aura: 'rgba(255,51,102,0.2)', ring: '#ff3366' },
             mission_active: { core: '#00f0ff', aura: 'rgba(0,240,255,0.1)', ring: '#00f0ff' },
+            researching:    { core: '#a78bfa', aura: 'rgba(167,139,250,0.15)', ring: '#a78bfa' },
+            coding:         { core: '#34d399', aura: 'rgba(52,211,153,0.12)', ring: '#34d399' },
+            success:        { core: '#10b981', aura: 'rgba(16,185,129,0.2)', ring: '#10b981' },
+            warning:        { core: '#f59e0b', aura: 'rgba(245,158,11,0.18)', ring: '#f59e0b' },
         };
 
         this.ringSpeeds = {
@@ -42,6 +46,10 @@ class JarvisCore {
             complete:       { inner: 0.002, mid: -0.001, outer: 0.001 },
             error:          { inner: 0.030, mid: -0.020, outer: 0.015 },
             mission_active: { inner: 0.012, mid: -0.008, outer: 0.005 },
+            researching:    { inner: 0.014, mid: -0.009, outer: 0.006 },
+            coding:         { inner: 0.022, mid: -0.013, outer: 0.009 },
+            success:        { inner: 0.004, mid: -0.002, outer: 0.001 },
+            warning:        { inner: 0.028, mid: -0.018, outer: 0.012 },
         };
 
         this.currentSpeed = { inner: 0.003, mid: -0.002, outer: 0.001 };
@@ -249,7 +257,9 @@ class JarvisCore {
         this.ringGroup.setAttribute('transform', `rotate(${this.rings[0].angle})`);
         this.tickGroup.setAttribute('transform', `rotate(${this.rings[1].angle})`);
 
-        const pulse = Math.sin(this.time * 2) * 0.06;
+        const isActive = !['idle', 'complete', 'error'].includes(this.state);
+        const pulseAmp = isActive ? 0.08 : 0.06;
+        const pulse = Math.sin(this.time * (isActive ? 3 : 2)) * pulseAmp;
         this.coreSphere.setAttribute('transform', `scale(${1 + pulse})`);
 
         const auraBreath = Math.sin(this.time * 1.2) * 0.04;
