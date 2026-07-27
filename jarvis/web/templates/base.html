@@ -6,6 +6,13 @@
     <title>JARVIS</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=8.0.0">
     <link rel="stylesheet" href="/static/css/style.css?v=8.0.0">
+    <script src="/static/vendor/three.min.js?v=8.0.0"></script>
+    <script src="/static/vendor/CopyShader.js?v=8.0.0"></script>
+    <script src="/static/vendor/LuminosityHighPassShader.js?v=8.0.0"></script>
+    <script src="/static/vendor/EffectComposer.js?v=8.0.0"></script>
+    <script src="/static/vendor/RenderPass.js?v=8.0.0"></script>
+    <script src="/static/vendor/ShaderPass.js?v=8.0.0"></script>
+    <script src="/static/vendor/UnrealBloomPass.js?v=8.0.0"></script>
 </head>
 <body>
     <!-- PREMIUM LOADING SCREEN — Apple-style boot sequence -->
@@ -107,37 +114,36 @@
             <main id="center-panel">
                 <div id="center-core">
 
-                    <!-- WORKSPACE: Home — calm, context-aware landing -->
+                    <!-- WORKSPACE: Home — 3D Golden Core + context-aware landing -->
                     <div id="home-container" class="workspace-view active">
-                        <div class="home-greeting">
-                            <div class="home-greeting-core">
-                                <div class="jarvis-core-container" id="core-container" style="width:80px;height:80px;"></div>
+                        <div id="golden-core-container"></div>
+                        <div class="home-content">
+                            <div class="home-greeting">
+                                <div class="home-greeting-text">
+                                    <h1 id="home-greeting-text">Good evening</h1>
+                                    <p id="home-project-context" class="home-subtitle"></p>
+                                </div>
                             </div>
-                            <div class="home-greeting-text">
-                                <h1 id="home-greeting-text">Good evening</h1>
-                                <p id="home-project-context" class="home-subtitle"></p>
+
+                            <!-- Quick input — always visible -->
+                            <div class="home-input-wrapper">
+                                <div class="home-input-bar">
+                                    <input type="text" id="home-message-input" placeholder="What are you working on?" autocomplete="off"/>
+                                    <button class="home-send-btn" onclick="sendHomeMessage()" title="Send">
+                                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Quick input — always visible -->
-                        <div class="home-input-wrapper">
-                            <div class="home-input-bar">
-                                <input type="text" id="home-message-input" placeholder="What are you working on?" autocomplete="off"/>
-                                <button class="home-send-btn" onclick="sendHomeMessage()" title="Send">
-                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                                </button>
+                            <!-- Recent work -->
+                            <div class="home-section" id="home-recent-section">
+                                <h3 class="home-section-title">Recent</h3>
+                                <div id="home-recent-list" class="home-list"></div>
                             </div>
-                        </div>
 
-                        <!-- Recent work -->
-                        <div class="home-section" id="home-recent-section">
-                            <h3 class="home-section-title">Recent</h3>
-                            <div id="home-recent-list" class="home-list"></div>
-                        </div>
-
-                        <!-- Suggestions -->
-                        <div class="home-section" id="home-suggestions-section">
-                            <h3 class="home-section-title">Try saying</h3>
+                            <!-- Suggestions -->
+                            <div class="home-section" id="home-suggestions-section">
+                                <h3 class="home-section-title">Try saying</h3>
                             <div id="home-suggestions" class="home-suggestions"></div>
                         </div>
                     </div>

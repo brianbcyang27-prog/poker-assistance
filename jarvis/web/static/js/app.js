@@ -1208,7 +1208,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {}
     }).catch(() => {});
     window._loadScript('/static/js/mission-timeline.js?v=8.0.0').catch(() => {});
-    window._loadScript('/static/js/jarvis-core.js?v=8.0.0').catch(() => {});
+    window._loadScript('/static/js/graph-3d.js?v=8.0.0').then(() => {
+        if (window.Graph3D) {
+            goldenCore = new Graph3D(document.getElementById('golden-core-container'));
+            goldenCore.init();
+        }
+    }).catch(() => {});
     window._loadScript('/static/js/digital-twin.js?v=8.0.0').then(() => {
         if (window.DigitalTwin) {
             window._digitalTwin = new DigitalTwin('digital-twin-container');

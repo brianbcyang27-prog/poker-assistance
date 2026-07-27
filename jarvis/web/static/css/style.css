@@ -491,13 +491,36 @@ input:focus, textarea:focus, select:focus {
 /* ---- Home Workspace ---- */
 
 #home-container {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
+    overflow: hidden;
+}
+
+#golden-core-container {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+}
+
+#golden-core-container canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.home-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
     padding: var(--space-16) var(--space-6) var(--space-8);
     overflow-y: auto;
-    background: radial-gradient(ellipse at 50% 0%, rgba(245, 166, 35, 0.03) 0%, transparent 60%);
+    pointer-events: auto;
 }
 
 .home-greeting {
@@ -509,6 +532,9 @@ input:focus, textarea:focus, select:focus {
 
 .home-greeting-core {
     flex-shrink: 0;
+    position: relative;
+    width: 160px;
+    height: 160px;
 }
 
 .home-greeting-text h1 {
