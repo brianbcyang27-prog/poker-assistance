@@ -1212,6 +1212,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (window.Graph3D) {
             goldenCore = new Graph3D(document.getElementById('golden-core-container'));
             goldenCore.init();
+            goldenCore.loadData();
+            goldenCore.start();
         }
     }).catch(() => {});
     window._loadScript('/static/js/digital-twin.js?v=8.0.0').then(() => {
