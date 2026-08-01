@@ -9,7 +9,6 @@ import json
 import os
 import secrets
 import struct
-from typing import Tuple
 
 _ALGO_VERSION = 1
 _SALT_BYTES = 32
@@ -29,9 +28,10 @@ class VaultCrypto:
     def __init__(self):
         self._has_crypto = False
         try:
+            from cryptography.hazmat.primitives import hashes
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
             from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-            from cryptography.hazmat.primitives import hashes
+
             self._AESGCM = AESGCM
             self._PBKDF2HMAC = PBKDF2HMAC
             self._hashes = hashes
@@ -80,10 +80,10 @@ class VaultCrypto:
         if version != _ALGO_VERSION:
             raise ValueError(f"Unsupported vault version: {version}")
 
-        salt = data[1:1 + _SALT_BYTES]
-        iv = data[1 + _SALT_BYTES:1 + _SALT_BYTES + _IV_BYTES]
-        tag = data[1 + _SALT_BYTES + _IV_BYTES:1 + _SALT_BYTES + _IV_BYTES + _TAG_BYTES]
-        ciphertext = data[1 + _SALT_BYTES + _IV_BYTES + _TAG_BYTES:]
+        salt = data[1 : 1 + _SALT_BYTES]
+        iv = data[1 + _SALT_BYTES : 1 + _SALT_BYTES + _IV_BYTES]
+        tag = data[1 + _SALT_BYTES + _IV_BYTES : 1 + _SALT_BYTES + _IV_BYTES + _TAG_BYTES]
+        ciphertext = data[1 + _SALT_BYTES + _IV_BYTES + _TAG_BYTES :]
 
         key = self.derive_key(password, salt)
 
@@ -96,7 +96,7 @@ class VaultCrypto:
         else:
             return self._xor_decrypt(key, iv, ciphertext, tag)
 
-    def _xor_encrypt(self, key: bytes, iv: bytes, plaintext: bytes) -> Tuple[bytes, bytes]:
+    def _xor_encrypt(self, key: bytes, iv: bytes, plaintext: bytes) -> tuple[bytes, bytes]:
         """Fallback: XOR stream cipher with HMAC-SHA256 tag."""
         stream = self._generate_stream(key, iv, len(plaintext))
         ciphertext = bytes(a ^ b for a, b in zip(plaintext, stream))
@@ -135,7 +135,7 @@ class VaultCrypto:
         """Generate a cryptographically secure random password."""
         return secrets.token_urlsafe(length)
 
-    def hash_password(self, password: str) -> Tuple[bytes, bytes]:
+    def hash_password(self, password: str) -> tuple[bytes, bytes]:
         """Hash password for verification. Returns (hash, salt)."""
         salt = os.urandom(_SALT_BYTES)
         h = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, _PBKDF2_ITERATIONS)

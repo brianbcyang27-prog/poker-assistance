@@ -3,7 +3,7 @@
 import ast
 import os
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from jarvis.dashboard.analyzers import (
     CodeHealthAnalyzer,
@@ -15,14 +15,12 @@ from jarvis.dashboard.analyzers import (
     PerformanceAnalyzer,
     SecurityAnalyzer,
     TestAnalyzer,
+    _clamp,
+    _grade,
     _iter_python_files,
     _read,
-    _relative,
-    _grade,
-    _clamp,
 )
-from jarvis.dashboard.models import HealthIssue, HealthReport, ProjectMetrics
-
+from jarvis.dashboard.models import HealthReport, ProjectMetrics
 
 # File extension -> language name
 _LANG_MAP = {
@@ -158,7 +156,9 @@ class Dashboard:
 
         metrics.dead_code_count = dead_count
         metrics.unused_files = dead_meta.get("unused_functions", 0)
-        metrics.unused_apis = dead_meta.get("unused_imports", 0) + dead_meta.get("unused_variables", 0)
+        metrics.unused_apis = dead_meta.get("unused_imports", 0) + dead_meta.get(
+            "unused_variables", 0
+        )
         metrics.dependency_issues = len(dep_issues)
 
         return metrics
@@ -199,7 +199,9 @@ class Dashboard:
         if test_meta.get("test_count", 0) == 0:
             recommendations.append("Add tests — no test files detected")
         if cplx_meta.get("complex_functions", 0) > 0:
-            recommendations.append(f"Simplify {cplx_meta['complex_functions']} high-complexity functions")
+            recommendations.append(
+                f"Simplify {cplx_meta['complex_functions']} high-complexity functions"
+            )
         if doc_score < 50:
             recommendations.append("Improve documentation coverage with docstrings and README")
         if dup_score < 70:
@@ -212,14 +214,14 @@ class Dashboard:
             recommendations=recommendations,
         )
 
-    async def test_coverage(self, repo_path: str) -> Dict[str, Any]:
+    async def test_coverage(self, repo_path: str) -> dict[str, Any]:
         """Detailed test coverage analysis."""
         score, meta = self.test_analyzer.analyze(os.path.abspath(repo_path))
         meta["score"] = score
         meta["grade"] = _grade(score)
         return meta
 
-    async def security_score(self, repo_path: str) -> Dict[str, Any]:
+    async def security_score(self, repo_path: str) -> dict[str, Any]:
         """Security vulnerability scan."""
         score, issues, meta = self.security_analyzer.analyze(os.path.abspath(repo_path))
         meta["score"] = score
@@ -238,7 +240,7 @@ class Dashboard:
         ]
         return meta
 
-    async def performance_score(self, repo_path: str) -> Dict[str, Any]:
+    async def performance_score(self, repo_path: str) -> dict[str, Any]:
         """Performance indicator analysis."""
         score, issues, meta = self.performance_analyzer.analyze(os.path.abspath(repo_path))
         meta["score"] = score
@@ -256,21 +258,21 @@ class Dashboard:
         ]
         return meta
 
-    async def complexity_report(self, repo_path: str) -> Dict[str, Any]:
+    async def complexity_report(self, repo_path: str) -> dict[str, Any]:
         """Code complexity analysis."""
         score, meta = self.complexity_analyzer.analyze(os.path.abspath(repo_path))
         meta["score"] = score
         meta["grade"] = _grade(score)
         return meta
 
-    async def dead_code_analysis(self, repo_path: str) -> Dict[str, Any]:
+    async def dead_code_analysis(self, repo_path: str) -> dict[str, Any]:
         """Unused code detection."""
         count, meta = self.dead_code_analyzer.analyze(os.path.abspath(repo_path))
         meta["score"] = _clamp(100 - count * 3)
         meta["grade"] = _grade(meta["score"])
         return meta
 
-    async def dependency_health(self, repo_path: str) -> Dict[str, Any]:
+    async def dependency_health(self, repo_path: str) -> dict[str, Any]:
         """Dependency analysis."""
         score, issues, meta = self.dependency_analyzer.analyze(os.path.abspath(repo_path))
         meta["score"] = score
@@ -287,21 +289,21 @@ class Dashboard:
         ]
         return meta
 
-    async def documentation_score(self, repo_path: str) -> Dict[str, Any]:
+    async def documentation_score(self, repo_path: str) -> dict[str, Any]:
         """Documentation coverage analysis."""
         score, meta = self.documentation_analyzer.analyze(os.path.abspath(repo_path))
         meta["score"] = score
         meta["grade"] = _grade(score)
         return meta
 
-    async def duplicate_code(self, repo_path: str) -> Dict[str, Any]:
+    async def duplicate_code(self, repo_path: str) -> dict[str, Any]:
         """Code duplication detection."""
         score, meta = self.duplicate_analyzer.analyze(os.path.abspath(repo_path))
         meta["score"] = score
         meta["grade"] = _grade(score)
         return meta
 
-    async def to_dict(self, metrics: ProjectMetrics) -> Dict[str, Any]:
+    async def to_dict(self, metrics: ProjectMetrics) -> dict[str, Any]:
         """Serialize ProjectMetrics to a dictionary for dashboard consumption."""
         return metrics.to_dict()
 
@@ -309,7 +311,7 @@ class Dashboard:
     # Internal helpers
     # -----------------------------------------------------------------------
 
-    def _basic_stats(self, root: str) -> Tuple[int, int, int, int, Dict[str, int]]:
+    def _basic_stats(self, root: str) -> tuple[int, int, int, int, dict[str, int]]:
         """Compute LOC, file count, class/function counts, and language breakdown."""
         total_loc = 0
         total_files = 0
@@ -350,7 +352,7 @@ class Dashboard:
 
         return total_loc, total_files, total_classes, total_functions, dict(langs)
 
-    def _detect_frameworks(self, root: str) -> List[str]:
+    def _detect_frameworks(self, root: str) -> list[str]:
         """Detect frameworks/libraries from imports and config files."""
         detected = set()  # type: Set[str]
 

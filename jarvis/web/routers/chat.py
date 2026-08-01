@@ -1,33 +1,40 @@
 """Chat router - User communication with JARVIS."""
 
+import json
+import uuid
+from pathlib import Path
+
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional
-from pathlib import Path
-import json
-import uuid
 
 import jarvis.web.main as web_main
-from jarvis.core.database import get_db
+from jarvis.architectures import get_architecture, get_settings_manager
+from jarvis.architectures.base import MissionContext
+from jarvis.brain.interaction import ConversationTracker, InteractionLayer
 from jarvis.core.config import get_config
+from jarvis.core.database import get_db
 from jarvis.web.rate_limit import rate_limit
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
+# v9.0.0: Human Interaction Layer — classifies intent, tracks conversation mode
+_interaction = InteractionLayer()
+_session_trackers: dict[str, "ConversationTracker"] = {}
+
 
 class ChatRequest(BaseModel):
     message: str
-    session_id: Optional[str] = None
-    voice_id: Optional[str] = None
+    session_id: str | None = None
+    voice_id: str | None = None
 
 
 class ChatResponse(BaseModel):
     response: str
     session_id: str
-    workspace_id: Optional[str] = None
+    workspace_id: str | None = None
     agents_active: list[dict] = []
-    audio_url: Optional[str] = None
+    audio_url: str | None = None
 
 
 class SessionRenameRequest(BaseModel):
@@ -39,11 +46,10 @@ class SessionRenameRequest(BaseModel):
 async def chat(request: Request, req: ChatRequest):
     """Send a message to JARVIS and get a response."""
     session_id = req.session_id or str(uuid.uuid4())[:8]
-    
+
     # Auto-create workspace for every user request (v6.3.0)
     workspace_id = None
     try:
-        from jarvis.brain.mission_executor import mission_executor
         ws = await web_main.workspace_manager.create_workspace(
             goal=req.message[:200],
             owner="user",
@@ -52,71 +58,131 @@ async def chat(request: Request, req: ChatRequest):
         workspace_id = ws.id if hasattr(ws, "id") else ws.get("id")
     except Exception:
         pass
-    
+
     # Save user message
     db = await get_db()
     await db.index_conversation(session_id, "user", req.message)
 
     # Ensure session row exists
     await db.set_session_title(session_id, req.message[:80] if not req.session_id else "")
-    
+
     # Load LLM conversation context for multi-turn
-    if hasattr(web_main.jarvis, '_llm') and web_main.jarvis._llm:
+    if hasattr(web_main.jarvis, "_llm") and web_main.jarvis._llm:
         await web_main.jarvis._llm.load_session_context(session_id)
-    
-    # Process through JARVIS agent hierarchy (with timeout)
+
+    # v9.0.0: Classify intent through the Human Interaction Layer
+    intent = _interaction.classify(req.message)
+    tracker = _session_trackers.setdefault(session_id, type(_interaction.tracker)())
+    tracker.record(req.message, intent)
+    web_main.jarvis._last_intent = web_main.jarvis._last_intent or {}
+    web_main.jarvis._last_intent["interaction_mode"] = tracker.current_mode.value
+    web_main.jarvis._last_intent["interaction_intent"] = intent.value
+
+    # Process through active architecture (with timeout)
     import asyncio
+
     try:
-        response = await asyncio.wait_for(
-            web_main.jarvis.process_user_request(req.message),
-            timeout=120,
-        )
-    except asyncio.TimeoutError:
+        # Get active architecture
+        arch = get_architecture()
+        get_settings_manager().get()
+
+        if arch and arch.name == "Hermes":
+            # Use Hermes architecture for planning and execution
+            mission_ctx = MissionContext(
+                mission_id=session_id,
+                user_request=req.message,
+            )
+
+            # Plan
+            plan = await arch.plan(mission_ctx)
+
+            # Execute
+            results = await arch.execute(mission_ctx, plan)
+
+            # Build response from execution results
+            response_parts = []
+            for result in results:
+                if result.success and result.output:
+                    output = result.output
+                    if isinstance(output, dict):
+                        if output.get("type") == "research":
+                            response_parts.append(
+                                f"📚 **Research: {output.get('query', '')}**\n"
+                                f"{output.get('synthesis', '')}"
+                            )
+                        elif output.get("type") == "code":
+                            response_parts.append(
+                                f"💻 **Code ({output.get('language', 'python')})**\n```"
+                                f"{output.get('language', 'python')}\n{output.get('code', '')}\n```"
+                            )
+                        elif output.get("type") == "review":
+                            response_parts.append(f"✅ **Review**\n{output.get('review', '')}")
+                        else:
+                            response_parts.append(str(output))
+                    else:
+                        response_parts.append(str(output))
+
+            response = "\n\n".join(response_parts) if response_parts else "Task completed."
+        else:
+            # Use native JARVIS agent hierarchy
+            response = await asyncio.wait_for(
+                web_main.jarvis.process_user_request(req.message),
+                timeout=120,
+            )
+    except TimeoutError:
         response = "Request timed out. Please try a simpler request or try again later."
-    
+
     # Save assistant response
     await db.index_conversation(session_id, "assistant", response)
-    
+
     # Record as a learned skill if task was delegated (from Hermes pattern)
     try:
         from jarvis.brain.skills import skill_manager
-        intent = getattr(web_main.jarvis, '_last_intent', None)
-        if intent and intent.get('tasks'):
-            task = intent['tasks'][0]
+
+        intent = getattr(web_main.jarvis, "_last_intent", None)
+        if intent and intent.get("tasks"):
+            task = intent["tasks"][0]
             await skill_manager.record_skill(
-                name=task.get('name', req.message[:30]),
-                description=task.get('description', req.message),
-                steps=[{"action": task.get('king', '?'), "input": req.message, "output": response[:200]}],
+                name=task.get("name", req.message[:30]),
+                description=task.get("description", req.message),
+                steps=[
+                    {
+                        "action": task.get("king", "?"),
+                        "input": req.message,
+                        "output": response[:200],
+                    }
+                ],
             )
-            await skill_manager.update_outcome(task.get('name', req.message[:30]), success=True)
+            await skill_manager.update_outcome(task.get("name", req.message[:30]), success=True)
     except Exception:
         pass
-    
+
     # Save LLM conversation context for next turn
-    if hasattr(web_main.jarvis, '_llm') and web_main.jarvis._llm:
+    if hasattr(web_main.jarvis, "_llm") and web_main.jarvis._llm:
         await web_main.jarvis._llm.save_session_context(session_id)
-    
+
     # Get active agents for UI
     active_agents = []
     for king in web_main.jarvis.get_all_kings():
         king_dict = king.to_dict()
         if king_dict.get("state") != "idle":
             active_agents.append(king_dict)
-    
+
     # Generate TTS audio if enabled (async, non-blocking)
     audio_url = None
     config = get_config()
     if config.tts_enabled:
         try:
-            from jarvis.web.services.tts import voice_engine
             import hashlib
-            
+
+            from jarvis.web.services.tts import voice_engine
+
             # Generate audio filename
             audio_hash = hashlib.md5(f"{session_id}:{response[:50]}".encode()).hexdigest()[:12]
             audio_filename = f"chat_{audio_hash}"
             audio_path = Path("audio_cache") / audio_filename
             audio_path.parent.mkdir(exist_ok=True)
-            
+
             # Generate audio async (non-blocking)
             result = await voice_engine.agenerate(response, str(audio_path))
             if result:
@@ -125,7 +191,7 @@ async def chat(request: Request, req: ChatRequest):
         except Exception as e:
             print(f"TTS error: {e}")
             pass  # TTS is optional
-    
+
     return ChatResponse(
         response=response,
         session_id=session_id,
@@ -136,12 +202,14 @@ async def chat(request: Request, req: ChatRequest):
 
 
 @router.get("/stream")
-async def chat_stream(message: str, session_id: Optional[str] = None):
+async def chat_stream(message: str, session_id: str | None = None):
     """Stream a chat response via SSE — true token-by-token streaming."""
     sid = session_id or str(uuid.uuid4())[:8]
     tool_calls = []
+    mission_data = None
 
     async def event_generator():
+        nonlocal mission_data, tool_calls
         try:
             yield f"data: {json.dumps({'type': 'state', 'state': 'thinking'})}\n\n"
 
@@ -152,19 +220,119 @@ async def chat_stream(message: str, session_id: Optional[str] = None):
             # Ensure session row exists in conversation_sessions
             await db.set_session_title(sid, message[:80] if not session_id else "")
 
-            llm = getattr(web_main.jarvis, '_llm', None)
+            llm = getattr(web_main.jarvis, "_llm", None)
             if llm:
                 await llm.load_session_context(sid)
 
-            # Generate capability-aware system prompt
-            from jarvis.core.capabilities import registry
-            capability_prompt = await registry.generate_capability_prompt()
-            
-            # Build system prompt with capabilities
-            system_prompt = capability_prompt if capability_prompt else None
+            # v9.0.0: Classify intent — only inject capabilities for non-casual modes
+            intent = _interaction.classify(message)
+            tracker = _session_trackers.setdefault(sid, type(_interaction.tracker)())
+            tracker.record(message, intent)
+            web_main.jarvis._last_intent = web_main.jarvis._last_intent or {}
+            web_main.jarvis._last_intent["interaction_mode"] = tracker.current_mode.value
+            web_main.jarvis._last_intent["interaction_intent"] = intent.value
 
-            # Use the async streaming LLM if available
-            if llm and hasattr(llm, 'achat_stream'):
+            include_caps = _interaction.should_expose_capabilities(message)
+            system_prompt = None
+            if include_caps:
+                from jarvis.core.capabilities import registry
+
+                capability_prompt = await registry.generate_capability_prompt()
+                system_prompt = capability_prompt if capability_prompt else None
+
+            # Get active architecture
+            arch = get_architecture()
+
+            # If Hermes architecture, use plan/execute flow and emit mission events
+            if arch and arch.name == "Hermes":
+                mission_ctx = MissionContext(
+                    mission_id=sid,
+                    user_request=message,
+                )
+
+                # Emit mission start
+                mission_data = {"goal": message, "plan": None, "steps": []}
+                yield f"data: {json.dumps({'type': 'mission_start', 'mission': mission_data})}\n\n"
+
+                # Plan
+                plan = await arch.plan(mission_ctx)
+
+                mission_data["plan"] = {
+                    "id": plan.id,
+                    "goal": plan.goal,
+                    "steps": [s.to_dict() for s in plan.steps],
+                }
+                yield (
+                    f"data: {json.dumps({'type': 'mission_plan', 'plan': mission_data['plan']})}"
+                    "\n\n"
+                )
+
+                # Execute
+                results = await arch.execute(mission_ctx, plan)
+
+                # Build response from execution results
+                response_parts = []
+                for i, result in enumerate(results):
+                    step = plan.steps[i] if i < len(plan.steps) else None
+
+                    # Emit step execution event
+                    step_payload = {
+                        "type": "mission_step",
+                        "step": step.to_dict() if step else {},
+                        "result": (
+                            result.to_dict()
+                            if hasattr(result, "to_dict")
+                            else {
+                                "success": result.success,
+                                "output": str(result.output)[:500],
+                                "duration_ms": result.duration_ms,
+                            }
+                        ),
+                    }
+                    yield f"data: {json.dumps(step_payload)}\n\n"
+
+                    if result.success and result.output:
+                        output = result.output
+                        if isinstance(output, dict):
+                            if output.get("type") == "research":
+                                response_parts.append(
+                                    f"📚 **Research: {output.get('query', '')}**\n"
+                                    f"{output.get('synthesis', '')}"
+                                )
+                            elif output.get("type") == "code":
+                                response_parts.append(
+                                    f"💻 **Code ({output.get('language', 'python')})**\n```"
+                                    f"{output.get('language', 'python')}\n"
+                                    f"{output.get('code', '')}\n```"
+                                )
+                            elif output.get("type") == "review":
+                                response_parts.append(f"✅ **Review**\n{output.get('review', '')}")
+                            else:
+                                response_parts.append(str(output))
+                        else:
+                            response_parts.append(str(output))
+
+                response = "\n\n".join(response_parts) if response_parts else "Task completed."
+
+                # Emit verification results
+                for i, result in enumerate(results):
+                    verification = await arch.verify(
+                        plan.steps[i] if i < len(plan.steps) else None, result
+                    )
+                    verify_payload = {
+                        "type": "mission_verify",
+                        "step_id": (plan.steps[i].id if i < len(plan.steps) else f"step_{i}"),
+                        "verification": verification,
+                    }
+                    yield f"data: {json.dumps(verify_payload)}\n\n"
+
+                # Emit reflection
+                reflection = await arch.reflect(mission_ctx)
+                yield (
+                    f"data: {json.dumps({'type': 'mission_reflect', 'reflection': reflection})}\n\n"
+                )
+            else:
+                # Native JARVIS flow
                 full_response: list[str] = []
                 try:
                     async for token in llm.achat_stream(message, system_prompt=system_prompt):
@@ -177,36 +345,8 @@ async def chat_stream(message: str, session_id: Optional[str] = None):
 
                 response = "".join(full_response)
 
-                # Check for tool calls in the response
-                import re
-                tool_pattern = re.findall(r'\[TOOL:\s*(\w+)\]', response)
-                for tool_name in tool_pattern:
-                    tool_calls.append({"name": tool_name, "ok": True})
-
-                await db.index_conversation(sid, "assistant", response)
-                await llm.save_session_context(sid)
-            else:
-                # Fallback: non-streaming path through agent hierarchy
-                try:
-                    result = await web_main.jarvis.process_user_request(message)
-                    response = result
-                    # Extract tool calls from events
-                    from jarvis.core.events import event_bus
-                    recent_events = [e for e in getattr(event_bus, '_history', []) 
-                                    if e.type == 'worker.tool_call'][-5:]
-                    for evt in recent_events:
-                        tool_calls.append({
-                            "name": evt.data.get("action", "unknown"),
-                            "ok": True
-                        })
-                except Exception as e:
-                    response = f"Error: {str(e)[:200]}"
-                await db.index_conversation(sid, "assistant", response)
-                yield f"data: {json.dumps({'type': 'token', 'content': response})}\n\n"
-
-            # Send tool calls if any
-            if tool_calls:
-                yield f"data: {json.dumps({'type': 'tool_calls', 'calls': tool_calls})}\n\n"
+            await db.index_conversation(sid, "assistant", response)
+            await llm.save_session_context(sid)
 
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'content': str(e)[:200]})}\n\n"

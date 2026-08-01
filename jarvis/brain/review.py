@@ -7,12 +7,12 @@ returned to the user or the calling agent.
 
 import time
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
+
 from loguru import logger
 
 
-class ReviewVerdict(str, Enum):
+class ReviewVerdict(StrEnum):
     PASS = "pass"
     NEEDS_WORK = "needs_work"
     FAIL = "fail"
@@ -21,6 +21,7 @@ class ReviewVerdict(str, Enum):
 @dataclass
 class ReviewResult:
     """Result of a quality review."""
+
     verdict: ReviewVerdict
     score: float  # 0-1
     feedback: str
@@ -46,17 +47,25 @@ class ReviewPipeline:
 
     # Quality checks (applied in order)
     CHECKS = [
-        "completeness",   # Did the task address all parts?
-        "correctness",    # Is the output logically correct?
-        "safety",         # No dangerous commands or secrets?
-        "clarity",        # Is the response clear?
+        "completeness",  # Did the task address all parts?
+        "correctness",  # Is the output logically correct?
+        "safety",  # No dangerous commands or secrets?
+        "clarity",  # Is the response clear?
     ]
 
     # Patterns that indicate potential issues
     DANGER_PATTERNS = [
-        "rm -rf", "sudo rm", "DROP TABLE", "DELETE FROM",
-        "password =", "api_key =", "secret =", "token =",
-        "chmod 777", "> /dev/sda", "dd if=",
+        "rm -rf",
+        "sudo rm",
+        "DROP TABLE",
+        "DELETE FROM",
+        "password =",
+        "api_key =",
+        "secret =",
+        "token =",
+        "chmod 777",
+        "> /dev/sda",
+        "dd if=",
     ]
 
     def __init__(self):
@@ -103,7 +112,7 @@ class ReviewPipeline:
                 found_issues.append(f"Contains error signal: '{sig}'")
 
         # Check 5: Tool use completeness
-        if "[TOOL:" in result and "[TOOL_RESULT:" not in result:
+        if "[TOOL:" in result and "[TOOL RESULT:" not in result:
             score -= 0.1
             found_issues.append("Tool call present but no result — may be incomplete")
 
@@ -136,7 +145,7 @@ class ReviewPipeline:
 
         self._reviews.append(review)
         if len(self._reviews) > self._max_reviews:
-            self._reviews = self._reviews[-self._max_reviews:]
+            self._reviews = self._reviews[-self._max_reviews :]
 
         logger.info(f"Review: {verdict.value} (score={score:.2f}, issues={len(found_issues)})")
         return review
@@ -153,7 +162,9 @@ class ReviewPipeline:
             "avg_score": round(avg_score, 3),
             "verdicts": {
                 "pass": pass_count,
-                "needs_work": sum(1 for r in self._reviews if r.verdict == ReviewVerdict.NEEDS_WORK),
+                "needs_work": sum(
+                    1 for r in self._reviews if r.verdict == ReviewVerdict.NEEDS_WORK
+                ),
                 "fail": sum(1 for r in self._reviews if r.verdict == ReviewVerdict.FAIL),
             },
         }

@@ -9,13 +9,13 @@ Maintains real-time state of the browser session:
 """
 
 import time
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional
+from enum import StrEnum
 
 
-class BrowserStatus(str, Enum):
+class BrowserStatus(StrEnum):
     """Current browser operating status."""
+
     IDLE = "idle"
     NAVIGATING = "Navigating"
     LOADING = "Loading"
@@ -30,6 +30,7 @@ class BrowserStatus(str, Enum):
 @dataclass
 class TabInfo:
     """Information about a single browser tab."""
+
     id: str = ""
     url: str = ""
     title: str = ""
@@ -48,6 +49,7 @@ class TabInfo:
 @dataclass
 class NavigationEntry:
     """A single entry in the navigation history."""
+
     url: str = ""
     title: str = ""
     timestamp: float = field(default_factory=time.time)
@@ -69,13 +71,14 @@ class BrowserState:
     Updated by the BrowserManager on every action.
     Read by the UI for live status display.
     """
+
     status: str = BrowserStatus.IDLE
     current_url: str = ""
     current_title: str = ""
     tabs: list[TabInfo] = None
     history: list[NavigationEntry] = None
-    active_element: Optional[str] = None
-    error: Optional[str] = None
+    active_element: str | None = None
+    error: str | None = None
     last_action: str = ""
     last_action_time: float = 0.0
     progress: float = 0.0  # 0-1 for multi-step operations
@@ -125,7 +128,7 @@ class BrowserState:
     def set_active_tab(self, tab_id: str):
         self._active_tab_id = tab_id
         for t in self.tabs:
-            t.is_active = (t.id == tab_id)
+            t.is_active = t.id == tab_id
 
     def remove_tab(self, tab_id: str):
         self.tabs = [t for t in self.tabs if t.id != tab_id]
@@ -140,9 +143,13 @@ class BrowserState:
         self._current_action = self.last_action
         self.last_action_time = time.time()
         self._last_activity = self.last_action_time
-        self._navigation_history.append(NavigationEntry(
-            url=url, title=title, duration_ms=duration_ms,
-        ))
+        self._navigation_history.append(
+            NavigationEntry(
+                url=url,
+                title=title,
+                duration_ms=duration_ms,
+            )
+        )
         entry = self._navigation_history[-1]
         self.history.append(entry)
         # Keep last 50 entries
@@ -204,6 +211,7 @@ class BrowserState:
         parts = [f"{status_icon} {self.status}"]
         if self.current_url:
             from urllib.parse import urlparse
+
             domain = urlparse(self.current_url).netloc
             parts.append(f"  {domain}")
         if self.agent:

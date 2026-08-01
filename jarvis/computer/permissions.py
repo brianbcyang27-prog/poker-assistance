@@ -10,14 +10,13 @@ Risk levels:
   DANGEROUS — block unless manually approved (system folder changes)
 """
 
+import logging
 import os
 import re
-import logging
-from pathlib import Path
-from typing import Optional
+import time
 from dataclasses import dataclass, field
 
-from .actions import RiskLevel, ActionType
+from .actions import ActionType, RiskLevel
 
 log = logging.getLogger("jarvis.computer.permissions")
 
@@ -151,6 +150,7 @@ SAFE_COMMANDS = [
 @dataclass
 class PermissionDecision:
     """Result of a permission check."""
+
     allowed: bool
     risk_level: str
     reason: str
@@ -172,7 +172,7 @@ class PermissionSystem:
             # execute
     """
 
-    def __init__(self, safe_dirs: Optional[list[str]] = None, mode: str = "normal"):
+    def __init__(self, safe_dirs: list[str] | None = None, mode: str = "normal"):
         """Initialize permission system.
 
         Args:
@@ -184,13 +184,15 @@ class PermissionSystem:
         if safe_dirs:
             self.safe_dirs.extend(safe_dirs)
         self._approval_cache: dict[str, bool] = {}
+        self._audit_log: list[dict] = []
+        self._audit_max = 500
 
     def check(
         self,
         command: str,
         action_type: str = ActionType.TERMINAL,
         agent: str = "",
-        context: Optional[dict] = None,
+        context: dict | None = None,
     ) -> PermissionDecision:
         """Check if an action is allowed.
 
@@ -214,7 +216,17 @@ class PermissionSystem:
         # Step 3: Apply policy
         decision = self._apply_policy(risk, command, agent)
 
-        log.debug(f"Permission check: '{command[:50]}' → {risk} → {'allowed' if decision.allowed else 'blocked'}")
+        self._audit(
+            "check",
+            command,
+            risk,
+            "allow" if decision.allowed else "block",
+            agent=agent,
+        )
+        log.debug(
+            f"Permission check: '{command[:50]}' → {risk} → "
+            f"{'allowed' if decision.allowed else 'blocked'}"
+        )
         return decision
 
     def classify_risk(self, command: str, action_type: str = ActionType.TERMINAL) -> str:
@@ -263,7 +275,13 @@ class PermissionSystem:
 
     def _higher_risk(self, a: str, b: str) -> str:
         """Return the higher of two risk levels."""
-        order = [RiskLevel.SAFE, RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.DANGEROUS]
+        order = [
+            RiskLevel.SAFE,
+            RiskLevel.LOW,
+            RiskLevel.MEDIUM,
+            RiskLevel.HIGH,
+            RiskLevel.DANGEROUS,
+        ]
         ai = order.index(a) if a in order else 0
         bi = order.index(b) if b in order else 0
         return order[max(ai, bi)]
@@ -285,21 +303,26 @@ class PermissionSystem:
                 return PermissionDecision(allowed=True, risk_level=risk, reason="Permissive mode")
             if risk == RiskLevel.HIGH:
                 return PermissionDecision(
-                    allowed=True, risk_level=risk,
+                    allowed=True,
+                    risk_level=risk,
                     reason="Permissive mode (high risk)",
                     requires_confirmation=True,
                 )
             return PermissionDecision(
-                allowed=False, risk_level=risk,
+                allowed=False,
+                risk_level=risk,
                 reason="Even permissive mode blocks dangerous actions",
                 requires_approval=True,
             )
 
         if self.mode == "strict":
             if risk in (RiskLevel.SAFE,):
-                return PermissionDecision(allowed=True, risk_level=risk, reason="Strict mode: safe action")
+                return PermissionDecision(
+                    allowed=True, risk_level=risk, reason="Strict mode: safe action"
+                )
             return PermissionDecision(
-                allowed=False, risk_level=risk,
+                allowed=False,
+                risk_level=risk,
                 reason="Strict mode: requires manual approval",
                 requires_approval=True,
             )
@@ -307,14 +330,16 @@ class PermissionSystem:
         # Normal mode
         if risk in (RiskLevel.SAFE, RiskLevel.LOW):
             return PermissionDecision(
-                allowed=True, risk_level=risk,
+                allowed=True,
+                risk_level=risk,
                 reason=f"Auto-approved: {risk} risk",
                 approved_by="auto",
             )
 
         if risk == RiskLevel.MEDIUM:
             return PermissionDecision(
-                allowed=True, risk_level=risk,
+                allowed=True,
+                risk_level=risk,
                 reason="Medium risk: allowed with notification",
                 requires_confirmation=True,
                 approved_by="notification",
@@ -322,7 +347,8 @@ class PermissionSystem:
 
         if risk == RiskLevel.HIGH:
             return PermissionDecision(
-                allowed=False, risk_level=risk,
+                allowed=False,
+                risk_level=risk,
                 reason="High risk: requires explicit confirmation",
                 requires_confirmation=True,
                 requires_approval=True,
@@ -330,7 +356,8 @@ class PermissionSystem:
 
         # DANGEROUS
         return PermissionDecision(
-            allowed=False, risk_level=risk,
+            allowed=False,
+            risk_level=risk,
             reason="Dangerous: blocked unless manually approved",
             requires_approval=True,
         )
@@ -340,11 +367,13 @@ class PermissionSystem:
         cache_key = f"{command}:{agent}"
         self._approval_cache[cache_key] = True
         log.info(f"Approved command: '{command[:50]}' for {agent}")
+        self._audit("approve", command, "", "allow", agent=agent)
 
     def revoke_approval(self, command: str, agent: str = "") -> None:
         """Remove a cached approval."""
         cache_key = f"{command}:{agent}"
         self._approval_cache.pop(cache_key, None)
+        self._audit("revoke", command, "", "revoke", agent=agent)
 
     def is_path_allowed(self, path: str) -> bool:
         """Check if a file path is in an allowed directory."""
@@ -357,6 +386,26 @@ class PermissionSystem:
                 return False
 
         return True
+
+    def _audit(
+        self, action: str, command: str, risk_level: str, decision: str, agent: str = ""
+    ) -> None:
+        """Record an audit entry for a permission check."""
+        entry = {
+            "timestamp": time.time(),
+            "action": action,
+            "command": command[:120],
+            "risk_level": risk_level,
+            "decision": decision,
+            "agent": agent,
+        }
+        self._audit_log.append(entry)
+        if len(self._audit_log) > self._audit_max:
+            self._audit_log.pop(0)
+
+    def get_audit_log(self, limit: int = 100) -> list[dict]:
+        """Return the most recent audit entries."""
+        return list(self._audit_log[-limit:])
 
     def get_stats(self) -> dict:
         """Get permission system statistics."""

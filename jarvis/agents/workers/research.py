@@ -5,8 +5,9 @@ Can now browse, extract, and analyze web pages through the secure browser pipeli
 """
 
 import logging
+
+from ...core.models import Rank, Suit
 from .base import BaseWorker
-from ...core.models import Suit, Rank
 
 log = logging.getLogger("jarvis.workers.research")
 
@@ -38,20 +39,20 @@ Find reliable information efficiently.
 
 You have access to the browser for web research:
 
-Browser Actions:
-- [BROWSER: navigate(url="https://example.com")] — Navigate to a URL
-- [BROWSER: search(query="your search query")] — Search the web
-- [BROWSER: extract()] — Extract structured data from current page
-- [BROWSER: click(selector="button.submit")] — Click an element
-- [BROWSER: type(selector="input[name=q]", text="query")] — Type into a field
-- [BROWSER: scroll(direction="down")] — Scroll the page
-- [BROWSER: back()] — Go back in history
-- [BROWSER: get_text()] — Get visible text
+Tool Actions:
+- [TOOL: navigate(url="https://example.com")] — Navigate to a URL
+- [TOOL: search(query="your search query")] — Search the web
+- [TOOL: extract()] — Extract structured data from current page
+- [TOOL: click(selector="button.submit")] — Click an element
+- [TOOL: type(selector="input[name=q]", text="query")] — Type into a field
+- [TOOL: scroll(direction="down")] — Scroll the page
+- [TOOL: back()] — Go back in history
+- [TOOL: get_text()] — Get visible text
 
 Workflow for research:
-1. Search using [BROWSER: search(query="topic")]
+1. Search using [TOOL: search(query="topic")]
 2. Click on relevant results
-3. Extract data using [BROWSER: extract()]
+3. Extract data using [TOOL: extract()]
 4. Analyze and synthesize findings
 5. Cite your sources
 
@@ -112,12 +113,14 @@ Prioritize official documentation and authoritative sources."""
                     )
                     if page_extract.get("ok"):
                         data = page_extract.get("data", {})
-                        results.append({
-                            "url": url,
-                            "title": data.get("title", ""),
-                            "content": data.get("content", "")[:2000],
-                            "text": data.get("text", "")[:2000],
-                        })
+                        results.append(
+                            {
+                                "url": url,
+                                "title": data.get("title", ""),
+                                "content": data.get("content", "")[:2000],
+                                "text": data.get("text", "")[:2000],
+                            }
+                        )
                         sources.append(url)
                 except Exception as e:
                     log.warning(f"Failed to fetch {url}: {e}")
@@ -153,9 +156,10 @@ Focus on: official sources, version accuracy, practical examples.
 Find the right documentation for any technology.
 
 You have access to the browser:
-- [BROWSER: search(query="library name docs")] — Find documentation
-- [BROWSER: navigate(url="https://docs.example.com")] — Go to docs
-- [BROWSER: extract()] — Extract documentation content
+- [TOOL: search(query="library name docs")] — Find documentation
+- [TOOL: navigate(url="https://docs.example.com")] — Go to docs
+- [TOOL: extract()] — Extract documentation content
+- [TOOL: get_text()] — Get visible text from page
 
 Always check the latest version of documentation.
 Prefer official sources over tutorials."""
@@ -182,9 +186,10 @@ Focus on: accuracy, evidence, multiple sources.
 Verify claims and ensure correctness.
 
 You have access to the browser:
-- [BROWSER: search(query="fact check claim")] — Search for verification
-- [BROWSER: navigate(url="https://...")] — Visit authoritative sources
-- [BROWSER: extract()] — Extract evidence from pages
+- [TOOL: search(query="fact check claim")] — Search for verification
+- [TOOL: navigate(url="https://...")] — Visit authoritative sources
+- [TOOL: extract()] — Extract evidence from pages
+- [TOOL: get_text()] — Get visible text from page
 
 Always check at least 2-3 sources for any claim.
 Note when sources conflict or information is uncertain."""

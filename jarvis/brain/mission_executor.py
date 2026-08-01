@@ -5,17 +5,33 @@ Every mission now auto-creates a workspace with file structure.
 """
 
 import asyncio
-import json
-import logging
 import time
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+
 from loguru import logger
 
-from .dag_planner import dag_planner, DAGNode, DAGNodeStatus
-from ..core.events import event_bus, Event
-from ..core.models import Task, AgentState
+from ..core.events import Event, event_bus
+from ..core.models import Task
+from .dag_planner import DAGNode, DAGNodeStatus, dag_planner
+
+
+@dataclass
+class MissionBudget:
+    """Budget constraints for a mission execution.
+
+    Limits prevent runaway missions that exceed acceptable resource usage.
+    Once any limit is reached, the mission is cancelled and a
+    ``mission.budget_exceeded`` event is emitted.
+    """
+
+    max_steps: int = 50
+    """Maximum DAG nodes to execute before forcing cancellation."""
+
+    max_duration_seconds: float = 300.0
+    """Maximum wall-clock time in seconds (default 5 minutes)."""
 
 
 class MissionExecutor:
@@ -25,6 +41,7 @@ class MissionExecutor:
         self._jarvis = None
         self._workspace_root = Path(__file__).parent.parent.parent / "workspaces"
         self._bg_tasks = set()
+        self._running_tasks: dict[str, asyncio.Task] = {}
 
     def set_jarvis(self, jarvis):
         self._jarvis = jarvis
@@ -34,6 +51,7 @@ class MissionExecutor:
             return self._jarvis
         try:
             from ..web.main import jarvis as web_jarvis
+
             if web_jarvis:
                 self._jarvis = web_jarvis
                 return self._jarvis
@@ -41,22 +59,61 @@ class MissionExecutor:
             pass
         return None
 
-    async def execute_mission(self, mission_id: str, workspace_id: str = None) -> dict:
-        """Execute a DAG mission with workspace tracking."""
-        jarvis = self._get_jarvis()
+    async def execute_mission(
+        self,
+        mission_id: str,
+        workspace_id: str = None,
+        budget: MissionBudget | None = None,
+    ) -> dict:
+        """Execute a DAG mission with workspace tracking and optional budget enforcement."""
+        self._get_jarvis()
+        budget = budget or MissionBudget()
 
-        await event_bus.emit(Event(
-            type="mission.started",
-            data={"mission_id": mission_id, "workspace_id": workspace_id},
-            source="J",
-        ))
+        # Register the running task so cancel() can reach it
+        current_task = asyncio.current_task()
+        if current_task is not None:
+            self._running_tasks[mission_id] = current_task
+
+        start_time = time.monotonic()
+        steps_executed = 0
+
+        await event_bus.emit(
+            Event(
+                type="mission.started",
+                data={
+                    "mission_id": mission_id,
+                    "workspace_id": workspace_id,
+                    "budget": {
+                        "max_steps": budget.max_steps,
+                        "max_duration_seconds": budget.max_duration_seconds,
+                    },
+                },
+                source="J",
+            )
+        )
 
         # Record stage in workspace
         if workspace_id:
             await self._record_workspace_stage(workspace_id, "execute", "start")
-            await self._add_timeline(workspace_id, "mission.started", "J", f"Mission {mission_id} started")
+            await self._add_timeline(
+                workspace_id, "mission.started", "J", f"Mission {mission_id} started"
+            )
 
         while True:
+            elapsed = time.monotonic() - start_time
+            if steps_executed >= budget.max_steps:
+                await self._fail_budget_exceeded(
+                    mission_id, workspace_id, reason=f"Step limit ({budget.max_steps}) reached"
+                )
+                break
+            if elapsed >= budget.max_duration_seconds:
+                await self._fail_budget_exceeded(
+                    mission_id,
+                    workspace_id,
+                    reason=f"Time limit ({budget.max_duration_seconds}s) exceeded",
+                )
+                break
+
             status = dag_planner.get_mission_status(mission_id)
             if status.get("is_complete") or status.get("has_failures"):
                 break
@@ -65,11 +122,17 @@ class MissionExecutor:
             if not ready:
                 if status.get("running", 0) == 0:
                     break
-                await event_bus.emit(Event(
-                    type="mission.progress",
-                    data={"mission_id": mission_id, "progress": status["progress"], "running": status["running"]},
-                    source="J",
-                ))
+                await event_bus.emit(
+                    Event(
+                        type="mission.progress",
+                        data={
+                            "mission_id": mission_id,
+                            "progress": status["progress"],
+                            "running": status["running"],
+                        },
+                        source="J",
+                    )
+                )
                 break
 
             for node in ready:
@@ -83,37 +146,46 @@ class MissionExecutor:
 
                 completed_node = dag_planner.complete_task(mission_id, node.id, result_text)
                 if completed_node:
+                    steps_executed += 1
                     # Record in workspace
                     if workspace_id:
                         await self._record_task_result(workspace_id, node, result_text)
                         await self._add_timeline(
-                            workspace_id, "task.completed", node.assigned_to,
-                            f"Completed: {node.name}", task_id=node.id, confidence=0.8,
+                            workspace_id,
+                            "task.completed",
+                            node.assigned_to,
+                            f"Completed: {node.name}",
+                            task_id=node.id,
+                            confidence=0.8,
                         )
 
-                    await event_bus.emit(Event(
-                        type="mission.task_completed",
-                        data={
-                            "mission_id": mission_id,
-                            "task_id": node.id,
-                            "task_name": node.name,
-                            "assigned_to": node.assigned_to,
-                            "result": result_text[:200],
-                        },
-                        source="J",
-                    ))
+                    await event_bus.emit(
+                        Event(
+                            type="mission.task_completed",
+                            data={
+                                "mission_id": mission_id,
+                                "task_id": node.id,
+                                "task_name": node.name,
+                                "assigned_to": node.assigned_to,
+                                "result": result_text[:200],
+                            },
+                            source="J",
+                        )
+                    )
 
             updated_status = dag_planner.get_mission_status(mission_id)
-            await event_bus.emit(Event(
-                type="mission.progress",
-                data={
-                    "mission_id": mission_id,
-                    "progress": updated_status["progress"],
-                    "completed": updated_status["completed"],
-                    "total": updated_status["total"],
-                },
-                source="J",
-            ))
+            await event_bus.emit(
+                Event(
+                    type="mission.progress",
+                    data={
+                        "mission_id": mission_id,
+                        "progress": updated_status["progress"],
+                        "completed": updated_status["completed"],
+                        "total": updated_status["total"],
+                    },
+                    source="J",
+                )
+            )
 
         final = dag_planner.get_mission_status(mission_id)
         event_type = "mission.completed" if final.get("is_complete") else "mission.failed"
@@ -122,12 +194,15 @@ class MissionExecutor:
         if workspace_id:
             await self._record_workspace_stage(workspace_id, "execute", "complete")
             await self._add_timeline(
-                workspace_id, event_type, "J",
+                workspace_id,
+                event_type,
+                "J",
                 f"Mission {'completed' if final.get('is_complete') else 'failed'}",
             )
 
             try:
                 from ..web.main import workspace_manager
+
                 if final.get("is_complete"):
                     await workspace_manager.complete_workspace(workspace_id)
                 else:
@@ -135,11 +210,15 @@ class MissionExecutor:
             except Exception as e:
                 logger.warning(f"Failed to complete workspace: {e}")
 
-        await event_bus.emit(Event(
-            type=event_type,
-            data={**final},
-            source="J",
-        ))
+        await event_bus.emit(
+            Event(
+                type=event_type,
+                data={**final},
+                source="J",
+            )
+        )
+
+        self._running_tasks.pop(mission_id, None)
         return final
 
     async def _gather_peer_context(self, mission_id: str, current_node_id: str) -> str:
@@ -156,11 +235,15 @@ class MissionExecutor:
         for dep_id in current_node.dependencies:
             dep_node = dag_planner._get_node(mission_id, dep_id)
             if dep_node and dep_node.status == DAGNodeStatus.COMPLETED and dep_node.result:
-                context_parts.append(f"Worker {dep_node.assigned_to} ({dep_node.name}): {dep_node.result[:300]}")
+                context_parts.append(
+                    f"Worker {dep_node.assigned_to} ({dep_node.name}): {dep_node.result[:300]}"
+                )
 
         return "\n".join(context_parts) if context_parts else ""
 
-    async def _delegate_to_king(self, node: DAGNode, mission_id: str, peer_context: str = "") -> str:
+    async def _delegate_to_king(
+        self, node: DAGNode, mission_id: str, peer_context: str = ""
+    ) -> str:
         """Delegate a single DAG node to the appropriate King."""
         jarvis = self._get_jarvis()
         if not jarvis:
@@ -187,7 +270,9 @@ class MissionExecutor:
             dag_planner.fail_task(mission_id, node.id, str(e))
             return f"Error: {e}"
 
-    def create_and_execute(self, description: str, tasks: list[dict], user_request: str = "") -> dict:
+    def create_and_execute(
+        self, description: str, tasks: list[dict], user_request: str = ""
+    ) -> dict:
         """Create a DAG mission with workspace and execute it.
 
         Returns {"ok": True, "mission_id": ..., "workspace_id": ...} on success.
@@ -197,14 +282,16 @@ class MissionExecutor:
         nodes = []
         for i, task_dict in enumerate(tasks):
             task_id = task_dict.get("id", f"task_{i}")
-            nodes.append(DAGNode(
-                id=task_id,
-                name=task_dict.get("name", f"Task {i + 1}"),
-                description=task_dict.get("description", description),
-                assigned_to=task_dict.get("assigned_to", "♠K"),
-                priority=task_dict.get("priority", 5),
-                dependencies=task_dict.get("dependencies", []),
-            ))
+            nodes.append(
+                DAGNode(
+                    id=task_id,
+                    name=task_dict.get("name", f"Task {i + 1}"),
+                    description=task_dict.get("description", description),
+                    assigned_to=task_dict.get("assigned_to", "♠K"),
+                    priority=task_dict.get("priority", 5),
+                    dependencies=task_dict.get("dependencies", []),
+                )
+            )
 
         create_result = dag_planner.create_mission(mission_id, nodes)
         if not create_result.get("ok"):
@@ -236,7 +323,9 @@ class MissionExecutor:
         workspace_id = None
         if workspace_manager:
             ws = await workspace_manager.create_workspace(
-                goal=goal, owner=owner, user_request=user_request,
+                goal=goal,
+                owner=owner,
+                user_request=user_request,
             )
             workspace_id = ws.id
 
@@ -248,14 +337,16 @@ class MissionExecutor:
         if tasks:
             nodes = []
             for i, t in enumerate(tasks):
-                nodes.append(DAGNode(
-                    id=t.get("id", f"task_{i}"),
-                    name=t.get("name", f"Task {i + 1}"),
-                    description=t.get("description", goal),
-                    assigned_to=t.get("assigned_to", "♠K"),
-                    priority=t.get("priority", 5),
-                    dependencies=t.get("dependencies", []),
-                ))
+                nodes.append(
+                    DAGNode(
+                        id=t.get("id", f"task_{i}"),
+                        name=t.get("name", f"Task {i + 1}"),
+                        description=t.get("description", goal),
+                        assigned_to=t.get("assigned_to", "♠K"),
+                        priority=t.get("priority", 5),
+                        dependencies=t.get("dependencies", []),
+                    )
+                )
             dag_planner.create_mission(mission_id, nodes)
 
         # Execute asynchronously (track to prevent silent loss)
@@ -280,11 +371,20 @@ class MissionExecutor:
         (ws_dir / "tests").mkdir(exist_ok=True)
 
         files = {
-            "README.md": f"# Workspace: {goal}\n\n> Created: {datetime.now().isoformat()}\n> ID: {workspace_id}\n\n## Goal\n\n{goal}\n\n## User Request\n\n{user_request}\n",
-            "mission.md": f"# Mission Plan\n\n## Goal\n{goal}\n\n## Status\n- [ ] Research\n- [ ] Planning\n- [ ] Execution\n- [ ] Verification\n- [ ] Review\n",
+            "README.md": (
+                f"# Workspace: {goal}\n\n> Created: {datetime.now().isoformat()}\n"
+                f"> ID: {workspace_id}\n\n## Goal\n\n{goal}\n\n## User Request\n\n{user_request}\n"
+            ),
+            "mission.md": (
+                f"# Mission Plan\n\n## Goal\n{goal}\n\n## Status\n- [ ] Research\n"
+                f"- [ ] Planning\n- [ ] Execution\n- [ ] Verification\n- [ ] Review\n"
+            ),
             "research.md": "# Research Findings\n\n*No research findings yet.*\n",
             "architecture.md": "# Architecture Plan\n\n*No architecture plan yet.*\n",
-            "todo.md": "# TODO\n\n- [ ] Define tasks\n- [ ] Assign workers\n- [ ] Execute\n- [ ] Verify\n- [ ] Review\n",
+            "todo.md": (
+                "# TODO\n\n- [ ] Define tasks\n- [ ] Assign workers\n- [ ] Execute\n"
+                "- [ ] Verify\n- [ ] Review\n"
+            ),
             "timeline.md": "# Mission Timeline\n\n*No events yet.*\n",
             "review.md": "# Review\n\n*No review yet.*\n",
             "notes.md": "# Notes\n\n*No notes yet.*\n",
@@ -296,6 +396,7 @@ class MissionExecutor:
     async def _record_workspace_stage(self, workspace_id: str, stage: str, action: str):
         try:
             from ..web.main import workspace_manager
+
             await workspace_manager.record_stage(workspace_id, stage, action)
         except Exception as e:
             logger.warning(f"Failed to record workspace stage: {e}")
@@ -303,25 +404,66 @@ class MissionExecutor:
     async def _record_task_result(self, workspace_id: str, node: DAGNode, result: str):
         try:
             from ..web.main import workspace_manager
+
             ws = await workspace_manager.get_workspace(workspace_id)
             if ws:
-                ws.execution_results.append({
-                    "task_id": node.id,
-                    "task_name": node.name,
-                    "assigned_to": node.assigned_to,
-                    "result": result[:1000],
-                    "completed_at": datetime.now().isoformat(),
-                })
+                ws.execution_results.append(
+                    {
+                        "task_id": node.id,
+                        "task_name": node.name,
+                        "assigned_to": node.assigned_to,
+                        "result": result[:1000],
+                        "completed_at": datetime.now().isoformat(),
+                    }
+                )
                 from ..core.database import get_db
+
                 db = await get_db()
                 await db.save_workspace(ws.model_dump())
         except Exception as e:
             logger.warning(f"Failed to record task result: {e}")
 
-    async def _add_timeline(self, workspace_id: str, event_type: str, source: str, description: str, **extra):
+    async def _fail_budget_exceeded(
+        self, mission_id: str, workspace_id: str | None, *, reason: str
+    ) -> None:
+        """Cancel a mission that exceeded its budget and emit the corresponding event."""
+        dag_planner.fail_task(
+            mission_id,
+            "__budget__",
+            error=reason,
+        )
+        if workspace_id:
+            await self._add_timeline(workspace_id, "mission.budget_exceeded", "J", reason)
+        await event_bus.emit(
+            Event(
+                type="mission.budget_exceeded",
+                data={"mission_id": mission_id, "reason": reason},
+                source="J",
+            )
+        )
+        logger.warning("Mission %s exceeded budget: %s", mission_id, reason)
+
+    def cancel_execution(self, mission_id: str) -> bool:
+        """Cancel a running mission execution by cancelling its asyncio task.
+
+        Returns True if a running task was found and cancelled, False otherwise.
+        """
+        task = self._running_tasks.pop(mission_id, None)
+        if task is not None and not task.done():
+            task.cancel()
+            logger.info("Cancelled running mission %s", mission_id)
+            return True
+        return False
+
+    async def _add_timeline(
+        self, workspace_id: str, event_type: str, source: str, description: str, **extra
+    ):
         try:
             from ..web.main import workspace_manager
-            await workspace_manager.add_timeline_event(workspace_id, event_type, source, description, **extra)
+
+            await workspace_manager.add_timeline_event(
+                workspace_id, event_type, source, description, **extra
+            )
         except Exception as e:
             logger.warning(f"Failed to add timeline event: {e}")
 

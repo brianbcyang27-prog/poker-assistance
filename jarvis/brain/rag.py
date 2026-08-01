@@ -8,13 +8,14 @@ scoring since we avoid torch/numpy on Python 3.9.
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+
 from loguru import logger
 
 
 @dataclass
 class ContextChunk:
     """A piece of retrieved context."""
+
     source: str  # which system it came from
     content: str
     relevance: float  # 0-1
@@ -34,6 +35,7 @@ class ContextChunk:
 @dataclass
 class RAGQuery:
     """A retrieval query with optional filters."""
+
     text: str
     max_chunks: int = 10
     min_relevance: float = 0.1
@@ -60,7 +62,7 @@ class RAGMemory:
 
     def _tokenize(self, text: str) -> set[str]:
         """Simple tokenization for keyword matching."""
-        return set(re.findall(r'\w{2,}', text.lower()))
+        return set(re.findall(r"\w{2,}", text.lower()))
 
     def _score(self, query_tokens: set[str], content: str, source: str) -> float:
         """Score content relevance to query using keyword overlap + source weight."""
@@ -101,12 +103,14 @@ class RAGMemory:
                 for row in rows:
                     score = self._score(query_tokens, row[0], "conversation")
                     if score >= query.min_relevance:
-                        chunks.append(ContextChunk(
-                            source="conversation",
-                            content=row[0],
-                            relevance=score,
-                            timestamp=row[1] or 0,
-                        ))
+                        chunks.append(
+                            ContextChunk(
+                                source="conversation",
+                                content=row[0],
+                                relevance=score,
+                                timestamp=row[1] or 0,
+                            )
+                        )
             except Exception:
                 pass
 
@@ -118,12 +122,14 @@ class RAGMemory:
                     content = f"{node['label']}: {node.get('content', '')}"
                     score = self._score(query_tokens, content, "knowledge_graph")
                     if score >= query.min_relevance:
-                        chunks.append(ContextChunk(
-                            source="knowledge_graph",
-                            content=content,
-                            relevance=score,
-                            metadata={"node_id": node["id"], "node_type": node["type"]},
-                        ))
+                        chunks.append(
+                            ContextChunk(
+                                source="knowledge_graph",
+                                content=content,
+                                relevance=score,
+                                metadata={"node_id": node["id"], "node_type": node["type"]},
+                            )
+                        )
             except Exception:
                 pass
 
@@ -131,16 +137,23 @@ class RAGMemory:
         if skill_manager and (not sources_filter or "skill" in sources_filter):
             try:
                 result = await skill_manager.find_similar(query.text)
-                for match in result.get("matches", [])[:query.max_chunks]:
+                for match in result.get("matches", [])[: query.max_chunks]:
                     content = f"Skill: {match['name']} — {match['description']}"
-                    score = self._score(query_tokens, content, "skill") * match.get("success_rate", 0.5)
+                    score = self._score(query_tokens, content, "skill") * match.get(
+                        "success_rate", 0.5
+                    )
                     if score >= query.min_relevance:
-                        chunks.append(ContextChunk(
-                            source="skill",
-                            content=content,
-                            relevance=score,
-                            metadata={"skill_name": match["name"], "success_rate": match.get("success_rate", 0)},
-                        ))
+                        chunks.append(
+                            ContextChunk(
+                                source="skill",
+                                content=content,
+                                relevance=score,
+                                metadata={
+                                    "skill_name": match["name"],
+                                    "success_rate": match.get("success_rate", 0),
+                                },
+                            )
+                        )
             except Exception:
                 pass
 
@@ -158,13 +171,15 @@ class RAGMemory:
                     content = f"Task: {row[0]} — {(row[1] or '')[:200]}"
                     score = self._score(query_tokens, content, "task_history")
                     if score >= query.min_relevance:
-                        chunks.append(ContextChunk(
-                            source="task_history",
-                            content=content,
-                            relevance=score,
-                            metadata={"duration_ms": row[2]},
-                            timestamp=row[3] or 0,
-                        ))
+                        chunks.append(
+                            ContextChunk(
+                                source="task_history",
+                                content=content,
+                                relevance=score,
+                                metadata={"duration_ms": row[2]},
+                                timestamp=row[3] or 0,
+                            )
+                        )
             except Exception:
                 pass
 
@@ -185,13 +200,15 @@ class RAGMemory:
                 for row in rows:
                     score = self._score(query_tokens, row[0], "memory_store")
                     if score >= query.min_relevance:
-                        chunks.append(ContextChunk(
-                            source="memory_store",
-                            content=row[0],
-                            relevance=score,
-                            metadata={"type": row[1], "tags": row[2]},
-                            timestamp=row[3] or 0,
-                        ))
+                        chunks.append(
+                            ContextChunk(
+                                source="memory_store",
+                                content=row[0],
+                                relevance=score,
+                                metadata={"type": row[1], "tags": row[2]},
+                                timestamp=row[3] or 0,
+                            )
+                        )
             except Exception:
                 pass
 
@@ -206,7 +223,7 @@ class RAGMemory:
 
         # Sort by relevance and limit
         chunks.sort(key=lambda c: c.relevance, reverse=True)
-        chunks = chunks[:query.max_chunks]
+        chunks = chunks[: query.max_chunks]
 
         # Stats
         self._retrieval_count += 1
@@ -240,8 +257,7 @@ class RAGMemory:
 
     def get_stats(self) -> dict:
         avg_relevance = (
-            self._total_relevance / self._retrieval_count
-            if self._retrieval_count > 0 else 0
+            self._total_relevance / self._retrieval_count if self._retrieval_count > 0 else 0
         )
         return {
             "total_retrievals": self._retrieval_count,

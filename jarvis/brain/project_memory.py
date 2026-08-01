@@ -11,11 +11,7 @@ All context is persisted in SQLite and survives restarts.
 """
 
 import json
-import subprocess
-import asyncio
 from datetime import datetime
-from typing import Optional
-from pathlib import Path
 
 from ..core.config import get_config
 
@@ -28,6 +24,7 @@ class ProjectMemory:
 
     async def _db(self):
         from ..core.database import get_db
+
         return await get_db()
 
     async def ensure_schema(self):
@@ -46,9 +43,7 @@ class ProjectMemory:
             ("status", "'active'"),
         ]:
             try:
-                await db._db.execute(
-                    f"ALTER TABLE projects ADD COLUMN {col} DEFAULT {default}"
-                )
+                await db._db.execute(f"ALTER TABLE projects ADD COLUMN {col} DEFAULT {default}")
             except Exception:
                 pass  # Column already exists
         await db._db.commit()
@@ -72,8 +67,8 @@ class ProjectMemory:
         now = datetime.now().isoformat()
 
         await db._db.execute(
-            """INSERT OR REPLACE INTO projects 
-               (name, path, description, language, 
+            """INSERT OR REPLACE INTO projects
+               (name, path, description, language,
                 active, last_worked_on, server_command, server_port,
                 url, ai_tool_command, ai_tool_name, context, status,
                 created_at, updated_at)
@@ -81,22 +76,29 @@ class ProjectMemory:
                        COALESCE((SELECT created_at FROM projects WHERE name = ?), ?),
                        ?)""",
             (
-                name, path, description, language,
-                now, server_command, server_port,
-                url, ai_tool_command, ai_tool_name,
+                name,
+                path,
+                description,
+                language,
+                now,
+                server_command,
+                server_port,
+                url,
+                ai_tool_command,
+                ai_tool_name,
                 json.dumps(context or {}),
-                name, now, now,
+                name,
+                now,
+                now,
             ),
         )
         await db._db.commit()
         return await self.get_project(name)
 
-    async def get_project(self, name: str) -> Optional[dict]:
+    async def get_project(self, name: str) -> dict | None:
         await self.ensure_schema()
         db = await self._db()
-        cursor = await db._db.execute(
-            "SELECT * FROM projects WHERE name = ?", (name,)
-        )
+        cursor = await db._db.execute("SELECT * FROM projects WHERE name = ?", (name,))
         row = await cursor.fetchone()
         if row:
             d = dict(row)
@@ -105,13 +107,13 @@ class ProjectMemory:
             return d
         return None
 
-    async def get_active_project(self) -> Optional[dict]:
+    async def get_active_project(self) -> dict | None:
         """Get the most recently worked on project."""
         await self.ensure_schema()
         db = await self._db()
         cursor = await db._db.execute(
-            """SELECT * FROM projects 
-               WHERE status = 'active' 
+            """SELECT * FROM projects
+               WHERE status = 'active'
                ORDER BY last_worked_on DESC LIMIT 1"""
         )
         row = await cursor.fetchone()
@@ -133,7 +135,7 @@ class ProjectMemory:
         )
         await db._db.commit()
 
-    async def list_projects(self, status: Optional[str] = None) -> list[dict]:
+    async def list_projects(self, status: str | None = None) -> list[dict]:
         await self.ensure_schema()
         db = await self._db()
         if status:
@@ -142,9 +144,7 @@ class ProjectMemory:
                 (status,),
             )
         else:
-            cursor = await db._db.execute(
-                "SELECT * FROM projects ORDER BY last_worked_on DESC"
-            )
+            cursor = await db._db.execute("SELECT * FROM projects ORDER BY last_worked_on DESC")
         rows = await cursor.fetchall()
         result = []
         for row in rows:
@@ -157,19 +157,17 @@ class ProjectMemory:
     async def delete_project(self, name: str) -> bool:
         await self.ensure_schema()
         db = await self._db()
-        cursor = await db._db.execute(
-            "DELETE FROM projects WHERE name = ?", (name,)
-        )
+        cursor = await db._db.execute("DELETE FROM projects WHERE name = ?", (name,))
         await db._db.commit()
         return cursor.rowcount > 0
 
     def build_resume_commands(self, project: dict) -> list[dict]:
         """Build shell commands to resume a project's environment.
-        
+
         Server terminal: just opens in the project directory (user runs server manually).
         AI tool: launches directly.
         Browser: opens the URL.
-        
+
         Returns a list of window descriptors:
         [{"title": "...", "command": "...", "dir": "..."}]
         """
@@ -179,39 +177,45 @@ class ProjectMemory:
         # 1. Dev server terminal — just cd into the directory
         server_cmd = project.get("server_command", "")
         if server_cmd:
-            commands.append({
-                "title": f"Dev Server — {project['name']}",
-                "command": f"cd {project_dir}",
-                "dir": project_dir,
-                "type": "server",
-                "hint": server_cmd,  # Tell the user what to run
-            })
+            commands.append(
+                {
+                    "title": f"Dev Server — {project['name']}",
+                    "command": f"cd {project_dir}",
+                    "dir": project_dir,
+                    "type": "server",
+                    "hint": server_cmd,  # Tell the user what to run
+                }
+            )
 
         # 2. AI tool terminal
         ai_cmd = project.get("ai_tool_command", "")
         if ai_cmd:
-            commands.append({
-                "title": f"AI Tool — {project.get('ai_tool_name', 'AI')}",
-                "command": ai_cmd,
-                "dir": project_dir,
-                "type": "ai_tool",
-            })
+            commands.append(
+                {
+                    "title": f"AI Tool — {project.get('ai_tool_name', 'AI')}",
+                    "command": ai_cmd,
+                    "dir": project_dir,
+                    "type": "ai_tool",
+                }
+            )
 
         # 3. Browser URL
         url = project.get("url", "")
         if url:
-            commands.append({
-                "title": f"Browser — {project['name']}",
-                "command": f"open {url}",
-                "dir": project_dir,
-                "type": "browser",
-            })
+            commands.append(
+                {
+                    "title": f"Browser — {project['name']}",
+                    "command": f"open {url}",
+                    "dir": project_dir,
+                    "type": "browser",
+                }
+            )
 
         return commands
 
     def build_resume_script(self, project: dict) -> str:
         """Build a shell script that opens all project windows on macOS.
-        
+
         Server terminal: opens in project dir with a hint comment.
         AI tool: launches directly.
         Browser: opens the URL.
@@ -220,41 +224,44 @@ class ProjectMemory:
         if not commands:
             return ""
 
-        lines = ['#!/bin/bash', f'# Auto-generated by JARVIS to resume {project["name"]}', '']
+        lines = ["#!/bin/bash", f"# Auto-generated by JARVIS to resume {project['name']}", ""]
 
         for i, cmd in enumerate(commands):
             title = cmd["title"]
             shell_cmd = cmd["command"]
 
             if cmd["type"] == "browser":
-                lines.append(f'# Open browser')
-                lines.append(f'{shell_cmd}')
-                lines.append('')
+                lines.append("# Open browser")
+                lines.append(f"{shell_cmd}")
+                lines.append("")
             elif cmd["type"] == "server":
                 # Open terminal in project dir with hint
                 hint = cmd.get("hint", "")
                 escaped_cmd = shell_cmd.replace('"', '\\"')
                 escaped_title = title.replace('"', '\\"')
                 escaped_hint = hint.replace('"', '\\"')
-                lines.append(f'# Window {i + 1}: {title} (run manually)')
-                lines.append(f'osascript -e \'tell application "Terminal"')
-                lines.append(f'  activate')
+                lines.append(f"# Window {i + 1}: {title} (run manually)")
+                lines.append('osascript -e \'tell application "Terminal"')
+                lines.append("  activate")
                 lines.append(f'  do script "{escaped_cmd}"')
                 lines.append(f'  set custom title of front window to "{escaped_title}"')
-                lines.append(f'  display dialog "Run: {escaped_hint}" with title "{escaped_title}" buttons {{"OK"}} default button "OK"')
-                lines.append(f'end tell\'')
-                lines.append('')
+                lines.append(
+                    f'  display dialog "Run: {escaped_hint}" with title "{escaped_title}" '
+                    f'buttons {{"OK"}} default button "OK"'
+                )
+                lines.append("end tell'")
+                lines.append("")
             else:
                 # AI tool — launch directly
                 escaped_cmd = shell_cmd.replace('"', '\\"')
                 escaped_title = title.replace('"', '\\"')
-                lines.append(f'# Window {i + 1}: {title}')
-                lines.append(f'osascript -e \'tell application "Terminal"')
-                lines.append(f'  activate')
+                lines.append(f"# Window {i + 1}: {title}")
+                lines.append('osascript -e \'tell application "Terminal"')
+                lines.append("  activate")
                 lines.append(f'  do script "{escaped_cmd}"')
                 lines.append(f'  set custom title of front window to "{escaped_title}"')
-                lines.append(f'end tell\'')
-                lines.append('')
+                lines.append("end tell'")
+                lines.append("")
 
         return "\n".join(lines)
 

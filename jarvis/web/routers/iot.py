@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter
 from pydantic import BaseModel
-from typing import Optional
 
 from jarvis.iot.manager import device_manager
 

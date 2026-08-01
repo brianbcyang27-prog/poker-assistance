@@ -1,17 +1,21 @@
 """WebSocket router for real-time agent status + Event Bus events."""
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-import json
 import asyncio
-from typing import Optional, Set
+import json
+import logging
+import time
 
-from jarvis.core.reliability import config as reliability_config
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
 import jarvis.web.main as web_main
+from jarvis.core.reliability import config as reliability_config
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["websocket"])
 
 # Connected WebSocket clients
-_clients: Set[WebSocket] = set()
+_clients: set[WebSocket] = set()
 
 # Event history for late joiners (ring buffer)
 _event_history: list[dict] = []
@@ -28,8 +32,10 @@ def _on_bridge_task_done(t):
     exc = t.exception()
     if exc:
         import logging
+
         logging.getLogger(__name__).error("Event bridge task failed: %s", exc)
         _bridge_tasks.discard(t)
+
 
 # Event type to human-readable labels
 EVENT_LABELS = {
@@ -129,7 +135,7 @@ def _setup_event_bridge():
         return  # Already set up
 
     try:
-        from jarvis.core.events import event_bus, Event
+        from jarvis.core.events import Event, event_bus
 
         async def on_event(event: Event):
             global _clients
@@ -149,7 +155,7 @@ def _setup_event_bridge():
             }
             _event_history.append(entry)
             if len(_event_history) > MAX_EVENT_HISTORY:
-                del _event_history[:len(_event_history) - MAX_EVENT_HISTORY]
+                del _event_history[: len(_event_history) - MAX_EVENT_HISTORY]
 
             # Broadcast to all connected clients
             message = json.dumps(entry)
@@ -187,11 +193,15 @@ def _setup_event_bridge():
             if tasks:
                 try:
                     await asyncio.gather(*tasks, return_exceptions=True)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("Event broadcast gather failed: %s", e)
 
         # Subscribe to all JARVIS events
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         subscriptions = [
             ("jarvis.*", on_event),
             ("king.*", on_event),
@@ -206,11 +216,11 @@ def _setup_event_bridge():
             t = loop.create_task(event_bus.on(event_type, handler))
             t.add_done_callback(_on_bridge_task_done)
             _bridge_tasks.add(t)
-    except Exception:
-        pass  # Don't fail WebSocket setup if event bus unavailable
+    except Exception as e:
+        logger.warning("Event bus subscription failed: %s", e)
 
 
-def _extract_conversation(event) -> Optional[dict]:
+def _extract_conversation(event) -> dict | None:
     """Extract agent conversation data from an event for the right panel."""
     d = event.data or {}
 
@@ -282,7 +292,9 @@ def _extract_conversation(event) -> Optional[dict]:
             "sender": "J",
             "title": "JARVIS",
             "card_id": "J",
-            "content": f"{event.type.split('.')[-1].title()}: {d.get('goal', d.get('task', ''))[:80]}",
+            "content": (
+                f"{event.type.split('.')[-1].title()}: {d.get('goal', d.get('task', ''))[:80]}"
+            ),
         }
 
     return None
@@ -309,6 +321,7 @@ def _get_agent_title(card_id: str) -> str:
 
 async def broadcast_status():
     """Broadcast agent status to all connected clients."""
+    global _clients
     if not _clients or not web_main.jarvis:
         return
 
@@ -330,7 +343,7 @@ async def websocket_agents(websocket: WebSocket):
     """Unified WebSocket: agent status + Event Bus events."""
     await websocket.accept()
     _clients.add(websocket)
-    last_pong = asyncio.get_event_loop().time()
+    last_pong = time.monotonic()
 
     # Setup event bridge on first connection
     if len(_clients) == 1:
@@ -349,11 +362,13 @@ async def websocket_agents(websocket: WebSocket):
         # Keep connection alive, broadcast status every 5s, detect dead clients
         while True:
             try:
-                msg = await asyncio.wait_for(websocket.receive_text(), timeout=reliability_config.ws_timeout)
-                last_pong = asyncio.get_event_loop().time()
+                await asyncio.wait_for(
+                    websocket.receive_text(), timeout=reliability_config.ws_timeout
+                )
+                last_pong = time.monotonic()
                 # Client heartbeat pong — if they send anything, they're alive
-            except asyncio.TimeoutError:
-                now = asyncio.get_event_loop().time()
+            except TimeoutError:
+                now = time.monotonic()
                 # If no pong within dead_client_timeout, consider dead
                 if now - last_pong > reliability_config.dead_client_timeout:
                     break

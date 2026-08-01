@@ -4,11 +4,10 @@ Covers: materials, fasteners, bearings, gears, motion, calculations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from enum import Enum
+from enum import StrEnum
 
 
-class MaterialCategory(str, Enum):
+class MaterialCategory(StrEnum):
     METAL = "metal"
     POLYMER = "polymer"
     CERAMIC = "ceramic"
@@ -27,7 +26,7 @@ class MechanicalProvider(ABC):
         ...
 
     @abstractmethod
-    async def get_material(self, material_id: str) -> Dict:
+    async def get_material(self, material_id: str) -> dict:
         """Get material properties.
 
         Returns:
@@ -38,11 +37,11 @@ class MechanicalProvider(ABC):
     @abstractmethod
     async def search_materials(
         self,
-        category: Optional[MaterialCategory] = None,
-        min_strength: Optional[float] = None,
-        max_density: Optional[float] = None,
-        max_cost: Optional[str] = None,
-    ) -> List[Dict]:
+        category: MaterialCategory | None = None,
+        min_strength: float | None = None,
+        max_density: float | None = None,
+        max_cost: str | None = None,
+    ) -> list[dict]:
         """Search materials by properties.
 
         Returns:
@@ -51,9 +50,7 @@ class MechanicalProvider(ABC):
         ...
 
     @abstractmethod
-    async def select_fastener(
-        self, load: float, material: str, environment: str
-    ) -> List[Dict]:
+    async def select_fastener(self, load: float, material: str, environment: str) -> list[dict]:
         """Select appropriate fasteners.
 
         Args:
@@ -67,9 +64,7 @@ class MechanicalProvider(ABC):
         ...
 
     @abstractmethod
-    async def select_bearing(
-        self, load: float, speed: float, shaft_diameter: float
-    ) -> List[Dict]:
+    async def select_bearing(self, load: float, speed: float, shaft_diameter: float) -> list[dict]:
         """Select appropriate bearings.
 
         Args:
@@ -89,7 +84,7 @@ class MechanicalProvider(ABC):
         output_speed: float,
         torque: float,
         ratio_tolerance: float = 0.01,
-    ) -> Dict:
+    ) -> dict:
         """Design a gear train.
 
         Args:
@@ -109,7 +104,7 @@ class MechanicalProvider(ABC):
         distance: float,
         time: float,
         friction_coefficient: float = 0.3,
-    ) -> Dict:
+    ) -> dict:
         """Calculate motion parameters (force, power, energy).
 
         Returns:
@@ -124,8 +119,8 @@ class MechanicalProvider(ABC):
         length: float,
         load: float,
         material: str,
-        cross_section: Dict[str, float],
-    ) -> Dict:
+        cross_section: dict[str, float],
+    ) -> dict:
         """Calculate beam deflection and stress.
 
         Args:
@@ -140,9 +135,7 @@ class MechanicalProvider(ABC):
         """
         ...
 
-    async def get_material_comparison(
-        self, material_ids: List[str], property: str
-    ) -> Dict:
+    async def get_material_comparison(self, material_ids: list[str], property: str) -> dict:
         """Compare materials by a specific property.
 
         Returns:
@@ -152,9 +145,11 @@ class MechanicalProvider(ABC):
         for mid in material_ids:
             mat = await self.get_material(mid)
             if mat:
-                materials.append({
-                    "id": mid,
-                    "name": mat.get("name", mid),
-                    "value": mat.get(property, None),
-                })
+                materials.append(
+                    {
+                        "id": mid,
+                        "name": mat.get("name", mid),
+                        "value": mat.get(property, None),
+                    }
+                )
         return {"property": property, "materials": materials}

@@ -13,20 +13,20 @@ Tests:
   10. Security/permission integration
 """
 
-import asyncio
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, mock_open
 
-from jarvis.vision.screenshot import ScreenCapture, CapturedScreenshot, ScreenRegion
-from jarvis.vision.providers.base import VisionProvider, VisionResult, DetectedObject
-from jarvis.vision.analyzer import VisionAnalyzer, ScreenAnalysis
+from jarvis.vision.analyzer import ScreenAnalysis, VisionAnalyzer
 from jarvis.vision.detector import ObjectDetector
-from jarvis.vision.grounding import GroundingEngine, GroundedAction
-from jarvis.vision.memory import VisionMemory, VisualWorkflow, ScreenshotRecord
+from jarvis.vision.grounding import GroundedAction, GroundingEngine
 from jarvis.vision.manager import VisionManager
-
+from jarvis.vision.memory import VisionMemory, VisualWorkflow
+from jarvis.vision.providers.base import DetectedObject, VisionProvider, VisionResult
+from jarvis.vision.screenshot import CapturedScreenshot, ScreenCapture, ScreenRegion
 
 # ── Screenshot Tests ────────────────────────────────────────
+
 
 def test_screenshot_region_creation():
     """Test ScreenRegion dataclass."""
@@ -65,6 +65,7 @@ def test_screen_capture_init():
 
 
 # ── Vision Provider Tests ──────────────────────────────────
+
 
 def test_detected_object_creation():
     """Test DetectedObject dataclass."""
@@ -132,6 +133,7 @@ def test_vision_provider_is_abstract():
 
 
 # ── Analyzer Tests ──────────────────────────────────────────
+
 
 def test_screen_analysis_creation():
     """Test ScreenAnalysis dataclass."""
@@ -213,6 +215,7 @@ def test_analyzer_builds_analysis():
 
 
 # ── Detector Tests ──────────────────────────────────────────
+
 
 def test_detector_find():
     """Test ObjectDetector.find."""
@@ -318,6 +321,7 @@ def test_detector_summary():
 
 # ── Grounding Tests ─────────────────────────────────────────
 
+
 def test_grounding_click_vision():
     """Test grounding a click via vision detection."""
     engine = GroundingEngine()
@@ -382,6 +386,7 @@ def test_grounding_type_accessibility():
 
 
 # ── Vision Memory Tests ─────────────────────────────────────
+
 
 def test_vision_memory_record_screenshot():
     """Test recording screenshots."""
@@ -481,6 +486,7 @@ def test_vision_memory_clear():
 
 # ── VisionManager Tests ─────────────────────────────────────
 
+
 def test_manager_creation():
     """Test VisionManager creation."""
     manager = VisionManager()
@@ -526,10 +532,12 @@ def test_manager_stats():
 
 # ── ComputerManager Vision Actions Tests ────────────────────
 
+
 @pytest.mark.asyncio
 async def test_computer_manager_has_vision_actions():
     """Test ComputerManager registers vision actions."""
     from jarvis.computer.manager import ComputerManager
+
     manager = ComputerManager()
     actions = [a["name"] for a in manager.get_actions()]
 
@@ -548,6 +556,7 @@ async def test_computer_manager_has_vision_actions():
 async def test_computer_manager_vision_health():
     """Test vision health action."""
     from jarvis.computer.manager import ComputerManager
+
     manager = ComputerManager()
     result = await manager._vision_health()
     assert "ok" in result
@@ -555,21 +564,25 @@ async def test_computer_manager_vision_health():
 
 # ── ActionType Tests ────────────────────────────────────────
 
+
 def test_action_type_vision():
     """Test VISION action type exists."""
     from jarvis.computer.actions import ActionType
-    assert hasattr(ActionType, 'VISION')
+
+    assert hasattr(ActionType, "VISION")
     assert ActionType.VISION == "vision"
 
 
 def test_action_type_accessibility():
     """Test ACCESSIBILITY action type exists."""
     from jarvis.computer.actions import ActionType
-    assert hasattr(ActionType, 'ACCESSIBILITY')
+
+    assert hasattr(ActionType, "ACCESSIBILITY")
     assert ActionType.ACCESSIBILITY == "accessibility"
 
 
 # ── GroundedAction Tests ────────────────────────────────────
+
 
 def test_grounded_action_to_dict():
     """Test GroundedAction serialization."""
@@ -589,6 +602,7 @@ def test_grounded_action_to_dict():
 
 
 # ── VisualWorkflow Tests ────────────────────────────────────
+
 
 def test_visual_workflow_to_dict():
     """Test VisualWorkflow serialization."""

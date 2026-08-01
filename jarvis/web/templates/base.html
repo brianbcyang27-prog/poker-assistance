@@ -96,6 +96,14 @@
                 </div>
 
                 <div class="nav-footer">
+                    <button id="dev-mode-toggle" class="nav-btn nav-dev-btn" data-workspace="developer" title="Developer Mode" aria-pressed="false">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M8 9l-3 3 3 3"/>
+                            <path d="M16 9l3 3-3 3"/>
+                            <path d="M10 20l4-16"/>
+                        </svg>
+                        <span>Dev</span>
+                    </button>
                     <button class="nav-btn nav-settings-btn" data-workspace="settings" title="Settings">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
                             <circle cx="12" cy="12" r="3"/>
@@ -736,15 +744,6 @@
     </div>
 
     <!-- Core JS (needed on every page) -->
-    <script src="/static/js/state-machine.js?v=8.0.0"></script>
-    <script src="/static/js/ws-manager.js?v=8.0.0"></script>
-    <script src="/static/js/living-interface.js?v=8.0.0"></script>
-    <script src="/static/js/audio-analyzer.js?v=8.0.0"></script>
-    <script src="/static/js/workspace-manager.js?v=8.0.0"></script>
-    <script src="/static/js/command-palette.js?v=8.0.0"></script>
-    <script src="/static/js/app.js?v=8.0.0"></script>
-
-    <!-- Lazy-loaded on demand -->
     <script>
     window._lazyScripts = {};
     window._loadScript = function(src) {
@@ -759,5 +758,12 @@
         return window._lazyScripts[src];
     };
     </script>
+    <script src="/static/js/state-machine.js?v=8.0.0"></script>
+    <script src="/static/js/ws-manager.js?v=8.0.0"></script>
+    <script src="/static/js/living-interface.js?v=8.0.0"></script>
+    <script src="/static/js/audio-analyzer.js?v=8.0.0"></script>
+    <script src="/static/js/workspace-manager.js?v=8.0.0"></script>
+    <script src="/static/js/command-palette.js?v=8.0.0"></script>
+    <script src="/static/js/app.js?v=8.0.0"></script>
 </body>
 </html>

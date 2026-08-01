@@ -4,8 +4,7 @@ Tests that all core features work together.
 """
 
 import pytest
-import asyncio
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture
@@ -16,9 +15,12 @@ def anyio_backend():
 @pytest.fixture
 async def client():
     from jarvis.web.main import create_app, lifespan
+
     app = create_app()
     async with lifespan(app):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", timeout=30.0) as c:
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test", timeout=30.0
+        ) as c:
             yield c
 
 
@@ -104,10 +106,9 @@ class TestV650Reality:
     @pytest.mark.anyio
     async def test_permissions_update(self, client):
         """Test permission update."""
-        r = await client.post("/api/system/permissions", json={
-            "permission": "browser",
-            "enabled": True
-        })
+        r = await client.post(
+            "/api/system/permissions", json={"permission": "browser", "enabled": True}
+        )
         assert r.status_code == 200
         data = r.json()
         assert data["ok"] is True

@@ -13,16 +13,14 @@ Usage:
     print(data.to_llm_context())
 """
 
-import time
 import logging
-from typing import Optional
-from dataclasses import dataclass
+import time
 
-from .browser_state import BrowserState, BrowserStatus, TabInfo
-from .security import BrowserSecurity, BrowserDecision
-from .sessions import SessionManager, session_manager
-from .playwright_provider import PlaywrightProvider, playwright_provider, BrowserResult
-from .extractor import PageExtractor, PageData, extractor
+from .browser_state import BrowserState, BrowserStatus
+from .extractor import extractor
+from .playwright_provider import BrowserResult, playwright_provider
+from .security import BrowserSecurity
+from .sessions import session_manager
 
 log = logging.getLogger("jarvis.browser.manager")
 
@@ -51,7 +49,9 @@ class BrowserManager:
         self._action_log: list[dict] = []
         self._initialized = False
 
-    async def initialize(self, headless: bool = True, session_name: Optional[str] = None) -> BrowserResult:
+    async def initialize(
+        self, headless: bool = True, session_name: str | None = None
+    ) -> BrowserResult:
         """Initialize the browser.
 
         Args:
@@ -84,7 +84,9 @@ class BrowserManager:
                 cookies_result = await self.provider.get_cookies()
                 if cookies_result.ok:
                     # Save to default session
-                    await self.sessions.save_cookies("default", cookies_result.data.get("cookies", []))
+                    await self.sessions.save_cookies(
+                        "default", cookies_result.data.get("cookies", [])
+                    )
             except Exception:
                 pass
 
@@ -360,29 +362,48 @@ class BrowserManager:
     async def _emit_event(self, action: str, result: dict, agent: str, risk_level: str):
         """Emit a browser action event."""
         try:
-            from ..core.events import event_bus, Event
+            from ..core.events import Event, event_bus
+
             status = "completed" if result.get("ok") else "failed"
-            await event_bus.emit(Event(
-                type=f"browser.action.{status}",
-                data={
-                    "action": action,
-                    "status": status,
-                    "risk_level": risk_level,
-                    "agent": agent,
-                    "url": self.state.current_url,
-                },
-                source=agent or "browser",
-            ))
+            await event_bus.emit(
+                Event(
+                    type=f"browser.action.{status}",
+                    data={
+                        "action": action,
+                        "status": status,
+                        "risk_level": risk_level,
+                        "agent": agent,
+                        "url": self.state.current_url,
+                    },
+                    source=agent or "browser",
+                )
+            )
         except Exception:
             pass
 
     def get_actions(self) -> list[str]:
         """List available browser actions."""
         return [
-            "navigate", "search", "click", "type", "scroll", "press_key",
-            "extract", "extract_text", "screenshot", "get_content", "get_text",
-            "back", "forward", "reload", "new_tab", "close_tab",
-            "wait_for", "evaluate", "get_page_info", "get_cookies",
+            "navigate",
+            "search",
+            "click",
+            "type",
+            "scroll",
+            "press_key",
+            "extract",
+            "extract_text",
+            "screenshot",
+            "get_content",
+            "get_text",
+            "back",
+            "forward",
+            "reload",
+            "new_tab",
+            "close_tab",
+            "wait_for",
+            "evaluate",
+            "get_page_info",
+            "get_cookies",
         ]
 
     def get_recent_actions(self, limit: int = 20) -> list[dict]:

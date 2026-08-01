@@ -1,15 +1,23 @@
-"""JARVIS Second Brain — Personal knowledge graph module."""
-from .models import (
-    EntityType,
-    ImportanceLevel,
-    RelationType,
+"""JARVIS Second Brain — Personal knowledge graph module.
+
+⚠️  DEPRECATED: This package is being unified into ``jarvis.brain.memory.graph``.
+    New code should import directly from ``jarvis.brain.memory.graph``.
+    These re-exports exist for backward compatibility only.
+"""
+
+import warnings
+
+from jarvis.brain.memory.graph import (
     Entity,
-    Relationship,
     EntityCluster,
+    EntityType,
     GraphStats,
+    ImportanceLevel,
+    KnowledgeGraph,
+    Relationship,
+    RelationType,
 )
-from .graph import KnowledgeGraph
-from .relationships import RelationshipEngine
+from jarvis.knowledge.relationships import RelationshipEngine
 
 __all__ = [
     "EntityType",
@@ -22,3 +30,9 @@ __all__ = [
     "KnowledgeGraph",
     "RelationshipEngine",
 ]
+
+warnings.warn(
+    "jarvis.knowledge is deprecated. Import from jarvis.brain.memory.graph instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)

@@ -13,11 +13,9 @@ Usage:
     await accessibility_manager.click("Save button")
 """
 
-import asyncio
 import logging
 import sys
 import time
-from typing import Optional
 
 from .element import UIElement
 from .tree import AccessibilityTree
@@ -42,7 +40,7 @@ class AccessibilityManager:
         self._provider = None
         self._platform = ""
         self._initialized = False
-        self._last_tree: Optional[AccessibilityTree] = None
+        self._last_tree: AccessibilityTree | None = None
         self._last_tree_time: float = 0
 
     async def initialize(self) -> dict:
@@ -54,14 +52,17 @@ class AccessibilityManager:
 
         if platform == "darwin":
             from .macos import MacOSAccessibilityProvider
+
             self._provider = MacOSAccessibilityProvider()
             self._platform = "macos"
         elif platform == "win32":
             from .windows import WindowsAccessibilityProvider
+
             self._provider = WindowsAccessibilityProvider()
             self._platform = "windows"
         else:
             from .linux import LinuxAccessibilityProvider
+
             self._provider = LinuxAccessibilityProvider()
             self._platform = "linux"
 
@@ -85,7 +86,7 @@ class AccessibilityManager:
         self._check()
         return await self._provider.get_windows()
 
-    async def get_active_window(self) -> Optional[dict]:
+    async def get_active_window(self) -> dict | None:
         """Get the currently focused window."""
         self._check()
         return await self._provider.get_active_window()
@@ -112,7 +113,7 @@ class AccessibilityManager:
         self._last_tree_time = now
         return tree
 
-    async def find(self, query: str, app: str = "") -> Optional[UIElement]:
+    async def find(self, query: str, app: str = "") -> UIElement | None:
         """Find a UI element by natural language query.
 
         Examples:
@@ -165,7 +166,10 @@ class AccessibilityManager:
             return {"ok": False, "error": f"No element found matching '{query}'"}
 
         if not element.is_typeable():
-            return {"ok": False, "error": f"Element '{element.name}' is not a text field (type={element.type})"}
+            return {
+                "ok": False,
+                "error": f"Element '{element.name}' is not a text field (type={element.type})",
+            }
 
         result = await self._provider.type_text(element, text)
         result["element"] = element.name
@@ -179,7 +183,7 @@ class AccessibilityManager:
     async def list_apps(self) -> list[str]:
         """Get list of running application names."""
         self._check()
-        if hasattr(self._provider, 'get_applications'):
+        if hasattr(self._provider, "get_applications"):
             return await self._provider.get_applications()
         windows = await self._provider.get_windows()
         apps = list({w["app"] for w in windows})

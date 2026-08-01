@@ -12,13 +12,39 @@ Supporting:
   Consolidation — Background compression ("sleep")
   Retrieval   — Multi-source context assembly
 """
-from .graph import graph, KnowledgeGraph, Node, Edge
-from .note import notes, NoteManager
-from .extractor import knowledge_extractor, KnowledgeExtractor
-from .working import get_working_memory, WorkingMemoryManager
-from .episodic import get_episodic_memory, EpisodicMemoryManager
-from .personal import get_personal_memory, PersonalMemoryManager
-from .importance import importance_scorer, ImportanceScorer
-from .consolidation import get_consolidator, MemoryConsolidator
-from .retrieval import get_retrieval_engine, MemoryRetrievalEngine
-from .journal import get_journal, DailyJournal
+
+from .consolidation import MemoryConsolidator, get_consolidator
+from .episodic import EpisodicMemoryManager, get_episodic_memory
+from .extractor import KnowledgeExtractor, knowledge_extractor
+from .graph import Edge, KnowledgeGraph, Node, graph
+from .importance import ImportanceScorer, importance_scorer
+from .journal import DailyJournal, get_journal
+from .note import NoteManager, notes
+from .personal import PersonalMemoryManager, get_personal_memory
+from .retrieval import MemoryRetrievalEngine, get_retrieval_engine
+from .working import WorkingMemoryManager, get_working_memory
+
+__all__ = [
+    "MemoryConsolidator",
+    "get_consolidator",
+    "EpisodicMemoryManager",
+    "get_episodic_memory",
+    "KnowledgeExtractor",
+    "knowledge_extractor",
+    "Edge",
+    "KnowledgeGraph",
+    "Node",
+    "graph",
+    "ImportanceScorer",
+    "importance_scorer",
+    "DailyJournal",
+    "get_journal",
+    "NoteManager",
+    "notes",
+    "PersonalMemoryManager",
+    "get_personal_memory",
+    "MemoryRetrievalEngine",
+    "get_retrieval_engine",
+    "WorkingMemoryManager",
+    "get_working_memory",
+]

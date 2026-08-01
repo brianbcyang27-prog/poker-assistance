@@ -5,11 +5,10 @@ All endpoints use graceful fallbacks so the UI stays functional even
 when subsystems are unavailable.
 """
 
-import time
 import logging
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +16,7 @@ router = APIRouter(prefix="/api", tags=["replay"])
 
 
 # ── Helpers ────────────────────────────────────────────────────
+
 
 def _safe(fn, default=None):
     """Call *fn* and return its result, or *default* on any exception."""
@@ -40,13 +40,15 @@ def _serialize(obj):
 #  MISSIONS
 # ═══════════════════════════════════════════════════════════════
 
+
 def _get_mission_manager():
     from jarvis.mission.manager import MissionManager
+
     return MissionManager()
 
 
 @router.get("/missions")
-async def list_missions(status: Optional[str] = None, limit: int = 50):
+async def list_missions(status: str | None = None, limit: int = 50):
     """List all missions, optionally filtered by status."""
     try:
         mm = _get_mission_manager()
@@ -86,8 +88,13 @@ async def mission_stats():
         completed = [m for m in all_missions if m.status == "completed"]
         failed = [m for m in all_missions if m.status == "failed"]
         active_statuses = {
-            "created", "researching", "planning", "executing",
-            "verifying", "reviewing", "paused",
+            "created",
+            "researching",
+            "planning",
+            "executing",
+            "verifying",
+            "reviewing",
+            "paused",
         }
         active = [m for m in all_missions if m.status in active_statuses]
 
@@ -100,15 +107,18 @@ async def mission_stats():
             "completed": len(completed),
             "failed": len(failed),
             "avg_duration_ms": round(avg_duration, 1),
-            "success_rate": round(
-                len(completed) / max(len(completed) + len(failed), 1) * 100, 1
-            ),
+            "success_rate": round(len(completed) / max(len(completed) + len(failed), 1) * 100, 1),
         }
     except Exception as exc:
         logger.warning("mission_stats failed: %s", exc)
         return {
-            "total": 0, "active": 0, "completed": 0, "failed": 0,
-            "avg_duration_ms": 0, "success_rate": 0, "error": str(exc),
+            "total": 0,
+            "active": 0,
+            "completed": 0,
+            "failed": 0,
+            "avg_duration_ms": 0,
+            "success_rate": 0,
+            "error": str(exc),
         }
 
 
@@ -124,9 +134,7 @@ async def get_mission(mission_id: str):
 
         mission = await mm.get(mission_id)
         if not mission:
-            raise HTTPException(
-                status_code=404, detail=f"Mission '{mission_id}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Mission '{mission_id}' not found")
 
         data = _serialize(mission)
         data["progress"] = _safe(lambda: mm.get_progress(mission_id), 0)
@@ -151,9 +159,7 @@ async def mission_timeline(mission_id: str):
 
         mission = await mm.get(mission_id)
         if not mission:
-            raise HTTPException(
-                status_code=404, detail=f"Mission '{mission_id}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Mission '{mission_id}' not found")
 
         return {
             "mission_id": mission_id,
@@ -180,9 +186,7 @@ async def mission_replay(mission_id: str):
 
         mission = await mm.get(mission_id)
         if not mission:
-            raise HTTPException(
-                status_code=404, detail=f"Mission '{mission_id}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Mission '{mission_id}' not found")
 
         lines = [
             f"Mission: {mission.id}",
@@ -237,8 +241,10 @@ async def mission_replay(mission_id: str):
 #  BRAIN
 # ═══════════════════════════════════════════════════════════════
 
+
 def _get_brain():
     from jarvis.brain.core.brain import JARVISBrain
+
     return JARVISBrain()
 
 
@@ -273,10 +279,15 @@ async def brain_context(goal: str = "general status"):
     except Exception as exc:
         logger.warning("brain_context failed: %s", exc)
         return {
-            "goal": goal, "confidence": 0,
-            "preferences_count": 0, "memories_count": 0,
-            "attempts_count": 0, "decisions_count": 0,
-            "events_count": 0, "context": {}, "error": str(exc),
+            "goal": goal,
+            "confidence": 0,
+            "preferences_count": 0,
+            "memories_count": 0,
+            "attempts_count": 0,
+            "decisions_count": 0,
+            "events_count": 0,
+            "context": {},
+            "error": str(exc),
         }
 
 
@@ -285,6 +296,7 @@ async def brain_decisions(limit: int = 20):
     """Recent decisions from the decision engine."""
     try:
         from jarvis.decisions.engine import DecisionEngine
+
         engine = DecisionEngine()
         await engine.load()
         decisions = await engine.get_recent(n=limit)
@@ -321,8 +333,12 @@ async def brain_reason(req: ReasonRequest):
     except Exception as exc:
         logger.warning("brain_reason failed: %s", exc)
         return {
-            "goal": req.goal, "conclusion": None, "confidence": 0,
-            "chain": [], "alternatives": [], "supporting_memories": [],
+            "goal": req.goal,
+            "conclusion": None,
+            "confidence": 0,
+            "chain": [],
+            "alternatives": [],
+            "supporting_memories": [],
             "warnings": [str(exc)],
         }
 
@@ -331,8 +347,10 @@ async def brain_reason(req: ReasonRequest):
 #  AGENTS
 # ═══════════════════════════════════════════════════════════════
 
+
 def _get_jarvis():
     import jarvis.web.main as web_main
+
     return web_main.jarvis
 
 
@@ -346,32 +364,38 @@ async def agent_personas():
 
         personas = []
 
-        personas.append({
-            "card_id": "J",
-            "name": "JARVIS",
-            "role": "Orchestrator",
-            "suit": None,
-            "state": jarvis.state.value if hasattr(jarvis.state, "value") else str(jarvis.state),
-            "type": "core",
-        })
+        personas.append(
+            {
+                "card_id": "J",
+                "name": "JARVIS",
+                "role": "Orchestrator",
+                "suit": None,
+                "state": jarvis.state.value
+                if hasattr(jarvis.state, "value")
+                else str(jarvis.state),
+                "type": "core",
+            }
+        )
 
         for king in jarvis.get_all_kings():
-            personas.append({
-                "card_id": king.card_id,
-                "name": king.name,
-                "role": f"{king.suit.value.title()} King" if king.suit else "King",
-                "suit": king.suit.value if king.suit else None,
-                "state": king.state.value if hasattr(king.state, "value") else str(king.state),
-                "type": "king",
-                "workers": [
-                    {
-                        "card_id": w.card_id,
-                        "name": w.name,
-                        "state": w.state.value if hasattr(w.state, "value") else str(w.state),
-                    }
-                    for w in king.get_all_workers()
-                ],
-            })
+            personas.append(
+                {
+                    "card_id": king.card_id,
+                    "name": king.name,
+                    "role": f"{king.suit.value.title()} King" if king.suit else "King",
+                    "suit": king.suit.value if king.suit else None,
+                    "state": king.state.value if hasattr(king.state, "value") else str(king.state),
+                    "type": "king",
+                    "workers": [
+                        {
+                            "card_id": w.card_id,
+                            "name": w.name,
+                            "state": w.state.value if hasattr(w.state, "value") else str(w.state),
+                        }
+                        for w in king.get_all_workers()
+                    ],
+                }
+            )
 
         return {"personas": personas, "total": len(personas)}
     except Exception as exc:
@@ -383,22 +407,26 @@ async def agent_personas():
 #  TOOLS
 # ═══════════════════════════════════════════════════════════════
 
+
 @router.get("/tools/availability")
 async def tool_availability():
     """Status of all registered tools / capabilities."""
     try:
         from jarvis.core.capabilities import registry
+
         caps = await registry.query()
         tools = []
         for c in caps:
-            tools.append({
-                "name": c.name,
-                "owner": c.owner,
-                "type": c.type.value if hasattr(c.type, "value") else str(c.type),
-                "description": c.description,
-                "tags": c.tags,
-                "available": True,
-            })
+            tools.append(
+                {
+                    "name": c.name,
+                    "owner": c.owner,
+                    "type": c.type.value if hasattr(c.type, "value") else str(c.type),
+                    "description": c.description,
+                    "tags": c.tags,
+                    "available": True,
+                }
+            )
         return {"tools": tools, "total": len(tools)}
     except Exception as exc:
         logger.debug("tool_availability: %s", exc)
@@ -409,11 +437,13 @@ async def tool_availability():
 #  SELF-REFLECTION
 # ═══════════════════════════════════════════════════════════════
 
+
 @router.get("/self/errors")
 async def self_errors(limit: int = 30):
     """Recent errors from across the system."""
     try:
         from jarvis.core.events import event_bus
+
         events = event_bus.get_history(event_type="worker.error", limit=limit)
         errors = [
             {
@@ -436,12 +466,14 @@ async def self_errors(limit: int = 30):
                     ts = m.created_at
                     if hasattr(ts, "isoformat"):
                         ts = ts.isoformat()
-                    errors.append({
-                        "source": m.id,
-                        "type": "mission.error",
-                        "data": {"error": err},
-                        "timestamp": str(ts),
-                    })
+                    errors.append(
+                        {
+                            "source": m.id,
+                            "type": "mission.error",
+                            "data": {"error": err},
+                            "timestamp": str(ts),
+                        }
+                    )
         except Exception:
             pass
 
@@ -457,6 +489,7 @@ async def self_lessons(limit: int = 30):
     """Lessons learned from completed missions."""
     try:
         from jarvis.learning.engine import LearningEngine
+
         engine = LearningEngine()
         records = engine._knowledge_base[-limit:] if hasattr(engine, "_knowledge_base") else []
         lessons = [_serialize(r) for r in records]

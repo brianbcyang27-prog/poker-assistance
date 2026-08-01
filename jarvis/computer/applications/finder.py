@@ -7,14 +7,17 @@ profile = ApplicationProfile(
     bundle_id="com.apple.finder",
     executable="Finder",
     category="file_manager",
-
     common_buttons=[
-        "New Folder", "Open", "Get Info", "Rename", "Move to Trash",
-        "AirDrop", "Share", "Tags",
+        "New Folder",
+        "Open",
+        "Get Info",
+        "Rename",
+        "Move to Trash",
+        "AirDrop",
+        "Share",
+        "Tags",
     ],
-
     common_menus=["File", "Edit", "View", "Go", "Window", "Help"],
-
     common_shortcuts={
         "new_folder": "Shift+Cmd+N",
         "get_info": "Cmd+I",
@@ -29,7 +32,6 @@ profile = ApplicationProfile(
         "go_to_folder": "Shift+Cmd+G",
         "quick_look": "Space",
     },
-
     workflows={
         "open_file": ["Double-click the file"],
         "new_folder": ["File menu", "New Folder"],
@@ -39,7 +41,6 @@ profile = ApplicationProfile(
         "show_hidden_files": ["Cmd+Shift+."],
         "go_to_folder": ["Shift+Cmd+G", "Type path", "Press Enter"],
     },
-
     interaction_notes=(
         "Finder uses a sidebar for quick access (Favorites, Locations, Tags). "
         "Files are shown in icon/list/column/gallery view. "

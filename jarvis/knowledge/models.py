@@ -1,12 +1,13 @@
 """Second Brain data models."""
+
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class EntityType(str, Enum):
+class EntityType(StrEnum):
     PERSON = "person"
     PROJECT = "project"
     ORGANIZATION = "organization"
@@ -24,14 +25,14 @@ class EntityType(str, Enum):
     RESOURCE = "resource"
 
 
-class ImportanceLevel(str, Enum):
+class ImportanceLevel(StrEnum):
     TEMPORARY = "temporary"
     USEFUL = "useful"
     IMPORTANT = "important"
     PERMANENT = "permanent"
 
 
-class RelationType(str, Enum):
+class RelationType(StrEnum):
     CREATED = "created"
     USES = "uses"
     REQUIRES = "requires"
@@ -57,8 +58,8 @@ class Entity:
     description: str = ""
     importance: str = "useful"
     confidence: float = 0.8
-    source_memories: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    source_memories: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: float = 0.0
     updated_at: float = 0.0
 
@@ -93,7 +94,7 @@ class Relationship:
     weight: float = 1.0
     description: str = ""
     confidence: float = 0.8
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: float = 0.0
 
     def __post_init__(self):
@@ -116,9 +117,9 @@ class Relationship:
 @dataclass
 class EntityCluster:
     name: str = ""
-    entities: List[Entity] = field(default_factory=list)
-    relationships: List[Relationship] = field(default_factory=list)
-    central_entity: Optional[str] = None
+    entities: list[Entity] = field(default_factory=list)
+    relationships: list[Relationship] = field(default_factory=list)
+    central_entity: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -133,8 +134,8 @@ class EntityCluster:
 class GraphStats:
     total_entities: int = 0
     total_relationships: int = 0
-    entity_type_counts: Dict[str, int] = field(default_factory=dict)
-    relationship_type_counts: Dict[str, int] = field(default_factory=dict)
+    entity_type_counts: dict[str, int] = field(default_factory=dict)
+    relationship_type_counts: dict[str, int] = field(default_factory=dict)
     avg_confidence: float = 0.0
     avg_importance: float = 0.0
 

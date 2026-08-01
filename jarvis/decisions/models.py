@@ -1,19 +1,20 @@
 """Decision memory data models."""
+
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class DecisionImpact(str, Enum):
+class DecisionImpact(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
 
-class DecisionStatus(str, Enum):
+class DecisionStatus(StrEnum):
     ACTIVE = "active"
     SUPERSEDED = "superseded"
     REVERSED = "reversed"
@@ -26,14 +27,14 @@ class Decision:
     title: str = ""
     description: str = ""
     reason: str = ""
-    alternatives: List[str] = field(default_factory=list)
+    alternatives: list[str] = field(default_factory=list)
     chosen_option: str = ""
     impact: str = "medium"
     status: str = "active"
     date: str = ""  # YYYY-MM-DD
     timestamp: float = 0.0
-    related_entities: List[str] = field(default_factory=list)
-    tags: List[str] = field(default_factory=list)
+    related_entities: list[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     outcome: str = ""  # filled in later
     superseded_by: str = ""  # id of replacement decision
 
@@ -64,7 +65,7 @@ class Decision:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Decision":
+    def from_dict(cls, data: dict[str, Any]) -> "Decision":
         return cls(
             id=data.get("id", ""),
             title=data.get("title", ""),
@@ -85,7 +86,7 @@ class Decision:
 
 @dataclass
 class DecisionQuery:
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     impact: str = ""
     status: str = "active"
     related_entity: str = ""
@@ -105,7 +106,7 @@ class DecisionQuery:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DecisionQuery":
+    def from_dict(cls, data: dict[str, Any]) -> "DecisionQuery":
         return cls(
             tags=data.get("tags", []),
             impact=data.get("impact", ""),

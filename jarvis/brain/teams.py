@@ -6,13 +6,14 @@ Mission Timeline: Visual timeline of mission progress with milestones.
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+
 from loguru import logger
 
 
 @dataclass
 class TeamMember:
     """A member of a dynamic team."""
+
     agent_id: str
     role: str  # lead, executor, reviewer, observer
     capabilities: list[str] = field(default_factory=list)
@@ -32,6 +33,7 @@ class TeamMember:
 @dataclass
 class DynamicTeam:
     """A dynamically formed team for a specific mission."""
+
     id: str
     name: str
     mission_id: str
@@ -83,11 +85,13 @@ class DynamicTeamManager:
         scored.sort(key=lambda x: -x[0])
         members = []
         for _, agent_id, caps in scored[:max_members]:
-            members.append(TeamMember(
-                agent_id=agent_id,
-                role="executor" if len(members) > 0 else "lead",
-                capabilities=caps,
-            ))
+            members.append(
+                TeamMember(
+                    agent_id=agent_id,
+                    role="executor" if len(members) > 0 else "lead",
+                    capabilities=caps,
+                )
+            )
 
         team = DynamicTeam(
             id=team_id,
@@ -120,7 +124,7 @@ class DynamicTeamManager:
             return True
         return False
 
-    async def get_team(self, team_id: str) -> Optional[DynamicTeam]:
+    async def get_team(self, team_id: str) -> DynamicTeam | None:
         return self._teams.get(team_id)
 
     async def get_teams_for_mission(self, mission_id: str) -> list[DynamicTeam]:
@@ -139,9 +143,11 @@ class DynamicTeamManager:
 
 # ===== Mission Timeline =====
 
+
 @dataclass
 class TimelineEvent:
     """An event on the mission timeline."""
+
     timestamp: float
     event_type: str  # started, milestone, completed, failed, delegated, reviewed
     node_id: str
@@ -232,10 +238,12 @@ class MissionTimeline:
         start = events[0].timestamp
         vis_events = []
         for e in events:
-            vis_events.append({
-                **e.to_dict(),
-                "offset_ms": (e.timestamp - start) * 1000,
-            })
+            vis_events.append(
+                {
+                    **e.to_dict(),
+                    "offset_ms": (e.timestamp - start) * 1000,
+                }
+            )
 
         return {
             "events": vis_events,

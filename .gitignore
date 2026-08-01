@@ -52,3 +52,8 @@ graphify-out/cost.json
 screenshots/
 memory_store/
 jarvis_missions.json
+
+# Tooling artifacts
+.coverage
+coverage_html/
+.sisyphus/

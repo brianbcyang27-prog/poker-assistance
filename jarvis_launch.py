@@ -2,8 +2,8 @@
 """JARVIS Launcher — validates API key, then starts the server."""
 
 import os
-import sys
 import subprocess
+import sys
 import urllib.request
 
 
@@ -11,18 +11,18 @@ def test_nvidia_key(key: str) -> bool:
     """Test if an NVIDIA API key works for chat completions."""
     try:
         import json
-        data = json.dumps({
-            "model": "meta/llama-3.1-8b-instruct",
-            "messages": [{"role": "user", "content": "hi"}],
-            "max_tokens": 5
-        }).encode()
+
+        data = json.dumps(
+            {
+                "model": "meta/llama-3.1-8b-instruct",
+                "messages": [{"role": "user", "content": "hi"}],
+                "max_tokens": 5,
+            }
+        ).encode()
         req = urllib.request.Request(
             "https://integrate.api.nvidia.com/v1/chat/completions",
             data=data,
-            headers={
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json"
-            }
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=15) as resp:
             return resp.status == 200
@@ -91,10 +91,18 @@ def main():
             print("No key provided. Server may not work.")
 
     print("\nStarting JARVIS server at http://127.0.0.1:8000 ...\n")
-    subprocess.run([
-        sys.executable, "-m", "uvicorn", "jarvis.web.main:app",
-        "--host", "127.0.0.1", "--port", "8000"
-    ])
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "jarvis.web.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8000",
+        ]
+    )
 
 
 if __name__ == "__main__":

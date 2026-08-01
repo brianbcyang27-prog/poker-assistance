@@ -9,10 +9,8 @@ Usage:
     entries = await journal.get_recent(days=7)
 """
 
-import time
 import json
 import logging
-from typing import Optional
 from dataclasses import dataclass
 
 log = logging.getLogger("jarvis.memory.journal")
@@ -21,13 +19,13 @@ log = logging.getLogger("jarvis.memory.journal")
 @dataclass
 class JournalEntry:
     id: int
-    date: str              # YYYY-MM-DD
-    summary: str           # what happened today
+    date: str  # YYYY-MM-DD
+    summary: str  # what happened today
     highlights: list[str]  # key achievements
-    decisions: list[str]   # decisions made
-    tomorrow: list[str]    # things to continue tomorrow
-    mood: str              # neutral, focused, productive, stuck
-    importance: float      # 0-1
+    decisions: list[str]  # decisions made
+    tomorrow: list[str]  # things to continue tomorrow
+    mood: str  # neutral, focused, productive, stuck
+    importance: float  # 0-1
     tags: list[str]
     created_at: float
 
@@ -63,9 +61,7 @@ class DailyJournal:
                 created_at REAL DEFAULT (strftime('%s', 'now'))
             )
         """)
-        await self._db.execute(
-            "CREATE INDEX IF NOT EXISTS idx_journal_date ON daily_journal(date)"
-        )
+        await self._db.execute("CREATE INDEX IF NOT EXISTS idx_journal_date ON daily_journal(date)")
 
     def __init__(self, db=None):
         self._db = db
@@ -76,6 +72,7 @@ class DailyJournal:
             return
         if self._db is None:
             from ...core.database import get_db
+
             self._db = await get_db()
         await self._ensure_table()
         self._initialized = True
@@ -84,8 +81,8 @@ class DailyJournal:
         self,
         session_id: str,
         summary: str,
-        decisions: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
+        decisions: list[str] | None = None,
+        tags: list[str] | None = None,
     ):
         """Log a conversation summary to today's journal entry."""
         await self._ensure_db()
@@ -120,7 +117,7 @@ class DailyJournal:
         )
         await self._db.commit()
 
-    async def add_highlight(self, highlight: str, tags: Optional[list[str]] = None):
+    async def add_highlight(self, highlight: str, tags: list[str] | None = None):
         """Add a highlight to today's journal."""
         await self._ensure_db()
         today = self._today()
@@ -190,17 +187,15 @@ class DailyJournal:
         )
         await self._db.commit()
 
-    async def get_today(self) -> Optional[JournalEntry]:
+    async def get_today(self) -> JournalEntry | None:
         """Get today's journal entry."""
         await self._ensure_db()
         return self._row_to_entry(await self._get_or_create_entry(self._today()))
 
-    async def get_entry(self, date: str) -> Optional[JournalEntry]:
+    async def get_entry(self, date: str) -> JournalEntry | None:
         """Get journal entry for a specific date (YYYY-MM-DD)."""
         await self._ensure_db()
-        cursor = await self._db.execute(
-            "SELECT * FROM daily_journal WHERE date = ?", (date,)
-        )
+        cursor = await self._db.execute("SELECT * FROM daily_journal WHERE date = ?", (date,))
         row = await cursor.fetchone()
         return self._row_to_entry(row) if row else None
 
@@ -208,6 +203,7 @@ class DailyJournal:
         """Get journal entries for the last N days."""
         await self._ensure_db()
         import datetime
+
         cutoff = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
         cursor = await self._db.execute(
             "SELECT * FROM daily_journal WHERE date >= ? ORDER BY date DESC",
@@ -241,16 +237,20 @@ class DailyJournal:
 
     async def _get_or_create_entry(self, date: str) -> dict:
         """Get or create a journal entry for a date."""
-        cursor = await self._db.execute(
-            "SELECT * FROM daily_journal WHERE date = ?", (date,)
-        )
+        cursor = await self._db.execute("SELECT * FROM daily_journal WHERE date = ?", (date,))
         row = await cursor.fetchone()
         if row:
             return {
-                "id": row[0], "date": row[1], "summary": row[2],
-                "highlights": row[3], "decisions": row[4],
-                "tomorrow": row[5], "mood": row[6],
-                "importance": row[7], "tags": row[8], "created_at": row[9],
+                "id": row[0],
+                "date": row[1],
+                "summary": row[2],
+                "highlights": row[3],
+                "decisions": row[4],
+                "tomorrow": row[5],
+                "mood": row[6],
+                "importance": row[7],
+                "tags": row[8],
+                "created_at": row[9],
             }
 
         cursor = await self._db.execute(
@@ -262,23 +262,35 @@ class DailyJournal:
         row = await cursor.fetchone()
         await self._db.commit()
         return {
-            "id": row[0], "date": row[1], "summary": row[2],
-            "highlights": row[3], "decisions": row[4],
-            "tomorrow": row[5], "mood": row[6],
-            "importance": row[7], "tags": row[8], "created_at": row[9],
+            "id": row[0],
+            "date": row[1],
+            "summary": row[2],
+            "highlights": row[3],
+            "decisions": row[4],
+            "tomorrow": row[5],
+            "mood": row[6],
+            "importance": row[7],
+            "tags": row[8],
+            "created_at": row[9],
         }
 
-    def _row_to_entry(self, row) -> Optional[JournalEntry]:
+    def _row_to_entry(self, row) -> JournalEntry | None:
         if not row:
             return None
         if isinstance(row, dict):
             d = row
         else:
             d = {
-                "id": row[0], "date": row[1], "summary": row[2],
-                "highlights": row[3], "decisions": row[4],
-                "tomorrow": row[5], "mood": row[6],
-                "importance": row[7], "tags": row[8], "created_at": row[9],
+                "id": row[0],
+                "date": row[1],
+                "summary": row[2],
+                "highlights": row[3],
+                "decisions": row[4],
+                "tomorrow": row[5],
+                "mood": row[6],
+                "importance": row[7],
+                "tags": row[8],
+                "created_at": row[9],
             }
         return JournalEntry(
             id=d["id"],
@@ -295,11 +307,12 @@ class DailyJournal:
 
     def _today(self) -> str:
         import datetime
+
         return datetime.date.today().isoformat()
 
 
 # Module-level singleton
-_journal: Optional[DailyJournal] = None
+_journal: DailyJournal | None = None
 
 
 def get_journal(db=None) -> DailyJournal:

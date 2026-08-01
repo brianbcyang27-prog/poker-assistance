@@ -4,11 +4,11 @@ Supported platforms: Arduino, ESP32/PlatformIO, Raspberry Pi, STM32, MicroPython
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class Platform(str, Enum):
+class Platform(StrEnum):
     ARDUINO = "arduino"
     ESP32 = "esp32"
     RASPBERRY_PI = "raspberry_pi"
@@ -17,7 +17,7 @@ class Platform(str, Enum):
     ESPIDF = "esp_idf"
 
 
-class BuildStatus(str, Enum):
+class BuildStatus(StrEnum):
     SUCCESS = "success"
     FAILED = "failed"
     COMPILING = "compiling"
@@ -36,14 +36,12 @@ class EmbeddedProvider(ABC):
 
     @property
     @abstractmethod
-    def supported_platforms(self) -> List[Platform]:
+    def supported_platforms(self) -> list[Platform]:
         """List of supported embedded platforms."""
         ...
 
     @abstractmethod
-    async def create_project(
-        self, name: str, platform: Platform, params: Dict[str, Any]
-    ) -> Dict:
+    async def create_project(self, name: str, platform: Platform, params: dict[str, Any]) -> dict:
         """Create a new embedded project.
 
         Args:
@@ -57,7 +55,7 @@ class EmbeddedProvider(ABC):
         ...
 
     @abstractmethod
-    async def compile(self, project_id: str) -> Dict:
+    async def compile(self, project_id: str) -> dict:
         """Compile firmware.
 
         Returns:
@@ -66,7 +64,7 @@ class EmbeddedProvider(ABC):
         ...
 
     @abstractmethod
-    async def upload(self, project_id: str, device: str) -> Dict:
+    async def upload(self, project_id: str, device: str) -> dict:
         """Upload firmware to device.
 
         Args:
@@ -79,9 +77,7 @@ class EmbeddedProvider(ABC):
         ...
 
     @abstractmethod
-    async def monitor(
-        self, project_id: str, device: str, duration: int = 10
-    ) -> Dict:
+    async def monitor(self, project_id: str, device: str, duration: int = 10) -> dict:
         """Monitor serial output from device.
 
         Args:
@@ -95,7 +91,7 @@ class EmbeddedProvider(ABC):
         ...
 
     @abstractmethod
-    async def list_devices(self) -> List[Dict]:
+    async def list_devices(self) -> list[dict]:
         """List connected devices.
 
         Returns:
@@ -104,7 +100,7 @@ class EmbeddedProvider(ABC):
         ...
 
     @abstractmethod
-    async def list_boards(self, platform: Optional[Platform] = None) -> List[Dict]:
+    async def list_boards(self, platform: Platform | None = None) -> list[dict]:
         """List supported boards.
 
         Returns:
@@ -113,7 +109,7 @@ class EmbeddedProvider(ABC):
         ...
 
     @abstractmethod
-    async def install_library(self, library: str) -> Dict:
+    async def install_library(self, library: str) -> dict:
         """Install a library.
 
         Returns:
@@ -122,7 +118,7 @@ class EmbeddedProvider(ABC):
         ...
 
     @abstractmethod
-    async def list_libraries(self) -> List[Dict]:
+    async def list_libraries(self) -> list[dict]:
         """List installed libraries.
 
         Returns:
@@ -130,7 +126,7 @@ class EmbeddedProvider(ABC):
         """
         ...
 
-    async def generate_pin_map(self, board: str) -> Dict:
+    async def generate_pin_map(self, board: str) -> dict:
         """Generate pin map for a board.
 
         Returns:
@@ -138,9 +134,7 @@ class EmbeddedProvider(ABC):
         """
         return {"pins": [], "note": "Pin map generation not supported"}
 
-    async def validate_pin_config(
-        self, board: str, config: Dict[str, Any]
-    ) -> Dict:
+    async def validate_pin_config(self, board: str, config: dict[str, Any]) -> dict:
         """Validate pin configuration for conflicts.
 
         Returns:

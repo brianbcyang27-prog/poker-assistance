@@ -7,55 +7,59 @@ Usage:
     jarvis server       # Start server only (no browser)
 """
 
-import os
-import sys
-import time
-import signal
-import subprocess
-import urllib.request
-import urllib.error
-import webbrowser
 import importlib
 import importlib.metadata
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+import webbrowser
 from pathlib import Path
-from typing import Optional
-
 
 # ── ANSI Colors ──────────────────────────────────────────────────────────────
 
+
 class _C:
     """ANSI color codes."""
-    RESET   = "\033[0m"
-    BOLD    = "\033[1m"
-    DIM     = "\033[2m"
-    RED     = "\033[91m"
-    GREEN   = "\033[92m"
-    YELLOW  = "\033[93m"
-    BLUE    = "\033[94m"
-    CYAN    = "\033[96m"
-    WHITE   = "\033[97m"
-    GOLD    = "\033[38;5;220m"
+
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    DIM = "\033[2m"
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    WHITE = "\033[97m"
+    GOLD = "\033[38;5;220m"
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 def _ok(msg: str) -> str:
     return f"{_C.GREEN}✓{_C.RESET} {msg}"
+
 
 def _warn(msg: str) -> str:
     return f"{_C.YELLOW}⚠{_C.RESET} {msg}"
 
+
 def _fail(msg: str) -> str:
     return f"{_C.RED}✗{_C.RESET} {msg}"
 
+
 def _info(msg: str) -> str:
     return f"{_C.DIM}{msg}{_C.RESET}"
+
 
 def _step(step: int, total: int, msg: str) -> str:
     return f"  {_C.CYAN}[{step}/{total}]{_C.RESET} {msg}"
 
 
 # ── Check Functions ──────────────────────────────────────────────────────────
+
 
 def check_python() -> tuple[bool, str]:
     """Check Python version."""
@@ -68,13 +72,19 @@ def check_python() -> tuple[bool, str]:
 def check_dependencies() -> tuple[bool, str]:
     """Check required packages."""
     required = [
-        "fastapi", "uvicorn", "pydantic", "dotenv",
-        "aiosqlite", "jinja2", "websockets", "rich",
+        "fastapi",
+        "uvicorn",
+        "pydantic",
+        "dotenv",
+        "aiosqlite",
+        "jinja2",
+        "websockets",
+        "rich",
     ]
     missing = []
     for pkg in required:
         try:
-            importlib.import_name(pkg if pkg != "dotenv" else "dotenv")
+            importlib.import_module(pkg)
         except ImportError:
             missing.append(pkg)
     if missing:
@@ -114,6 +124,7 @@ def check_config() -> tuple[bool, str]:
 def check_port(port: int = 8000) -> tuple[bool, str]:
     """Check if port is available or already in use."""
     import socket
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.bind(("127.0.0.1", port))
@@ -122,10 +133,7 @@ def check_port(port: int = 8000) -> tuple[bool, str]:
     except OSError:
         # Port in use — check if it's JARVIS
         try:
-            req = urllib.request.Request(
-                f"http://127.0.0.1:{port}/api/health",
-                method="GET"
-            )
+            req = urllib.request.Request(f"http://127.0.0.1:{port}/api/health", method="GET")
             with urllib.request.urlopen(req, timeout=2) as resp:
                 if resp.status == 200:
                     return True, f"Port {port} — JARVIS already running"
@@ -140,6 +148,7 @@ def check_voice() -> tuple[bool, str]:
     """Check voice services availability."""
     try:
         import importlib
+
         importlib.import_module("jarvis.voice.tts")
         return True, "Voice services available"
     except ImportError:
@@ -149,15 +158,16 @@ def check_voice() -> tuple[bool, str]:
 def check_browser_tools() -> tuple[bool, str]:
     """Check browser automation tools."""
     try:
-        import playwright
+        import playwright  # noqa: F401  (availability probe)
+
         return True, "Playwright available"
     except ImportError:
         pass
     try:
         import subprocess
+
         result = subprocess.run(
-            ["playwright", "install", "--dry-run"],
-            capture_output=True, timeout=5
+            ["playwright", "install", "--dry-run"], capture_output=True, timeout=5
         )
         if result.returncode == 0:
             return True, "Playwright CLI available"
@@ -167,6 +177,7 @@ def check_browser_tools() -> tuple[bool, str]:
 
 
 # ── Health Check Runner ──────────────────────────────────────────────────────
+
 
 def run_checks(server_port: int = 8000) -> list[tuple[bool, str, str]]:
     """Run all startup checks. Returns list of (ok, name, detail)."""
@@ -198,13 +209,11 @@ def run_checks(server_port: int = 8000) -> list[tuple[bool, str, str]]:
 
 # ── Server Management ────────────────────────────────────────────────────────
 
+
 def is_server_running(port: int = 8000) -> bool:
     """Check if JARVIS server is already running."""
     try:
-        req = urllib.request.Request(
-            f"http://127.0.0.1:{port}/api/health",
-            method="GET"
-        )
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/health", method="GET")
         with urllib.request.urlopen(req, timeout=2) as resp:
             return resp.status == 200
     except Exception:
@@ -224,8 +233,16 @@ def wait_for_server(port: int = 8000, timeout: float = 30.0) -> bool:
 def start_server(port: int = 8000) -> subprocess.Popen:
     """Start JARVIS server as a subprocess."""
     return subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "jarvis.web.main:app",
-         "--host", "0.0.0.0", "--port", str(port)],
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "jarvis.web.main:app",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            str(port),
+        ],
         cwd=str(Path(__file__).parent.parent),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -233,6 +250,7 @@ def start_server(port: int = 8000) -> subprocess.Popen:
 
 
 # ── Main Launcher ────────────────────────────────────────────────────────────
+
 
 def launch(port: int = 8000, open_browser: bool = True) -> None:
     """The main JARVIS launcher. Single command to start everything."""
@@ -255,8 +273,8 @@ def launch(port: int = 8000, open_browser: bool = True) -> None:
     print()
 
     # Check for critical failures
-    critical = [c for i, (ok, name, detail) in enumerate(checks) if not ok and i < 4]
-    if critical:
+    critical_found = any(not ok for i, (ok, _, _) in enumerate(checks) if i < 4)
+    if critical_found:
         print(f"  {_C.RED}Cannot start — critical checks failed{_C.RESET}")
         print(f"  {_C.DIM}Run 'jarvis doctor' for details{_C.RESET}")
         print()
@@ -270,23 +288,23 @@ def launch(port: int = 8000, open_browser: bool = True) -> None:
     else:
         print(f"  {_C.CYAN}→{_C.RESET} Starting JARVIS server...")
         proc = start_server(port)
+        print(f"  {_C.DIM}  PID: {proc.pid}{_C.RESET}")
+        print(f"  {_C.DIM}  Use 'jarvis status' to check health{_C.RESET}")
 
-        # Handle Ctrl+C gracefully
-        def _shutdown(sig, frame):
-            print(f"\n  {_C.DIM}Shutting down...{_C.RESET}")
-            proc.terminate()
-            proc.wait(timeout=5)
-            sys.exit(0)
+        try:
+            proc.wait(timeout=3)
+            print(f"\n  {_C.RED}Server failed to start (exit code {proc.returncode}){_C.RESET}")
+            sys.exit(1)
+        except subprocess.TimeoutExpired:
+            pass
 
-        signal.signal(signal.SIGINT, _shutdown)
-        signal.signal(signal.SIGTERM, _shutdown)
+    # Record CLI launch timing
+    try:
+        from jarvis.core.startup_timer import startup_timer
 
-        if wait_for_server(port, timeout=15):
-            elapsed = "ready"
-            print(f"  {_C.GREEN}→{_C.RESET} Server healthy on port {port}")
-        else:
-            print(f"  {_C.YELLOW}→{_C.RESET} Server started but health check timed out")
-            print(f"  {_C.DIM}  Try opening http://127.0.0.1:{port} manually{_C.RESET}")
+        startup_timer.mark("cli_launch")
+    except Exception:
+        pass
 
     # Open browser
     if open_browser:
@@ -295,23 +313,10 @@ def launch(port: int = 8000, open_browser: bool = True) -> None:
         webbrowser.open(url)
 
     print()
-    print(f"  {_C.DIM}Press Ctrl+C to stop{_C.RESET}")
-    print()
-
-    # Keep the launcher alive if we started the server
-    if not already_running:
-        try:
-            proc.wait()
-        except KeyboardInterrupt:
-            print(f"\n  {_C.DIM}Shutting down...{_C.RESET}")
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
 
 
 # ── Doctor Command ───────────────────────────────────────────────────────────
+
 
 def doctor() -> None:
     """Run comprehensive system health checks."""
@@ -321,12 +326,14 @@ def doctor() -> None:
     print(f"  {_C.GOLD}JARVIS Doctor{_C.RESET} {_C.DIM}v{__version__}{_C.RESET}")
     print()
 
-    checks = run_checks()
+    run_checks()
 
     # Additional deep checks
     try:
         import asyncio
+
         from jarvis.doctor import run_doctor
+
         results = asyncio.run(run_doctor())
         for r in results:
             icon = {"ok": f"{_C.GREEN}✓", "warn": f"{_C.YELLOW}⚠", "fail": f"{_C.RED}✗"}[r.status]
@@ -341,6 +348,7 @@ def doctor() -> None:
 
 # ── CLI Entry Point ──────────────────────────────────────────────────────────
 
+
 def main():
     """CLI entry point for 'jarvis' command."""
     import argparse
@@ -350,7 +358,9 @@ def main():
         description="JARVIS — Personal AI Operating System",
     )
     parser.add_argument(
-        "command", nargs="?", default="launch",
+        "command",
+        nargs="?",
+        default="launch",
         choices=["launch", "doctor", "status", "server", "stop"],
         help="Command to run (default: launch)",
     )
@@ -366,12 +376,15 @@ def main():
         doctor()
     elif args.command == "status":
         from jarvis import __version__
+
         running = is_server_running(args.port)
         status = f"{_C.GREEN}running{_C.RESET}" if running else f"{_C.RED}stopped{_C.RESET}"
         print(f"\n  JARVIS v{__version__} — {status}\n")
     elif args.command == "server":
         import uvicorn
+
         from jarvis.core.config import get_config
+
         config = get_config()
         uvicorn.run("jarvis.web.main:app", host=config.host, port=config.port)
     elif args.command == "stop":
@@ -379,14 +392,15 @@ def main():
             print(f"  {_C.DIM}Stopping JARVIS...{_C.RESET}")
             # Send SIGTERM to uvicorn processes
             import subprocess
-            subprocess.run(["pkill", "-f", f"uvicorn.*jarvis.*{args.port}"],
-                         capture_output=True)
+
+            subprocess.run(["pkill", "-f", f"uvicorn.*jarvis.*{args.port}"], capture_output=True)
             print(f"  {_C.GREEN}✓{_C.RESET} Stopped")
         else:
             print(f"  {_C.DIM}JARVIS is not running{_C.RESET}")
     elif args.cli:
         # Legacy TUI mode
         from jarvis.cli import JARVISTUI
+
         tui = JARVISTUI()
         tui.run()
     else:

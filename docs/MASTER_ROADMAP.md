@@ -590,7 +590,8 @@ The Golden 3D Neural Core reacts to system state:
 async def handler():
     db = await get_db()
     result = await db.execute("SELECT ...")
-    
+
+
 # Bad: Blocking calls in async context
 async def handler():
     result = subprocess.run(...)  # BLOCKS EVENT LOOP
@@ -612,6 +613,7 @@ async def get_item(item_id: str):
     except Exception as e:
         logger.error(f"Failed to get item {item_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal error")
+
 
 # Bad: Silent failure
 @router.get("/items/{item_id}")
@@ -635,7 +637,7 @@ Every tool must return structured data:
     "stderr": "",
     "exit_code": 0,
     "artifacts": ["file.txt"],
-    "verification": "File exists at /path/to/file.txt"
+    "verification": "File exists at /path/to/file.txt",
 }
 ```
 

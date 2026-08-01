@@ -6,22 +6,23 @@ for the entire computer control subsystem.
 
 import time
 import uuid
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional
+from enum import StrEnum
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     """Risk classification for computer actions."""
-    SAFE = "safe"           # screenshots, reading, status checks
-    LOW = "low"             # ls, pwd, git status, reading project files
-    MEDIUM = "medium"       # pip install, npm install, modifying project files
-    HIGH = "high"           # sudo, deleting files, changing system settings
-    DANGEROUS = "dangerous" # deleting system folders, exposing secrets, modifying security
+
+    SAFE = "safe"  # screenshots, reading, status checks
+    LOW = "low"  # ls, pwd, git status, reading project files
+    MEDIUM = "medium"  # pip install, npm install, modifying project files
+    HIGH = "high"  # sudo, deleting files, changing system settings
+    DANGEROUS = "dangerous"  # deleting system folders, exposing secrets, modifying security
 
 
-class ActionStatus(str, Enum):
+class ActionStatus(StrEnum):
     """Status of a computer action."""
+
     PENDING = "pending"
     APPROVED = "approved"
     DENIED = "denied"
@@ -32,8 +33,9 @@ class ActionStatus(str, Enum):
     TIMEOUT = "timeout"
 
 
-class ActionType(str, Enum):
+class ActionType(StrEnum):
     """Types of computer actions."""
+
     TERMINAL = "terminal"
     FILE_READ = "file_read"
     FILE_WRITE = "file_write"
@@ -47,14 +49,15 @@ class ActionType(str, Enum):
     APP_CLOSE = "app_close"
     PROCESS = "process"
     SYSTEM = "system"
-    VISION = "vision"           # v4.5.0 — vision analysis actions
+    VISION = "vision"  # v4.5.0 — vision analysis actions
     ACCESSIBILITY = "accessibility"  # v4.4.0 — accessibility actions
-    OS = "os"                   # v5.0.0 — OS integration actions
+    OS = "os"  # v5.0.0 — OS integration actions
 
 
 @dataclass
 class ActionResult:
     """Result of a single computer action execution."""
+
     action_id: str = ""
     action_type: str = ""
     command: str = ""
@@ -84,9 +87,10 @@ class ActionResult:
 @dataclass
 class ActionRecord:
     """Persistent record of a computer action for audit and memory."""
+
     id: str = ""
-    agent: str = ""          # which worker triggered this
-    task_id: str = ""        # associated task
+    agent: str = ""  # which worker triggered this
+    task_id: str = ""  # associated task
     action_type: str = ""
     command: str = ""
     risk_level: str = RiskLevel.SAFE
@@ -94,7 +98,7 @@ class ActionRecord:
     output: str = ""
     error: str = ""
     duration_ms: float = 0.0
-    approved_by: str = ""    # "auto", "user", "policy"
+    approved_by: str = ""  # "auto", "user", "policy"
     timestamp: float = field(default_factory=time.time)
 
     def __post_init__(self):

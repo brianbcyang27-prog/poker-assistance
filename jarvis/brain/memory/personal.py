@@ -15,43 +15,42 @@ Privacy rules:
 - Three modes: always_remember, ask_before, never_remember
 """
 
-import time
-import json
 import logging
-from typing import Optional
+import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 log = logging.getLogger("jarvis.memory.personal")
 
 
-class RememberMode(str, Enum):
-    ALWAYS = "always"         # Always remember (preferences, tools)
-    ASK = "ask"               # Ask before remembering (opinions, habits)
-    NEVER = "never"           # Never store (sensitive info)
+class RememberMode(StrEnum):
+    ALWAYS = "always"  # Always remember (preferences, tools)
+    ASK = "ask"  # Ask before remembering (opinions, habits)
+    NEVER = "never"  # Never store (sensitive info)
 
 
-class MemoryCategory(str, Enum):
-    PREFERENCE = "preference"     # What the user likes/dislikes
-    TOOL = "tool"                 # Tools and software they use
-    WORKFLOW = "workflow"         # How they work
-    STYLE = "style"               # Communication and design preferences
-    GOAL = "goal"                 # Current and future goals
-    PROJECT = "project"           # Project context
-    RULE = "rule"                 # Explicit rules (never do X)
-    BIO = "bio"                   # Personal info (name, role)
-    CONTEXT = "context"           # General context
+class MemoryCategory(StrEnum):
+    PREFERENCE = "preference"  # What the user likes/dislikes
+    TOOL = "tool"  # Tools and software they use
+    WORKFLOW = "workflow"  # How they work
+    STYLE = "style"  # Communication and design preferences
+    GOAL = "goal"  # Current and future goals
+    PROJECT = "project"  # Project context
+    RULE = "rule"  # Explicit rules (never do X)
+    BIO = "bio"  # Personal info (name, role)
+    CONTEXT = "context"  # General context
 
 
 @dataclass
 class PersonalMemory:
     """A single personal memory — stable information about the user."""
+
     id: int = 0
     category: str = ""
     key: str = ""
     value: str = ""
-    confidence: float = 0.8    # 0-1, how confident we are this is correct
-    source: str = ""           # Where this memory came from
+    confidence: float = 0.8  # 0-1, how confident we are this is correct
+    source: str = ""  # Where this memory came from
     remember_mode: str = "always"
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
@@ -109,6 +108,7 @@ class PersonalMemoryManager:
             return
         if self._db is None:
             from ...core.database import get_db
+
             self._db = await get_db()
         self._initialized = True
         await self._load_cache()
@@ -117,7 +117,8 @@ class PersonalMemoryManager:
         """Load all personal memories into cache for fast access."""
         try:
             cursor = await self._db.execute(
-                "SELECT id, category, key, value, confidence, source, remember_mode, created_at, updated_at "
+                "SELECT id, category, key, value, confidence, source, remember_mode, "
+                "created_at, updated_at "
                 "FROM personal_memory ORDER BY category, key"
             )
             rows = await cursor.fetchall()
@@ -177,7 +178,7 @@ class PersonalMemoryManager:
         log.info(f"Remembered: {category}/{key} = {value[:50]} (confidence={confidence:.2f})")
         return {"ok": True, "id": memory_id, "mode": remember_mode}
 
-    async def get(self, category: str, key: str) -> Optional[PersonalMemory]:
+    async def get(self, category: str, key: str) -> PersonalMemory | None:
         """Get a specific personal memory."""
         await self._ensure_db()
         for m in self._cache:
@@ -196,9 +197,11 @@ class PersonalMemoryManager:
         query_lower = query.lower()
         results = []
         for m in self._cache:
-            if (query_lower in m.key.lower() or
-                query_lower in m.value.lower() or
-                query_lower in m.category.lower()):
+            if (
+                query_lower in m.key.lower()
+                or query_lower in m.value.lower()
+                or query_lower in m.category.lower()
+            ):
                 results.append(m)
         return results[:limit]
 
@@ -242,9 +245,9 @@ class PersonalMemoryManager:
 
         return "\n".join(lines) if lines else ""
 
-    async def forget(self, memory_id: Optional[int] = None,
-                     category: Optional[str] = None,
-                     key: Optional[str] = None) -> dict:
+    async def forget(
+        self, memory_id: int | None = None, category: str | None = None, key: str | None = None
+    ) -> dict:
         """Delete personal memories.
 
         Can delete by ID, or by category+key combination.
@@ -269,7 +272,8 @@ class PersonalMemoryManager:
         """Update the confidence score for a memory."""
         await self._ensure_db()
         await self._db.execute(
-            "UPDATE personal_memory SET confidence = ?, updated_at = ? WHERE category = ? AND key = ?",
+            "UPDATE personal_memory SET confidence = ?, updated_at = ? "
+            "WHERE category = ? AND key = ?",
             (confidence, time.time(), category, key),
         )
         await self._db.commit()
@@ -282,15 +286,20 @@ class PersonalMemoryManager:
 
     def _row_to_memory(self, row) -> PersonalMemory:
         return PersonalMemory(
-            id=row[0], category=row[1], key=row[2], value=row[3],
-            confidence=row[4] or 0.8, source=row[5] or "",
+            id=row[0],
+            category=row[1],
+            key=row[2],
+            value=row[3],
+            confidence=row[4] or 0.8,
+            source=row[5] or "",
             remember_mode=row[6] or "always",
-            created_at=row[7] or 0, updated_at=row[8] or 0,
+            created_at=row[7] or 0,
+            updated_at=row[8] or 0,
         )
 
 
 # Module-level convenience
-_personal: Optional[PersonalMemoryManager] = None
+_personal: PersonalMemoryManager | None = None
 
 
 def get_personal_memory(db=None) -> PersonalMemoryManager:

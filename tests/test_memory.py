@@ -1,9 +1,10 @@
 """Tests for the human-like memory system (v4.1.0)."""
 
 import asyncio
-import time
 import os
 import sys
+import time
+
 import aiosqlite
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -101,6 +102,7 @@ async def _make_db():
 
 # ── Importance Scorer ────────────────────────────────────────
 
+
 async def test_importance_scorer():
     from jarvis.brain.memory.importance import ImportanceScorer
 
@@ -133,6 +135,7 @@ async def test_importance_scorer():
 
 # ── Working Memory ───────────────────────────────────────────
 
+
 async def test_working_memory():
     from jarvis.brain.memory.working import WorkingMemoryManager
 
@@ -164,6 +167,7 @@ async def test_working_memory():
 
 
 # ── Episodic Memory ──────────────────────────────────────────
+
 
 async def test_episodic_memory():
     from jarvis.brain.memory.episodic import EpisodicMemoryManager
@@ -209,6 +213,7 @@ async def test_episodic_memory():
 
 # ── Personal Memory ──────────────────────────────────────────
 
+
 async def test_personal_memory():
     from jarvis.brain.memory.personal import PersonalMemoryManager
 
@@ -217,7 +222,9 @@ async def test_personal_memory():
 
     # remember()
     result = await pm.remember(
-        "preference", "language", "Python is preferred over JavaScript",
+        "preference",
+        "language",
+        "Python is preferred over JavaScript",
         confidence=0.9,
     )
     assert isinstance(result, dict)
@@ -230,7 +237,9 @@ async def test_personal_memory():
 
     # Update (same category+key)
     result2 = await pm.remember(
-        "preference", "language", "Python and Rust are preferred",
+        "preference",
+        "language",
+        "Python and Rust are preferred",
         confidence=0.95,
     )
     assert result2["id"] == result["id"]  # updated same row
@@ -256,8 +265,9 @@ async def test_personal_memory():
 
 # ── Retrieval Engine ─────────────────────────────────────────
 
+
 async def test_retrieval_engine():
-    from jarvis.brain.memory.retrieval import MemoryRetrievalEngine, IntentDetector
+    from jarvis.brain.memory.retrieval import IntentDetector, MemoryRetrievalEngine
 
     # Intent detection
     detector = IntentDetector()
@@ -309,6 +319,7 @@ async def test_retrieval_engine():
 
 # ── Daily Journal ────────────────────────────────────────────
 
+
 async def test_journal():
     from jarvis.brain.memory.journal import DailyJournal
 
@@ -353,11 +364,15 @@ async def test_journal():
 
 # ── Memory API Router ────────────────────────────────────────
 
+
 async def test_memory_api():
     from jarvis.web.routers.memory import (
-        router, WorkingMemoryUpdate, EpisodeCreate,
-        PersonalMemoryCreate, JournalUpdate,
-        RetrievalQuery, ConsolidateRequest,
+        ConsolidateRequest,
+        EpisodeCreate,
+        PersonalMemoryCreate,
+        RetrievalQuery,
+        WorkingMemoryUpdate,
+        router,
     )
 
     assert router.prefix == "/api/memory"
@@ -383,6 +398,7 @@ async def test_memory_api():
 
 # ── Run Tests ────────────────────────────────────────────────
 
+
 async def main():
     print("\n🧪 Memory System Tests (v4.1.0)\n")
     results = []
@@ -404,6 +420,7 @@ async def main():
         except Exception as e:
             print(f"  ✗ {name}: {e}")
             import traceback
+
             traceback.print_exc()
             results.append((name, False))
 

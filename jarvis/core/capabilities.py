@@ -20,16 +20,15 @@ Usage:
     best = await registry.find_best(type="tool", description="open a website")
 """
 
-import time
 import logging
+import time
 from dataclasses import dataclass, field
-from typing import Optional
-from enum import Enum
+from enum import StrEnum
 
 log = logging.getLogger("jarvis.capabilities")
 
 
-class CapType(str, Enum):
+class CapType(StrEnum):
     TOOL = "tool"
     WORKER = "worker"
     ACTION = "action"
@@ -126,15 +125,15 @@ class CapabilityRegistry:
             return {"ok": True}
         return {"ok": False, "error": f"Capability '{name}' not found"}
 
-    async def get(self, name: str) -> Optional[Capability]:
+    async def get(self, name: str) -> Capability | None:
         """Get a capability by name."""
         return self._caps.get(name)
 
     async def query(
         self,
-        type: Optional[CapType] = None,
-        owner: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        type: CapType | None = None,
+        owner: str | None = None,
+        tags: list[str] | None = None,
         enabled_only: bool = True,
     ) -> list[Capability]:
         """Query capabilities by filters."""
@@ -151,10 +150,10 @@ class CapabilityRegistry:
 
     async def find_best(
         self,
-        type: Optional[CapType] = None,
-        owner: Optional[str] = None,
+        type: CapType | None = None,
+        owner: str | None = None,
         description: str = "",
-    ) -> Optional[Capability]:
+    ) -> Capability | None:
         """Find the best capability matching criteria.
 
         Selection considers: success_rate (high), latency (low), cost (low).
@@ -220,35 +219,33 @@ class CapabilityRegistry:
             "total": len(caps),
             "by_type": by_type,
             "by_owner": by_owner,
-            "avg_success_rate": (
-                sum(c.success_rate for c in caps) / len(caps) if caps else 0
-            ),
+            "avg_success_rate": (sum(c.success_rate for c in caps) / len(caps) if caps else 0),
         }
 
     async def generate_capability_prompt(self) -> str:
         """Generate a system prompt section describing available capabilities.
-        
+
         This is injected into chat requests so the LLM knows what tools it has.
         """
         caps = [c for c in self._caps.values() if c.enabled]
         if not caps:
             return ""
-        
+
         # Group by category
         categories = {}
         for cap in caps:
             cat = cap.category or cap.type.value
             categories.setdefault(cat, []).append(cap)
-        
+
         lines = [
             "## Available Capabilities",
             "You are JARVIS, an AI assistant with the following capabilities:",
-            ""
+            "",
         ]
-        
+
         category_labels = {
             "computer": "Computer Control",
-            "browser": "Browser Control", 
+            "browser": "Browser Control",
             "memory": "Memory System",
             "engineering": "Engineering Tools",
             "tool": "General Tools",
@@ -256,16 +253,19 @@ class CapabilityRegistry:
             "action": "System Actions",
             "skill": "Learned Skills",
         }
-        
+
         for cat, cat_caps in categories.items():
             label = category_labels.get(cat, cat.title())
             lines.append(f"### {label}")
             for cap in cat_caps:
                 lines.append(f"- **{cap.name}**: {cap.description}")
             lines.append("")
-        
-        lines.append("Use these capabilities to help the user. Always check what tools are available before saying you cannot do something.")
-        
+
+        lines.append(
+            "Use these capabilities to help the user. "
+            "Always check what tools are available before saying you cannot do something."
+        )
+
         return "\n".join(lines)
 
 

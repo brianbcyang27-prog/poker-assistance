@@ -4,13 +4,12 @@ import importlib
 import importlib.util
 import json
 import logging
-import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from .models import Plugin, PluginManifest, PluginType
+from .models import Plugin, PluginManifest
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +18,16 @@ class PluginManager:
     """Manages the full lifecycle of JARVIS plugins."""
 
     def __init__(self) -> None:
-        self._plugins: Dict[str, Plugin] = {}
-        self._modules: Dict[str, Any] = {}
+        self._plugins: dict[str, Plugin] = {}
+        self._modules: dict[str, Any] = {}
 
     # ------------------------------------------------------------------
     # Discovery
     # ------------------------------------------------------------------
 
-    async def discover(self, plugin_dirs: List[str]) -> List[Plugin]:
+    async def discover(self, plugin_dirs: list[str]) -> list[Plugin]:
         """Scan *plugin_dirs* for ``plugin.json`` manifests and return found plugins."""
-        found: List[Plugin] = []
+        found: list[Plugin] = []
         for base in plugin_dirs:
             base_path = Path(base)
             if not base_path.is_dir():
@@ -122,10 +121,10 @@ class PluginManager:
     # Queries
     # ------------------------------------------------------------------
 
-    async def get_plugin(self, name: str) -> Optional[Plugin]:
+    async def get_plugin(self, name: str) -> Plugin | None:
         return self._plugins.get(name)
 
-    async def list_plugins(self) -> List[Plugin]:
+    async def list_plugins(self) -> list[Plugin]:
         return list(self._plugins.values())
 
     # ------------------------------------------------------------------
@@ -139,9 +138,7 @@ class PluginManager:
             raise RuntimeError(f"Plugin '{plugin_name}' is not loaded")
         func = getattr(module, method, None)
         if func is None or not callable(func):
-            raise AttributeError(
-                f"Plugin '{plugin_name}' has no callable method '{method}'"
-            )
+            raise AttributeError(f"Plugin '{plugin_name}' has no callable method '{method}'")
         return await func(**kwargs)
 
     # ------------------------------------------------------------------

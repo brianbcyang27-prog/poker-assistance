@@ -5,21 +5,16 @@ BrowserManager, and the enhanced ♦Q WebResearchWorker.
 """
 
 import asyncio
-import functools
-import json
 import os
 import shutil
 import tempfile
-import time
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from jarvis.browser.browser_state import BrowserState, BrowserStatus, TabInfo
-from jarvis.browser.security import BrowserSecurity, BrowserDecision
-from jarvis.browser.extractor import PageExtractor, PageData, extractor
-from jarvis.browser.sessions import SessionManager, BrowserSession, session_manager
-from jarvis.browser.manager import BrowserManager, browser_manager
-from jarvis.browser.playwright_provider import BrowserResult
+from jarvis.browser.extractor import PageExtractor
+from jarvis.browser.manager import BrowserManager
+from jarvis.browser.security import BrowserSecurity
+from jarvis.browser.sessions import SessionManager
 
 
 class TestBrowserState(unittest.TestCase):
@@ -191,9 +186,7 @@ class TestPageExtractor(unittest.TestCase):
         </body>
         </html>
         """
-        data = asyncio.run(
-            self.extractor.extract_from_html(html, url="https://test.com")
-        )
+        data = asyncio.run(self.extractor.extract_from_html(html, url="https://test.com"))
         self.assertEqual(data.title, "Test Page")
         self.assertIn("Hello World", data.content)
         self.assertGreaterEqual(len(data.links), 1)
@@ -208,9 +201,7 @@ class TestPageExtractor(unittest.TestCase):
         </form>
         </body></html>
         """
-        data = asyncio.run(
-            self.extractor.extract_from_html(html)
-        )
+        data = asyncio.run(self.extractor.extract_from_html(html))
         self.assertGreaterEqual(len(data.forms), 1)
         self.assertGreaterEqual(len(data.forms[0].fields), 2)
 
@@ -224,16 +215,12 @@ class TestPageExtractor(unittest.TestCase):
         </table>
         </body></html>
         """
-        data = asyncio.run(
-            self.extractor.extract_from_html(html)
-        )
+        data = asyncio.run(self.extractor.extract_from_html(html))
         self.assertGreaterEqual(len(data.tables), 1)
 
     def test_to_dict(self):
         html = "<html><head><title>T</title></head><body><p>Content</p></body></html>"
-        data = asyncio.run(
-            self.extractor.extract_from_html(html)
-        )
+        data = asyncio.run(self.extractor.extract_from_html(html))
         d = data.to_dict()
         self.assertIn("title", d)
         self.assertIn("content", d)
@@ -241,10 +228,11 @@ class TestPageExtractor(unittest.TestCase):
         self.assertIn("forms", d)
 
     def test_to_llm_context(self):
-        html = "<html><head><title>API Docs</title></head><body><p>Use this API carefully.</p></body></html>"
-        data = asyncio.run(
-            self.extractor.extract_from_html(html)
+        html = (
+            "<html><head><title>API Docs</title></head><body>"
+            "<p>Use this API carefully.</p></body></html>"
         )
+        data = asyncio.run(self.extractor.extract_from_html(html))
         ctx = data.to_llm_context()
         self.assertIn("API Docs", ctx)
         self.assertIn("Use this API carefully", ctx)
@@ -261,9 +249,7 @@ class TestSessionManager(unittest.TestCase):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_create_session(self):
-        session = asyncio.run(
-            self.manager.create("test_session")
-        )
+        session = asyncio.run(self.manager.create("test_session"))
         self.assertIsNotNone(session)
         self.assertEqual(session.name, "test_session")
         self.assertTrue(os.path.exists(session.profile_dir))
@@ -284,12 +270,8 @@ class TestSessionManager(unittest.TestCase):
     def test_save_cookies(self):
         asyncio.run(self.manager.create("cookie_test"))
         cookies = [{"name": "sid", "value": "abc123", "domain": ".example.com"}]
-        asyncio.run(
-            self.manager.save_cookies("cookie_test", cookies)
-        )
-        session = asyncio.run(
-            self.manager.restore("cookie_test")
-        )
+        asyncio.run(self.manager.save_cookies("cookie_test", cookies))
+        session = asyncio.run(self.manager.restore("cookie_test"))
         self.assertEqual(len(session.cookies), 1)
         self.assertEqual(session.cookies[0]["name"], "sid")
 
@@ -325,9 +307,7 @@ class TestBrowserManager(unittest.TestCase):
 
     def test_deny_unknown_action(self):
         """Unknown action returns error before trying to init browser."""
-        result = asyncio.run(
-            self.manager.execute("nonexistent", agent="test")
-        )
+        result = asyncio.run(self.manager.execute("nonexistent", agent="test"))
         self.assertFalse(result.get("ok"))
         self.assertIn("Unknown action", result.get("error", ""))
 
@@ -338,6 +318,7 @@ class TestBrowserManager(unittest.TestCase):
     def test_browser_manager_singleton(self):
         from jarvis.browser.manager import browser_manager as bm1
         from jarvis.browser.manager import browser_manager as bm2
+
         self.assertIs(bm1, bm2)
 
     def test_deny_high_risk_action(self):
@@ -351,7 +332,9 @@ class TestBrowserManager(unittest.TestCase):
         """Approved action goes through the cache."""
         self.manager.security.approve("navigate", url="https://example.com", agent="test")
         # With cache hit, check_action returns allowed=True
-        decision = self.manager.security.check_action("navigate", url="https://example.com", agent="test")
+        decision = self.manager.security.check_action(
+            "navigate", url="https://example.com", agent="test"
+        )
         self.assertTrue(decision.allowed)
 
 
@@ -360,15 +343,21 @@ class TestEnhancedWebResearchWorker(unittest.TestCase):
 
     def test_system_prompt_includes_browser(self):
         from jarvis.agents.workers.research import WebResearchWorker
+
         worker = WebResearchWorker()
         prompt = worker.get_system_prompt()
-        self.assertIn("BROWSER", prompt)
+        self.assertIn("[TOOL:", prompt)
         self.assertIn("search", prompt)
         self.assertIn("extract", prompt)
         self.assertIn("navigate", prompt)
 
     def test_worker_identity(self):
-        from jarvis.agents.workers.research import WebResearchWorker, DocumentationWorker, FactCheckWorker
+        from jarvis.agents.workers.research import (
+            DocumentationWorker,
+            FactCheckWorker,
+            WebResearchWorker,
+        )
+
         qw = WebResearchWorker()
         self.assertEqual(qw.card_id, "♦Q")
         self.assertEqual(qw.name, "Web Research")

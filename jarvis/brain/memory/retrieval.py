@@ -11,10 +11,9 @@ When JARVIS receives a request, this engine:
 This replaces the basic RAG with a smarter, multi-source retrieval system.
 """
 
+import logging
 import re
 import time
-import logging
-from typing import Optional
 from dataclasses import dataclass, field
 
 log = logging.getLogger("jarvis.memory.retrieval")
@@ -23,20 +22,19 @@ log = logging.getLogger("jarvis.memory.retrieval")
 @dataclass
 class RetrievalResult:
     """A single retrieved memory with metadata."""
-    source: str          # which memory system
-    content: str         # the memory content
-    relevance: float     # 0-1, how relevant to the query
-    importance: float    # 0-1, how important in general
-    recency: float       # 0-1, how recent
-    timestamp: float     # when it was created
+
+    source: str  # which memory system
+    content: str  # the memory content
+    relevance: float  # 0-1, how relevant to the query
+    importance: float  # 0-1, how important in general
+    recency: float  # 0-1, how recent
+    timestamp: float  # when it was created
     metadata: dict = field(default_factory=dict)
 
     @property
     def score(self) -> float:
         """Combined ranking score."""
-        return (self.relevance * 0.5 +
-                self.importance * 0.3 +
-                self.recency * 0.2)
+        return self.relevance * 0.5 + self.importance * 0.3 + self.recency * 0.2
 
     def to_dict(self) -> dict:
         return {
@@ -55,33 +53,75 @@ class IntentDetector:
 
     INTENTS = {
         "recall": {
-            "keywords": ["remember", "recall", "what did", "last time", "before",
-                        "previously", "earlier", "ago", "history"],
+            "keywords": [
+                "remember",
+                "recall",
+                "what did",
+                "last time",
+                "before",
+                "previously",
+                "earlier",
+                "ago",
+                "history",
+            ],
             "memory_types": ["episodic", "conversation"],
         },
         "decision": {
-            "keywords": ["decided", "decide", "decision", "chose", "agreed", "plan",
-                        "why did", "reason", "rationale"],
+            "keywords": [
+                "decided",
+                "decide",
+                "decision",
+                "chose",
+                "agreed",
+                "plan",
+                "why did",
+                "reason",
+                "rationale",
+            ],
             "memory_types": ["episodic", "decision"],
         },
         "project": {
-            "keywords": ["project", "code", "codebase", "repository", "file",
-                        "function", "class", "module", "architecture"],
+            "keywords": [
+                "project",
+                "code",
+                "codebase",
+                "repository",
+                "file",
+                "function",
+                "class",
+                "module",
+                "architecture",
+            ],
             "memory_types": ["project", "knowledge_graph", "conversation"],
         },
         "preference": {
-            "keywords": ["prefer", "like", "hate", "favorite", "style",
-                        "always", "never", "rule", "preference"],
+            "keywords": [
+                "prefer",
+                "like",
+                "hate",
+                "favorite",
+                "style",
+                "always",
+                "never",
+                "rule",
+                "preference",
+            ],
             "memory_types": ["personal", "preference"],
         },
         "continue": {
-            "keywords": ["continue", "resume", "go on", "pick up", "where were",
-                        "working on", "next step"],
+            "keywords": [
+                "continue",
+                "resume",
+                "go on",
+                "pick up",
+                "where were",
+                "working on",
+                "next step",
+            ],
             "memory_types": ["working", "episodic", "project"],
         },
         "learn": {
-            "keywords": ["how does", "explain", "teach", "what is",
-                        "why", "how to", "learn"],
+            "keywords": ["how does", "explain", "teach", "what is", "why", "how to", "learn"],
             "memory_types": ["knowledge_graph", "episodic", "conversation"],
         },
     }
@@ -132,7 +172,7 @@ class MemoryRetrievalEngine:
         self,
         query: str,
         max_results: int = 15,
-        memory_types: Optional[list[str]] = None,
+        memory_types: list[str] | None = None,
     ) -> list[RetrievalResult]:
         """Retrieve relevant memories from all sources.
 
@@ -146,6 +186,7 @@ class MemoryRetrievalEngine:
         """
         if self._db is None:
             from ...core.database import get_db
+
             self._db = await get_db()
 
         # 1. Detect intent
@@ -195,6 +236,7 @@ class MemoryRetrievalEngine:
     async def _query_working(self, query: str) -> list[RetrievalResult]:
         """Query working memory (current context)."""
         from .working import get_working_memory
+
         wm = get_working_memory(self._db)
         entries = await wm.get_all()
 
@@ -203,20 +245,23 @@ class MemoryRetrievalEngine:
             content = entry.get("content", "")
             relevance = self._keyword_score(query, content)
             if relevance > 0.1:
-                results.append(RetrievalResult(
-                    source="working_memory",
-                    content=content,
-                    relevance=relevance,
-                    importance=entry.get("importance", 0.5),
-                    recency=0.9,  # working memory is always recent
-                    timestamp=entry.get("created_at", time.time()),
-                    metadata={"slot": slot},
-                ))
+                results.append(
+                    RetrievalResult(
+                        source="working_memory",
+                        content=content,
+                        relevance=relevance,
+                        importance=entry.get("importance", 0.5),
+                        recency=0.9,  # working memory is always recent
+                        timestamp=entry.get("created_at", time.time()),
+                        metadata={"slot": slot},
+                    )
+                )
         return results
 
     async def _query_personal(self, query: str) -> list[RetrievalResult]:
         """Query personal memories (preferences, rules)."""
         from .personal import get_personal_memory
+
         pm = get_personal_memory(self._db)
         memories = await pm.search(query, limit=10)
 
@@ -225,20 +270,23 @@ class MemoryRetrievalEngine:
             content = f"{mem.category}/{mem.key}: {mem.value}"
             relevance = self._keyword_score(query, content)
             if relevance > 0.1:
-                results.append(RetrievalResult(
-                    source="personal",
-                    content=content,
-                    relevance=relevance,
-                    importance=mem.confidence,
-                    recency=self._recency_score(mem.updated_at),
-                    timestamp=mem.updated_at,
-                    metadata={"category": mem.category, "key": mem.key},
-                ))
+                results.append(
+                    RetrievalResult(
+                        source="personal",
+                        content=content,
+                        relevance=relevance,
+                        importance=mem.confidence,
+                        recency=self._recency_score(mem.updated_at),
+                        timestamp=mem.updated_at,
+                        metadata={"category": mem.category, "key": mem.key},
+                    )
+                )
         return results
 
     async def _query_episodes(self, query: str) -> list[RetrievalResult]:
         """Query episodic memories."""
         from .episodic import get_episodic_memory
+
         em = get_episodic_memory(self._db)
         episodes = await em.search(query, limit=10)
 
@@ -250,15 +298,17 @@ class MemoryRetrievalEngine:
             relevance = self._keyword_score(query, content)
             if relevance > 0.1:
                 importance = ep.importance_score / 100.0
-                results.append(RetrievalResult(
-                    source="episodic",
-                    content=content,
-                    relevance=relevance,
-                    importance=importance,
-                    recency=self._recency_score(ep.created_at),
-                    timestamp=ep.created_at,
-                    metadata={"episode_id": ep.id, "type": ep.episode_type},
-                ))
+                results.append(
+                    RetrievalResult(
+                        source="episodic",
+                        content=content,
+                        relevance=relevance,
+                        importance=importance,
+                        recency=self._recency_score(ep.created_at),
+                        timestamp=ep.created_at,
+                        metadata={"episode_id": ep.id, "type": ep.episode_type},
+                    )
+                )
         return results
 
     async def _query_conversations(self, query: str) -> list[RetrievalResult]:
@@ -278,20 +328,23 @@ class MemoryRetrievalEngine:
         for row in rows:
             relevance = self._keyword_score(query, row[0])
             if relevance > 0.1:
-                results.append(RetrievalResult(
-                    source="conversation",
-                    content=row[0],
-                    relevance=relevance,
-                    importance=0.3,
-                    recency=self._recency_score(row[1]),
-                    timestamp=row[1] or 0,
-                ))
+                results.append(
+                    RetrievalResult(
+                        source="conversation",
+                        content=row[0],
+                        relevance=relevance,
+                        importance=0.3,
+                        recency=self._recency_score(row[1]),
+                        timestamp=row[1] or 0,
+                    )
+                )
         return results
 
     async def _query_graph(self, query: str) -> list[RetrievalResult]:
         """Query knowledge graph."""
         try:
             from ..memory.graph import graph
+
             result = await graph.search_nodes(query, limit=10)
         except Exception:
             return []
@@ -301,22 +354,25 @@ class MemoryRetrievalEngine:
             content = f"{node['label']}: {node.get('content', '')}"
             relevance = self._keyword_score(query, content)
             if relevance > 0.1:
-                results.append(RetrievalResult(
-                    source="knowledge_graph",
-                    content=content,
-                    relevance=relevance,
-                    importance=0.5,
-                    recency=0.5,
-                    timestamp=node.get("created_at", 0),
-                    metadata={"node_id": node["id"], "node_type": node["type"]},
-                ))
+                results.append(
+                    RetrievalResult(
+                        source="knowledge_graph",
+                        content=content,
+                        relevance=relevance,
+                        importance=0.5,
+                        recency=0.5,
+                        timestamp=node.get("created_at", 0),
+                        metadata={"node_id": node["id"], "node_type": node["type"]},
+                    )
+                )
         return results
 
     async def _query_projects(self, query: str) -> list[RetrievalResult]:
         """Query project memory."""
         try:
             cursor = await self._db.execute(
-                "SELECT name, description, language, context FROM projects WHERE name LIKE ? OR description LIKE ?",
+                "SELECT name, description, language, context FROM projects "
+                "WHERE name LIKE ? OR description LIKE ?",
                 (f"%{query}%", f"%{query}%"),
             )
             rows = await cursor.fetchall()
@@ -328,22 +384,25 @@ class MemoryRetrievalEngine:
             content = f"Project: {row[0]}. {row[1] or ''}"
             relevance = self._keyword_score(query, content)
             if relevance > 0.1:
-                results.append(RetrievalResult(
-                    source="project",
-                    content=content,
-                    relevance=relevance,
-                    importance=0.6,
-                    recency=0.7,
-                    timestamp=0,
-                    metadata={"project_name": row[0], "language": row[2]},
-                ))
+                results.append(
+                    RetrievalResult(
+                        source="project",
+                        content=content,
+                        relevance=relevance,
+                        importance=0.6,
+                        recency=0.7,
+                        timestamp=0,
+                        metadata={"project_name": row[0], "language": row[2]},
+                    )
+                )
         return results
 
     async def _query_decisions(self, query: str) -> list[RetrievalResult]:
         """Query decision history."""
         try:
             cursor = await self._db.execute(
-                "SELECT topic, decision, reason, created_at FROM decisions WHERE topic LIKE ? OR decision LIKE ?",
+                "SELECT topic, decision, reason, created_at FROM decisions "
+                "WHERE topic LIKE ? OR decision LIKE ?",
                 (f"%{query}%", f"%{query}%"),
             )
             rows = await cursor.fetchall()
@@ -357,20 +416,22 @@ class MemoryRetrievalEngine:
                 content += f" (Reason: {row[2]})"
             relevance = self._keyword_score(query, content)
             if relevance > 0.1:
-                results.append(RetrievalResult(
-                    source="decision",
-                    content=content,
-                    relevance=relevance,
-                    importance=0.8,
-                    recency=self._recency_score(row[3]),
-                    timestamp=row[3] or 0,
-                ))
+                results.append(
+                    RetrievalResult(
+                        source="decision",
+                        content=content,
+                        relevance=relevance,
+                        importance=0.8,
+                        recency=self._recency_score(row[3]),
+                        timestamp=row[3] or 0,
+                    )
+                )
         return results
 
     def assemble_context(
         self,
         results: list[RetrievalResult],
-        max_chars: Optional[int] = None,
+        max_chars: int | None = None,
     ) -> str:
         """Assemble retrieved results into a context string for LLM injection."""
         max_chars = max_chars or self.MAX_CONTEXT_CHARS
@@ -382,7 +443,7 @@ class MemoryRetrievalEngine:
             if total + len(text) > max_chars:
                 remaining = max_chars - total
                 if remaining > 80:
-                    text = text[:remaining - 3] + "..."
+                    text = text[: remaining - 3] + "..."
                 else:
                     break
             lines.append(text)
@@ -395,8 +456,8 @@ class MemoryRetrievalEngine:
 
     def _keyword_score(self, query: str, content: str) -> float:
         """Simple keyword overlap scoring."""
-        query_tokens = set(re.findall(r'\w{3,}', query.lower()))
-        content_tokens = set(re.findall(r'\w{3,}', content.lower()))
+        query_tokens = set(re.findall(r"\w{3,}", query.lower()))
+        content_tokens = set(re.findall(r"\w{3,}", content.lower()))
         if not query_tokens:
             return 0.0
         overlap = len(query_tokens & content_tokens)
@@ -411,7 +472,7 @@ class MemoryRetrievalEngine:
 
 
 # Module-level singleton
-retrieval_engine: Optional[MemoryRetrievalEngine] = None
+retrieval_engine: MemoryRetrievalEngine | None = None
 
 
 def get_retrieval_engine(db=None) -> MemoryRetrievalEngine:

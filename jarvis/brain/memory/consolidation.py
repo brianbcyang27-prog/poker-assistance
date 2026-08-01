@@ -10,10 +10,8 @@ Similar to how humans consolidate memories during sleep, this process:
 Run periodically or after significant events.
 """
 
-import time
-import json
 import logging
-from typing import Optional
+import time
 
 log = logging.getLogger("jarvis.memory.consolidation")
 
@@ -48,6 +46,7 @@ class MemoryConsolidator:
             return
         if self._db is None:
             from ...core.database import get_db
+
             self._db = await get_db()
         self._initialized = True
 
@@ -120,8 +119,7 @@ class MemoryConsolidator:
             )
         rows = await cursor.fetchall()
         return [
-            {"session_id": r[0], "role": r[1], "content": r[2], "timestamp": r[3]}
-            for r in rows
+            {"session_id": r[0], "role": r[1], "content": r[2], "timestamp": r[3]} for r in rows
         ]
 
     def _group_by_session(self, conversations: list[dict]) -> dict[str, list[dict]]:
@@ -138,14 +136,13 @@ class MemoryConsolidator:
         self,
         session_id: str,
         messages: list[dict],
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """Create an episode from a group of related conversations."""
         if not messages:
             return None
 
         # Extract key information
         user_msgs = [m for m in messages if m["role"] == "user"]
-        assistant_msgs = [m for m in messages if m["role"] == "assistant"]
 
         if not user_msgs:
             return None
@@ -162,6 +159,7 @@ class MemoryConsolidator:
 
         # Determine importance
         from .importance import importance_scorer
+
         score = importance_scorer.score(
             all_content,
             context={
@@ -176,6 +174,7 @@ class MemoryConsolidator:
 
         # Create episode
         from .episodic import get_episodic_memory
+
         em = get_episodic_memory(self._db)
 
         result = await em.create_episode(
@@ -235,12 +234,23 @@ class MemoryConsolidator:
     def _extract_tags(self, text: str) -> list[str]:
         """Extract topic tags from text."""
         tag_keywords = {
-            "ui": "UI", "design": "design", "frontend": "frontend",
-            "backend": "backend", "api": "API", "database": "database",
-            "bug": "bug", "fix": "fix", "test": "testing",
-            "deploy": "deployment", "memory": "memory", "ai": "AI",
-            "voice": "voice", "pcb": "hardware", "cad": "hardware",
-            "firmware": "firmware", "iot": "IoT",
+            "ui": "UI",
+            "design": "design",
+            "frontend": "frontend",
+            "backend": "backend",
+            "api": "API",
+            "database": "database",
+            "bug": "bug",
+            "fix": "fix",
+            "test": "testing",
+            "deploy": "deployment",
+            "memory": "memory",
+            "ai": "AI",
+            "voice": "voice",
+            "pcb": "hardware",
+            "cad": "hardware",
+            "firmware": "firmware",
+            "iot": "IoT",
         }
 
         text_lower = text.lower()
@@ -253,6 +263,7 @@ class MemoryConsolidator:
     async def _extract_personal_memories(self, conversations: list[dict]) -> int:
         """Extract personal preferences from user messages."""
         from .personal import get_personal_memory
+
         pm = get_personal_memory(self._db)
 
         count = 0
@@ -267,22 +278,28 @@ class MemoryConsolidator:
                 key = self._extract_preference_key(conv["content"])
                 if key:
                     await pm.remember(
-                        "preference", key, conv["content"][:200],
-                        confidence=0.7, source="conversation_extract",
+                        "preference",
+                        key,
+                        conv["content"][:200],
+                        confidence=0.7,
+                        source="conversation_extract",
                     )
                     count += 1
 
             # Rule patterns
             if "never" in content and ("do" in content or "use" in content):
                 await pm.remember(
-                    "rule", f"rule_{count}", conv["content"][:200],
-                    confidence=0.75, source="conversation_extract",
+                    "rule",
+                    f"rule_{count}",
+                    conv["content"][:200],
+                    confidence=0.75,
+                    source="conversation_extract",
                 )
                 count += 1
 
         return count
 
-    def _extract_preference_key(self, text: str) -> Optional[str]:
+    def _extract_preference_key(self, text: str) -> str | None:
         """Extract a preference key from user text."""
         text_lower = text.lower()
         if "language" in text_lower or "programming" in text_lower:
@@ -310,6 +327,7 @@ class MemoryConsolidator:
         for row in rows:
             if row[2]:  # has summary
                 from .episodic import get_episodic_memory
+
                 em = get_episodic_memory(self._db)
 
                 # Check if already consolidated
@@ -330,7 +348,7 @@ class MemoryConsolidator:
 
 
 # Module-level convenience
-_consolidator: Optional[MemoryConsolidator] = None
+_consolidator: MemoryConsolidator | None = None
 
 
 def get_consolidator(db=None) -> MemoryConsolidator:

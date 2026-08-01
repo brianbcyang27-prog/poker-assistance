@@ -4,9 +4,9 @@ import json
 import logging
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from .models import MissionEvent, MissionReport, MissionEventType
+from .models import MissionEvent, MissionEventType, MissionReport
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +26,12 @@ class MissionRecorder:
         report = await recorder.complete("m1", "success", "All tests pass", ["Use async"])
     """
 
-    def __init__(self, storage_dir: Optional[str] = None) -> None:
+    def __init__(self, storage_dir: str | None = None) -> None:
         self._storage = Path(storage_dir) if storage_dir else _DEFAULT_STORAGE
         self._storage.mkdir(parents=True, exist_ok=True)
         # In-memory caches keyed by mission_id
-        self._events: Dict[str, List[MissionEvent]] = {}
-        self._reports: Dict[str, MissionReport] = {}
+        self._events: dict[str, list[MissionEvent]] = {}
+        self._reports: dict[str, MissionReport] = {}
 
     # ------------------------------------------------------------------
     # Recording
@@ -59,7 +59,7 @@ class MissionRecorder:
         description: str = "",
         agent_id: str = "",
         success: bool = True,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> MissionEvent:
         """Record a single mission event."""
         event = MissionEvent(
@@ -122,16 +122,28 @@ class MissionRecorder:
         mission_id: str,
         outcome: str,
         verification: str = "",
-        lessons: Optional[List[str]] = None,
+        lessons: list[str] | None = None,
     ) -> MissionReport:
         """Finalize the mission and persist the report."""
         events = self._events.get(mission_id, [])
-        actions = [e for e in events if e.event_type not in (
-            MissionEventType.ERROR, MissionEventType.RECOVERY,
-        )]
-        problems = [e for e in events if e.event_type in (
-            MissionEventType.ERROR, MissionEventType.RECOVERY,
-        )]
+        actions = [
+            e
+            for e in events
+            if e.event_type
+            not in (
+                MissionEventType.ERROR,
+                MissionEventType.RECOVERY,
+            )
+        ]
+        problems = [
+            e
+            for e in events
+            if e.event_type
+            in (
+                MissionEventType.ERROR,
+                MissionEventType.RECOVERY,
+            )
+        ]
 
         started_at = events[0].timestamp if events else 0.0
         completed_at = time.time()
@@ -177,7 +189,7 @@ class MissionRecorder:
     # Queries
     # ------------------------------------------------------------------
 
-    async def get_events(self, mission_id: str) -> List[MissionEvent]:
+    async def get_events(self, mission_id: str) -> list[MissionEvent]:
         """Return all events for a mission."""
         if mission_id in self._events:
             return list(self._events[mission_id])
@@ -185,29 +197,31 @@ class MissionRecorder:
         self._load(mission_id)
         return list(self._events.get(mission_id, []))
 
-    async def get_report(self, mission_id: str) -> Optional[MissionReport]:
+    async def get_report(self, mission_id: str) -> MissionReport | None:
         """Return the final report for a mission."""
         if mission_id in self._reports:
             return self._reports[mission_id]
         self._load(mission_id)
         return self._reports.get(mission_id)
 
-    async def list_missions(self, limit: int = 20) -> List[Dict[str, Any]]:
+    async def list_missions(self, limit: int = 20) -> list[dict[str, Any]]:
         """List recent mission summaries."""
-        summaries: List[Dict[str, Any]] = []
+        summaries: list[dict[str, Any]] = []
         for path in sorted(self._storage.glob("*/report.json"), reverse=True):
             if len(summaries) >= limit:
                 break
             try:
                 raw = json.loads(path.read_text(encoding="utf-8"))
-                summaries.append({
-                    "mission_id": raw.get("mission_id", path.parent.name),
-                    "goal": raw.get("goal", ""),
-                    "outcome": raw.get("outcome", ""),
-                    "duration_seconds": raw.get("duration_seconds", 0),
-                    "total_events": raw.get("total_events", 0),
-                    "started_at": raw.get("started_at", 0),
-                })
+                summaries.append(
+                    {
+                        "mission_id": raw.get("mission_id", path.parent.name),
+                        "goal": raw.get("goal", ""),
+                        "outcome": raw.get("outcome", ""),
+                        "duration_seconds": raw.get("duration_seconds", 0),
+                        "total_events": raw.get("total_events", 0),
+                        "started_at": raw.get("started_at", 0),
+                    }
+                )
             except Exception as exc:
                 logger.debug("Failed to read report %s: %s", path, exc)
         return summaries
@@ -252,7 +266,7 @@ class MissionRecorder:
         # Load events
         events_file = mission_dir / "events.jsonl"
         if events_file.is_file() and mission_id not in self._events:
-            events: List[MissionEvent] = []
+            events: list[MissionEvent] = []
             for line in events_file.read_text(encoding="utf-8").splitlines():
                 line = line.strip()
                 if not line:

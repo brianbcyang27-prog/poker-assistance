@@ -16,16 +16,13 @@ Usage:
     action = await vision_manager.locate_element("Export")
 """
 
-import asyncio
 import logging
-import time
-from typing import Optional
 
-from .screenshot import ScreenCapture, CapturedScreenshot, ScreenRegion
-from .analyzer import VisionAnalyzer, ScreenAnalysis
+from .analyzer import ScreenAnalysis, VisionAnalyzer
 from .detector import ObjectDetector
-from .grounding import GroundingEngine, GroundedAction
+from .grounding import GroundedAction, GroundingEngine
 from .memory import VisionMemory, VisualWorkflow
+from .screenshot import CapturedScreenshot, ScreenCapture, ScreenRegion
 
 log = logging.getLogger("jarvis.vision.manager")
 
@@ -52,8 +49,8 @@ class VisionManager:
         self._memory = VisionMemory()
         self._provider = None
         self._initialized = False
-        self._last_analysis: Optional[ScreenAnalysis] = None
-        self._last_screenshot: Optional[CapturedScreenshot] = None
+        self._last_analysis: ScreenAnalysis | None = None
+        self._last_screenshot: CapturedScreenshot | None = None
 
     async def initialize(self) -> dict:
         """Initialize the vision system and load the provider."""
@@ -61,17 +58,16 @@ class VisionManager:
             return {"ok": True}
 
         from .providers import get_vision_provider
+
         self._provider = get_vision_provider()
 
         if self._provider:
-            init_result = await self._provider.initialize()
+            await self._provider.initialize()
             self._analyzer.set_provider(self._provider)
             self._grounding.set_accessibility(True)
             self._initialized = True
-            log.info("Vision system initialized: %s/%s",
-                     self._provider.name, self._provider.model)
-            return {"ok": True, "provider": self._provider.name,
-                    "model": self._provider.model}
+            log.info("Vision system initialized: %s/%s", self._provider.name, self._provider.model)
+            return {"ok": True, "provider": self._provider.name, "model": self._provider.model}
 
         self._initialized = True
         log.warning("Vision system initialized without provider")
@@ -83,7 +79,7 @@ class VisionManager:
 
     # ── Capture Methods ──────────────────────────────────────
 
-    async def capture(self, mode: str = "full") -> Optional[CapturedScreenshot]:
+    async def capture(self, mode: str = "full") -> CapturedScreenshot | None:
         """Capture a screenshot.
 
         Args:
@@ -103,7 +99,7 @@ class VisionManager:
             self._last_screenshot = screenshot
         return screenshot
 
-    async def capture_region(self, x: int, y: int, w: int, h: int) -> Optional[CapturedScreenshot]:
+    async def capture_region(self, x: int, y: int, w: int, h: int) -> CapturedScreenshot | None:
         """Capture a specific screen region."""
         region = ScreenRegion(x=x, y=y, width=w, height=h)
         screenshot = await self._capture.region(region)
@@ -135,11 +131,14 @@ class VisionManager:
         self._memory.record_screenshot(screenshot, analysis)
 
         # Emit event
-        await self._emit_event("vision.analyzed", {
-            "application": analysis.application,
-            "object_count": len(analysis.objects),
-            "description": analysis.description[:200],
-        })
+        await self._emit_event(
+            "vision.analyzed",
+            {
+                "application": analysis.application,
+                "object_count": len(analysis.objects),
+                "description": analysis.description[:200],
+            },
+        )
 
         return analysis
 
@@ -160,7 +159,7 @@ class VisionManager:
 
     # ── Object Finding ───────────────────────────────────────
 
-    async def find_object(self, query: str) -> Optional[dict]:
+    async def find_object(self, query: str) -> dict | None:
         """Find a UI object by natural language query.
 
         Returns the best matching detected object as a dict,
@@ -194,6 +193,7 @@ class VisionManager:
         element = None
         try:
             from ..computer.accessibility import accessibility_manager
+
             await accessibility_manager.initialize()
             element = await accessibility_manager.find(query)
         except Exception:
@@ -216,6 +216,7 @@ class VisionManager:
         element = None
         try:
             from ..computer.accessibility import accessibility_manager
+
             await accessibility_manager.initialize()
             element = await accessibility_manager.find(query)
         except Exception:
@@ -229,7 +230,7 @@ class VisionManager:
 
     # ── Memory Methods ───────────────────────────────────────
 
-    def get_cached_location(self, app: str, element_name: str) -> Optional[dict]:
+    def get_cached_location(self, app: str, element_name: str) -> dict | None:
         """Get a cached element location from previous analysis."""
         return self._memory.find_cached_location(app, element_name)
 
@@ -237,7 +238,7 @@ class VisionManager:
         """Save a visual workflow."""
         self._memory.save_workflow(workflow)
 
-    def get_workflow(self, workflow_id: str) -> Optional[VisualWorkflow]:
+    def get_workflow(self, workflow_id: str) -> VisualWorkflow | None:
         """Get a workflow by ID."""
         return self._memory.get_workflow(workflow_id)
 
@@ -279,12 +280,15 @@ class VisionManager:
     async def _emit_event(self, event_type: str, data: dict):
         """Emit a vision event."""
         try:
-            from ..core.events import event_bus, Event
-            await event_bus.emit(Event(
-                type=event_type,
-                data=data,
-                source="vision",
-            ))
+            from ..core.events import Event, event_bus
+
+            await event_bus.emit(
+                Event(
+                    type=event_type,
+                    data=data,
+                    source="vision",
+                )
+            )
         except Exception:
             pass
 

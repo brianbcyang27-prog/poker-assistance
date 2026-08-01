@@ -6,14 +6,13 @@ Simple token auth:
 - Localhost auto-trusted (no auth required on 127.0.0.1)
 """
 
+import json
+import logging
 import secrets
 import time
-import logging
-from typing import Optional
 from pathlib import Path
-import json
 
-from fastapi import Request, Response, HTTPException
+from fastapi import HTTPException, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger("jarvis.auth")
@@ -60,7 +59,7 @@ class AuthManager:
         self._config_path = Path.home() / ".jarvis" / "auth.json"
         self._api_keys: dict[str, dict] = {}  # key_hash -> {name, created, last_used}
         self._sessions: dict[str, dict] = {}  # session_id -> {created, last_used, ip}
-        self._api_key: Optional[str] = None  # The raw API key (shown once on setup)
+        self._api_key: str | None = None  # The raw API key (shown once on setup)
         self._load()
 
     def _load(self):
@@ -89,7 +88,7 @@ class AuthManager:
         """Generate initial API key if none exists. Returns the raw key."""
         if self._api_key:
             return self._api_key
-        
+
         key = "jrv_" + secrets.token_hex(32)
         self._api_key = key
         key_hash = secrets.token_hex(32)
@@ -135,7 +134,7 @@ class AuthManager:
         session["last_used"] = time.time()
         return True
 
-    def get_api_key(self) -> Optional[str]:
+    def get_api_key(self) -> str | None:
         """Get the raw API key (for display)."""
         return self._api_key
 

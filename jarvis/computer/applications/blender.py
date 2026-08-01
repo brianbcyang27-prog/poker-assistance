@@ -7,16 +7,24 @@ profile = ApplicationProfile(
     bundle_id="org.blenderfoundation.blender",
     executable="Blender",
     category="3d_editor",
-
     common_buttons=[
-        "Add", "Object", "Mesh", "Curve", "Surface",
-        "Render", "Play", "Stop", "Pause",
+        "Add",
+        "Object",
+        "Mesh",
+        "Curve",
+        "Surface",
+        "Render",
+        "Play",
+        "Stop",
+        "Pause",
     ],
-
     common_menus=[
-        "File", "Edit", "Render", "Window", "Help",
+        "File",
+        "Edit",
+        "Render",
+        "Window",
+        "Help",
     ],
-
     common_shortcuts={
         "undo": "Cmd+Z",
         "redo": "Shift+Cmd+Z",
@@ -55,7 +63,6 @@ profile = ApplicationProfile(
         "merge": "M",
         "shade_smooth": "Right-click → Shade Smooth",
     },
-
     workflows={
         "new_scene": ["File menu", "New", "General"],
         "save_file": ["Cmd+S"],
@@ -70,7 +77,6 @@ profile = ApplicationProfile(
         "set_origin": ["Right-click", "Set Origin"],
         "parent_object": ["Select child", "Shift+Select parent", "Ctrl+P"],
     },
-
     interaction_notes=(
         "Blender has a highly customizable UI with multiple editors. "
         "The 3D Viewport is the main workspace. "

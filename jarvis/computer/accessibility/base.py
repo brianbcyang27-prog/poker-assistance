@@ -5,7 +5,7 @@ so JARVIS can inspect UI elements cross-platform.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+
 from .element import UIElement
 
 
@@ -32,7 +32,7 @@ class AccessibilityProvider(ABC):
         pass
 
     @abstractmethod
-    async def get_active_window(self) -> Optional[dict]:
+    async def get_active_window(self) -> dict | None:
         """Get the currently focused window.
 
         Returns dict with:
@@ -60,7 +60,7 @@ class AccessibilityProvider(ABC):
         name: str = "",
         role: str = "",
         app: str = "",
-    ) -> Optional[UIElement]:
+    ) -> UIElement | None:
         """Find a specific UI element by name and/or role.
 
         Args:

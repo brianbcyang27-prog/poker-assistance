@@ -1,18 +1,18 @@
 """File System Watcher — Monitor directories for changes."""
 
-import asyncio
 import os
-from typing import Optional, Dict, Any, Callable, List
-from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
 import threading
 import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
 
 
 @dataclass
 class FileEvent:
     """A file system event."""
+
     path: str
     event_type: str  # created, modified, deleted, moved
     is_directory: bool = False
@@ -21,38 +21,38 @@ class FileEvent:
 
 class FileWatcher:
     """Monitor directories for file system changes using FSEvents."""
-    
+
     def __init__(self):
-        self.watchers: Dict[str, Dict[str, Any]] = {}
-        self.events: List[FileEvent] = []
+        self.watchers: dict[str, dict[str, Any]] = {}
+        self.events: list[FileEvent] = []
         self.max_events = 100
-        self._callbacks: Dict[str, List[Callable]] = {}
+        self._callbacks: dict[str, list[Callable]] = {}
         self._monitoring = False
-        self._monitor_thread: Optional[threading.Thread] = None
-        self._snapshots: Dict[str, Dict[str, float]] = {}
-    
+        self._monitor_thread: threading.Thread | None = None
+        self._snapshots: dict[str, dict[str, float]] = {}
+
     async def watch(
         self,
         path: str,
-        key: Optional[str] = None,
+        key: str | None = None,
         recursive: bool = True,
-        patterns: Optional[List[str]] = None,
+        patterns: list[str] | None = None,
     ) -> bool:
         """Start watching a directory."""
         watch_key = key or path
-        
+
         self.watchers[watch_key] = {
             "path": path,
             "recursive": recursive,
             "patterns": patterns or [],
             "created_at": datetime.now(),
         }
-        
+
         # Take initial snapshot
         self._snapshots[watch_key] = self._snapshot_dir(path, recursive)
-        
+
         return True
-    
+
     async def unwatch(self, key: str) -> bool:
         """Stop watching a directory."""
         if key in self.watchers:
@@ -60,18 +60,18 @@ class FileWatcher:
             self._snapshots.pop(key, None)
             return True
         return False
-    
+
     def on_event(self, key: str, callback: Callable):
         """Register a callback for file events."""
         if key not in self._callbacks:
             self._callbacks[key] = []
         self._callbacks[key].append(callback)
-    
+
     def start_monitoring(self, interval: float = 2.0):
         """Start monitoring for file changes."""
         if self._monitoring:
             return
-        
+
         self._monitoring = True
         self._monitor_thread = threading.Thread(
             target=self._monitor_loop,
@@ -79,15 +79,15 @@ class FileWatcher:
             daemon=True,
         )
         self._monitor_thread.start()
-    
+
     def stop_monitoring(self):
         """Stop monitoring for file changes."""
         self._monitoring = False
         if self._monitor_thread:
             self._monitor_thread.join(timeout=2)
             self._monitor_thread = None
-    
-    def _snapshot_dir(self, path: str, recursive: bool) -> Dict[str, float]:
+
+    def _snapshot_dir(self, path: str, recursive: bool) -> dict[str, float]:
         """Take a snapshot of directory contents (path -> mtime)."""
         snapshot = {}
         try:
@@ -109,18 +109,17 @@ class FileWatcher:
         except OSError:
             pass
         return snapshot
-    
+
     def _monitor_loop(self, interval: float):
         """Background loop to detect file changes."""
         while self._monitoring:
             for key, watcher in list(self.watchers.items()):
                 path = watcher["path"]
                 recursive = watcher["recursive"]
-                patterns = watcher["patterns"]
-                
+
                 new_snapshot = self._snapshot_dir(path, recursive)
                 old_snapshot = self._snapshots.get(key, {})
-                
+
                 # Detect new and modified files
                 for filepath, mtime in new_snapshot.items():
                     if filepath not in old_snapshot:
@@ -137,7 +136,7 @@ class FileWatcher:
                             is_directory=os.path.isdir(filepath),
                         )
                         self._emit_event(key, event)
-                
+
                 # Detect deleted files
                 for filepath in old_snapshot:
                     if filepath not in new_snapshot:
@@ -147,24 +146,24 @@ class FileWatcher:
                             is_directory=os.path.isdir(filepath),
                         )
                         self._emit_event(key, event)
-                
+
                 self._snapshots[key] = new_snapshot
-            
+
             time.sleep(interval)
-    
+
     def _emit_event(self, key: str, event: FileEvent):
         """Emit a file event to callbacks."""
         self.events.append(event)
         if len(self.events) > self.max_events:
-            self.events = self.events[-self.max_events:]
-        
+            self.events = self.events[-self.max_events :]
+
         for cb in self._callbacks.get(key, []):
             try:
                 cb(event)
             except Exception:
                 pass
-    
-    def get_events(self, limit: int = 20) -> List[Dict[str, Any]]:
+
+    def get_events(self, limit: int = 20) -> list[dict[str, Any]]:
         """Get recent file events."""
         return [
             {
@@ -175,8 +174,8 @@ class FileWatcher:
             }
             for e in self.events[-limit:]
         ]
-    
-    def get_watched(self) -> List[Dict[str, Any]]:
+
+    def get_watched(self) -> list[dict[str, Any]]:
         """Get all watched directories."""
         return [
             {
@@ -187,7 +186,7 @@ class FileWatcher:
             }
             for k, v in self.watchers.items()
         ]
-    
+
     @property
     def is_monitoring(self) -> bool:
         return self._monitoring

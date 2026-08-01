@@ -1,33 +1,35 @@
 """Comprehensive tests for the JARVIS Security Module."""
 
-import json
 import os
 import tempfile
-import time
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+
 import pytest
 
-from jarvis.security.crypto import VaultCrypto
-from jarvis.security.vault import EncryptedVault
-from jarvis.security.providers import (
-    KeychainProvider, VaultProvider, EnvProvider, DotEnvProvider, GitHubProvider,
-)
-from jarvis.security.secret_manager import SecretManager
-from jarvis.security.migration import VaultMigration
 from jarvis.security.audit import AuditLog
-from jarvis.security.scanner import SecretScanner
-from jarvis.security.redactor import LogRedactor, redact
-from jarvis.security.git_protection import GitProtection
+from jarvis.security.crypto import VaultCrypto
 from jarvis.security.exceptions import (
-    VaultError, VaultLockedError, VaultCorruptedError,
-    DecryptionError, MigrationError,
+    DecryptionError,
+    VaultError,
 )
-
+from jarvis.security.git_protection import GitProtection
+from jarvis.security.migration import VaultMigration
+from jarvis.security.providers import (
+    DotEnvProvider,
+    EnvProvider,
+    GitHubProvider,
+    KeychainProvider,
+    VaultProvider,
+)
+from jarvis.security.redactor import LogRedactor
+from jarvis.security.scanner import SecretScanner
+from jarvis.security.secret_manager import SecretManager
+from jarvis.security.vault import EncryptedVault
 
 # ═══════════════════════════════════════════════════════════════
 # CRYPTO TESTS
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestVaultCrypto:
     def test_encrypt_decrypt_roundtrip(self):
@@ -69,6 +71,7 @@ class TestVaultCrypto:
     def test_derive_key_deterministic(self):
         crypto = VaultCrypto()
         import os
+
         salt = os.urandom(32)
         k1 = crypto.derive_key("password", salt)
         k2 = crypto.derive_key("password", salt)
@@ -90,6 +93,7 @@ class TestVaultCrypto:
 # ═══════════════════════════════════════════════════════════════
 # VAULT TESTS
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestEncryptedVault:
     def setup_method(self):
@@ -168,6 +172,7 @@ class TestEncryptedVault:
 # PROVIDER TESTS
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestProviders:
     def test_env_provider(self):
         os.environ["TEST_SECRET_KEY"] = "test-value-123"
@@ -203,6 +208,7 @@ class TestProviders:
 # ═══════════════════════════════════════════════════════════════
 # SECRET MANAGER TESTS
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestSecretManager:
     def setup_method(self):
@@ -243,6 +249,7 @@ class TestSecretManager:
 # ═══════════════════════════════════════════════════════════════
 # MIGRATION TESTS
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestVaultMigration:
     def setup_method(self):
@@ -296,6 +303,7 @@ class TestVaultMigration:
 # AUDIT TESTS
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestAuditLog:
     def test_log_and_read(self):
         tmpdir = tempfile.mkdtemp()
@@ -327,6 +335,7 @@ class TestAuditLog:
 # SCANNER TESTS
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestSecretScanner:
     def setup_method(self):
         self._tmpdir = tempfile.mkdtemp()
@@ -354,7 +363,9 @@ class TestSecretScanner:
 
     def test_scan_finds_private_key(self):
         src = Path(self._tmpdir) / "server_key.pem"
-        src.write_text("-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----\n")
+        src.write_text(
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----\n"
+        )
         scanner = SecretScanner(self._tmpdir)
         findings = scanner.scan()
         assert any(f["type"] == "Private Key" for f in findings)
@@ -373,6 +384,7 @@ class TestSecretScanner:
 # ═══════════════════════════════════════════════════════════════
 # REDACTOR TESTS
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestLogRedactor:
     def test_redact_nvidia_key(self):
@@ -423,6 +435,7 @@ class TestLogRedactor:
 # GIT PROTECTION TESTS
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestGitProtection:
     def setup_method(self):
         self._tmpdir = tempfile.mkdtemp()
@@ -469,6 +482,7 @@ class TestGitProtection:
 # ═══════════════════════════════════════════════════════════════
 # EDGE CASE / RECOVERY TESTS
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestEdgeCases:
     def test_empty_vault(self):

@@ -1,22 +1,22 @@
 """Tests for JARVIS Plugin system (v5.2.0)."""
 
-import sys
-import os
 import asyncio
-import pytest
+import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from jarvis.plugins import PluginManager, Plugin, PluginManifest, PluginType
+from jarvis.plugins import Plugin, PluginManager, PluginManifest, PluginType
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.new_event_loop().run_until_complete(coro)
 
 
 # ════════════════════════════════════════════════════════════
 # Data Model Tests
 # ════════════════════════════════════════════════════════════
+
 
 class TestPluginModels:
     def test_plugin_type(self):
@@ -33,8 +33,11 @@ class TestPluginModels:
 
     def test_create_manifest(self):
         manifest = PluginManifest(
-            name="my-plugin", version="0.1.0", author="Me",
-            description="A test plugin", plugin_type=PluginType.TOOL,
+            name="my-plugin",
+            version="0.1.0",
+            author="Me",
+            description="A test plugin",
+            plugin_type=PluginType.TOOL,
         )
         assert manifest.name == "my-plugin"
         assert manifest.plugin_type == PluginType.TOOL
@@ -71,6 +74,7 @@ class TestPluginModels:
 # ════════════════════════════════════════════════════════════
 # Manager Tests
 # ════════════════════════════════════════════════════════════
+
 
 class TestPluginManager:
     def setup_method(self):

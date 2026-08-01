@@ -1,19 +1,21 @@
 """System router — Events, capabilities, and system status for v3.1."""
 
 import time
-from fastapi import APIRouter
+
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
 
 # ===== EVENTS =====
 
+
 @router.get("/events")
-async def get_events(event_type: Optional[str] = None, limit: int = 50):
+async def get_events(event_type: str | None = None, limit: int = 50):
     """Get recent events from the event bus."""
     from jarvis.core.events import event_bus
+
     events = event_bus.get_history(event_type=event_type, limit=limit)
     return {
         "events": [
@@ -34,19 +36,22 @@ async def get_events(event_type: Optional[str] = None, limit: int = 50):
 async def event_stats():
     """Get event bus statistics."""
     from jarvis.core.events import event_bus
+
     return event_bus.get_stats()
 
 
 # ===== CAPABILITIES =====
 
+
 @router.get("/capabilities")
 async def list_capabilities(
-    type: Optional[str] = None,
-    owner: Optional[str] = None,
+    type: str | None = None,
+    owner: str | None = None,
 ):
     """List all registered capabilities."""
     try:
-        from jarvis.core.capabilities import registry, CapType
+        from jarvis.core.capabilities import CapType, registry
+
         cap_type = CapType(type) if type else None
         caps = await registry.query(type=cap_type, owner=owner)
         return {
@@ -61,17 +66,19 @@ async def list_capabilities(
 async def capability_stats():
     """Get capability registry statistics."""
     from jarvis.core.capabilities import registry
+
     return await registry.get_stats()
 
 
 @router.get("/capabilities/best")
 async def find_best_capability(
-    type: Optional[str] = None,
-    owner: Optional[str] = None,
+    type: str | None = None,
+    owner: str | None = None,
     description: str = "",
 ):
     """Find the best capability matching criteria."""
-    from jarvis.core.capabilities import registry, CapType
+    from jarvis.core.capabilities import CapType, registry
+
     cap_type = CapType(type) if type else None
     best = await registry.find_best(type=cap_type, owner=owner, description=description)
     if not best:
@@ -91,7 +98,8 @@ class CapabilityRegister(BaseModel):
 @router.post("/capabilities")
 async def register_capability(req: CapabilityRegister):
     """Register a new capability."""
-    from jarvis.core.capabilities import registry, Capability, CapType
+    from jarvis.core.capabilities import Capability, CapType, registry
+
     cap = Capability(
         name=req.name,
         owner=req.owner,
@@ -105,10 +113,12 @@ async def register_capability(req: CapabilityRegister):
 
 # ===== MEMORY (pluggable) =====
 
+
 @router.get("/memory/stats")
 async def memory_stats():
     """Get memory provider statistics."""
     from jarvis.brain.memory_provider import get_memory
+
     mem = get_memory()
     return {
         "provider": type(mem).__name__,
@@ -128,7 +138,8 @@ class MemoryStore(BaseModel):
 @router.post("/memory/store")
 async def store_memory(req: MemoryStore):
     """Store a memory entry."""
-    from jarvis.brain.memory_provider import get_memory, MemoryEntry
+    from jarvis.brain.memory_provider import MemoryEntry, get_memory
+
     mem = get_memory()
     entry = MemoryEntry(
         type=req.type,
@@ -144,6 +155,7 @@ async def store_memory(req: MemoryStore):
 async def search_memory(q: str, limit: int = 10):
     """Search memories using FTS5."""
     from jarvis.brain.memory_provider import get_memory
+
     mem = get_memory()
     results = await mem.search(q, limit=limit)
     return {
@@ -155,21 +167,24 @@ async def search_memory(q: str, limit: int = 10):
 
 # ===== MODEL ROUTER =====
 
+
 @router.get("/models")
 async def list_models():
     """List registered models and routing stats."""
     from jarvis.brain.model_router import router
+
     return router.get_routing_stats()
 
 
 @router.get("/models/route")
 async def route_model(
-    task_type: Optional[str] = None,
+    task_type: str | None = None,
     task_description: str = "",
     require_tools: bool = False,
 ):
     """Find the best model for a task."""
-    from jarvis.brain.model_router import router, TaskType
+    from jarvis.brain.model_router import TaskType, router
+
     tt = TaskType(task_type) if task_type else None
     best = router.route(
         task_type=tt,
@@ -185,16 +200,19 @@ async def route_model(
 async def classify_task(body: dict):
     """Classify a task description into a TaskType."""
     from jarvis.brain.model_router import router
+
     task_type = router.classify_task(body.get("description", ""))
     return {"task_type": task_type.value}
 
 
 # ===== SPECULATIVE PLANNER =====
 
+
 @router.get("/speculative/predictions")
 async def get_predictions():
     """Get pending speculative predictions."""
     from jarvis.brain.speculative import speculative_planner
+
     pending = speculative_planner.get_pending()
     return {
         "predictions": [
@@ -215,15 +233,18 @@ async def get_predictions():
 async def speculative_stats():
     """Get speculative planner stats."""
     from jarvis.brain.speculative import speculative_planner
+
     return speculative_planner.get_stats()
 
 
 # ===== REVIEW PIPELINE =====
 
+
 @router.get("/reviews/stats")
 async def review_stats():
     """Get review pipeline statistics."""
     from jarvis.brain.review import review_pipeline
+
     return review_pipeline.get_stats()
 
 
@@ -231,6 +252,7 @@ async def review_stats():
 async def review_task(body: dict):
     """Manually review a task result."""
     from jarvis.brain.review import review_pipeline
+
     result = await review_pipeline.review(
         task_type=body.get("task_type", "unknown"),
         task_description=body.get("description", ""),
@@ -243,18 +265,21 @@ async def review_task(body: dict):
 
 # ===== RAG MEMORY =====
 
+
 @router.get("/rag/stats")
 async def rag_stats():
     """Get RAG memory statistics."""
     from jarvis.brain.rag import rag_memory
+
     return rag_memory.get_stats()
 
 
 @router.post("/rag/retrieve")
 async def rag_retrieve(body: dict):
     """Retrieve relevant context for a query."""
-    from jarvis.brain.rag import rag_memory, RAGQuery
+    from jarvis.brain.rag import RAGQuery, rag_memory
     from jarvis.core.database import get_db
+
     db = await get_db()
     query = RAGQuery(
         text=body.get("text", ""),
@@ -273,12 +298,14 @@ async def rag_retrieve(body: dict):
 
 # ===== KNOWLEDGE GRAPH =====
 
+
 @router.get("/graph/stats")
 async def graph_stats():
     """Get knowledge graph statistics."""
     try:
-        from jarvis.brain.memory.graph import KnowledgeGraph
         from jarvis.brain.graph_analysis import get_graph_analyzer
+        from jarvis.brain.memory.graph import KnowledgeGraph
+
         graph = KnowledgeGraph()
         analyzer = get_graph_analyzer(graph)
         stats = await analyzer.get_stats()
@@ -292,8 +319,9 @@ async def graph_stats():
 async def graph_ego(node_id: str, radius: int = 2):
     """Get ego graph (neighborhood) of a node."""
     try:
-        from jarvis.brain.memory.graph import KnowledgeGraph
         from jarvis.brain.graph_analysis import get_graph_analyzer
+        from jarvis.brain.memory.graph import KnowledgeGraph
+
         graph = KnowledgeGraph()
         analyzer = get_graph_analyzer(graph)
         result = await analyzer.get_ego_graph(node_id, radius)
@@ -307,8 +335,9 @@ async def graph_ego(node_id: str, radius: int = 2):
 async def graph_path(source: str, target: str):
     """Find shortest path between two nodes."""
     try:
-        from jarvis.brain.memory.graph import KnowledgeGraph
         from jarvis.brain.graph_analysis import get_graph_analyzer
+        from jarvis.brain.memory.graph import KnowledgeGraph
+
         graph = KnowledgeGraph()
         analyzer = get_graph_analyzer(graph)
         path = await analyzer.shortest_path(source, target)
@@ -322,8 +351,9 @@ async def graph_path(source: str, target: str):
 async def graph_pagerank():
     """Get PageRank importance scores."""
     try:
-        from jarvis.brain.memory.graph import KnowledgeGraph
         from jarvis.brain.graph_analysis import get_graph_analyzer
+        from jarvis.brain.memory.graph import KnowledgeGraph
+
         graph = KnowledgeGraph()
         analyzer = get_graph_analyzer(graph)
         scores = await analyzer.pagerank()
@@ -339,8 +369,9 @@ async def graph_pagerank():
 async def graph_extract(body: dict):
     """Auto-extract entities and relations from text."""
     try:
-        from jarvis.brain.memory.graph import KnowledgeGraph
         from jarvis.brain.graph_analysis import get_entity_extractor
+        from jarvis.brain.memory.graph import KnowledgeGraph
+
         graph = KnowledgeGraph()
         extractor = get_entity_extractor()
         result = await extractor.auto_extract(graph, body.get("text", ""))
@@ -355,6 +386,7 @@ async def graph_data(limit: int = 100):
     """Get graph nodes and edges for visualization."""
     try:
         from jarvis.brain.memory.graph import KnowledgeGraph
+
         graph = KnowledgeGraph()
         result = await graph.get_graph_data(limit)
         await graph.close()
@@ -368,6 +400,7 @@ async def graph_add_node(body: dict):
     """Add a node to the knowledge graph."""
     try:
         from jarvis.brain.memory.graph import KnowledgeGraph, Node
+
         graph = KnowledgeGraph()
         node = Node(
             id=body.get("id", ""),
@@ -386,7 +419,8 @@ async def graph_add_node(body: dict):
 async def graph_add_edge(body: dict):
     """Add an edge to the knowledge graph."""
     try:
-        from jarvis.brain.memory.graph import KnowledgeGraph, Edge
+        from jarvis.brain.memory.graph import Edge, KnowledgeGraph
+
         graph = KnowledgeGraph()
         edge = Edge(
             source=body.get("source", ""),
@@ -403,10 +437,12 @@ async def graph_add_edge(body: dict):
 
 # ===== SKILL EVOLUTION =====
 
+
 @router.get("/evolution/stats")
 async def evolution_stats():
     """Get skill evolution statistics."""
     from jarvis.brain.skill_evolution import skill_evolver
+
     return await skill_evolver.get_stats()
 
 
@@ -414,6 +450,7 @@ async def evolution_stats():
 async def evolution_all():
     """Get all skill evolutions."""
     from jarvis.brain.skill_evolution import skill_evolver
+
     return {"evolutions": await skill_evolver.get_all_evolutions()}
 
 
@@ -421,6 +458,7 @@ async def evolution_all():
 async def evolution_detail(skill_name: str):
     """Get evolution details for a specific skill."""
     from jarvis.brain.skill_evolution import skill_evolver
+
     evo = await skill_evolver.get_evolution(skill_name)
     if not evo:
         return {"error": "Skill not found"}
@@ -431,6 +469,7 @@ async def evolution_detail(skill_name: str):
 async def evolution_add_variant(body: dict):
     """Add a strategy variant for A/B testing."""
     from jarvis.brain.skill_evolution import skill_evolver
+
     return await skill_evolver.add_variant(
         skill_name=body["skill_name"],
         variant_name=body["variant_name"],
@@ -442,6 +481,7 @@ async def evolution_add_variant(body: dict):
 async def evolution_record_outcome(body: dict):
     """Record an outcome for a skill variant."""
     from jarvis.brain.skill_evolution import skill_evolver
+
     await skill_evolver.record_outcome(
         skill_name=body["skill_name"],
         variant_name=body["variant_name"],
@@ -454,6 +494,7 @@ async def evolution_record_outcome(body: dict):
 async def evolution_compose(body: dict):
     """Compose multiple skills into a new one."""
     from jarvis.brain.skill_evolution import skill_evolver
+
     return await skill_evolver.compose_skills(
         skill_names=body["skill_names"],
         composed_name=body["composed_name"],
@@ -464,27 +505,31 @@ async def evolution_compose(body: dict):
 async def evolution_prune():
     """Prune low-performing skill variants."""
     from jarvis.brain.skill_evolution import skill_evolver
+
     return await skill_evolver.prune_low_performers()
 
 
 # ===== ACI (Agent Communication Interface) =====
 
+
 @router.get("/aci/stats")
 async def aci_stats():
     """Get ACI statistics."""
     from jarvis.brain.aci import aci
+
     return aci.get_stats()
 
 
 @router.get("/aci/history")
 async def aci_history(
-    sender: Optional[str] = None,
-    receiver: Optional[str] = None,
-    msg_type: Optional[str] = None,
+    sender: str | None = None,
+    receiver: str | None = None,
+    msg_type: str | None = None,
     limit: int = 50,
 ):
     """Get ACI message history."""
-    from jarvis.brain.aci import aci, MessageType
+    from jarvis.brain.aci import MessageType, aci
+
     mt = MessageType(msg_type) if msg_type else None
     msgs = aci.get_history(sender=sender, receiver=receiver, msg_type=mt, limit=limit)
     return {"messages": [m.to_dict() for m in msgs], "total": len(msgs)}
@@ -494,6 +539,7 @@ async def aci_history(
 async def aci_peek(agent_id: str):
     """Peek at pending messages for an agent."""
     from jarvis.brain.aci import aci
+
     msgs = aci.peek(agent_id)
     return {"agent_id": agent_id, "pending": [m.to_dict() for m in msgs], "count": len(msgs)}
 
@@ -501,7 +547,8 @@ async def aci_peek(agent_id: str):
 @router.post("/aci/send")
 async def aci_send(body: dict):
     """Send a message via ACI."""
-    from jarvis.brain.aci import aci, MessageType, MessagePriority
+    from jarvis.brain.aci import MessagePriority, MessageType, aci
+
     msg = await aci.send(
         sender=body.get("sender", "J"),
         receiver=body.get("receiver", "♠K"),
@@ -516,6 +563,7 @@ async def aci_send(body: dict):
 async def aci_receive(agent_id: str):
     """Receive next message for an agent."""
     from jarvis.brain.aci import aci
+
     msg = await aci.receive(agent_id)
     if not msg:
         return {"empty": True}
@@ -525,7 +573,8 @@ async def aci_receive(agent_id: str):
 @router.post("/aci/broadcast")
 async def aci_broadcast(body: dict):
     """Broadcast a message to all agents."""
-    from jarvis.brain.aci import aci, MessageType, MessagePriority
+    from jarvis.brain.aci import MessagePriority, MessageType, aci
+
     msg = await aci.send(
         sender=body.get("sender", "J"),
         receiver="*",
@@ -538,10 +587,12 @@ async def aci_broadcast(body: dict):
 
 # ===== DEMO LEARNING =====
 
+
 @router.get("/demos")
-async def list_demos(tag: Optional[str] = None):
+async def list_demos(tag: str | None = None):
     """List all recorded demos."""
     from jarvis.brain.demo_learning import demo_learner
+
     demos = await demo_learner.list_demos(tag=tag)
     return {"demos": [d.to_dict() for d in demos], "total": len(demos)}
 
@@ -550,6 +601,7 @@ async def list_demos(tag: Optional[str] = None):
 async def demo_stats():
     """Get demo learning statistics."""
     from jarvis.brain.demo_learning import demo_learner
+
     return demo_learner.get_stats()
 
 
@@ -557,6 +609,7 @@ async def demo_stats():
 async def get_demo(demo_id: str):
     """Get a specific demo."""
     from jarvis.brain.demo_learning import demo_learner
+
     demo = await demo_learner.get_demo(demo_id)
     if not demo:
         return {"error": "Demo not found"}
@@ -567,6 +620,7 @@ async def get_demo(demo_id: str):
 async def demo_start(body: dict):
     """Start recording a demo."""
     from jarvis.brain.demo_learning import demo_learner
+
     demo_id = await demo_learner.start_recording(
         name=body.get("name", "unnamed"),
         description=body.get("description", ""),
@@ -578,7 +632,8 @@ async def demo_start(body: dict):
 @router.post("/demos/action")
 async def demo_action(body: dict):
     """Record an action during demo recording."""
-    from jarvis.brain.demo_learning import demo_learner, Action
+    from jarvis.brain.demo_learning import Action, demo_learner
+
     action = Action(
         action_type=body.get("action_type", "click"),
         target=body.get("target", ""),
@@ -595,6 +650,7 @@ async def demo_action(body: dict):
 async def demo_stop():
     """Stop recording and save the demo."""
     from jarvis.brain.demo_learning import demo_learner
+
     demo = await demo_learner.stop_recording()
     if not demo:
         return {"error": "No demo recording"}
@@ -605,6 +661,7 @@ async def demo_stop():
 async def demo_abstract(demo_id: str):
     """Abstract a demo into reusable patterns."""
     from jarvis.brain.demo_learning import demo_learner
+
     return await demo_learner.abstract_actions(demo_id)
 
 
@@ -612,6 +669,7 @@ async def demo_abstract(demo_id: str):
 async def demo_replay(demo_id: str, body: dict = None):
     """Replay a demo with optional variations."""
     from jarvis.brain.demo_learning import demo_learner
+
     variations = (body or {}).get("variations", {})
     return await demo_learner.replay(demo_id, variations)
 
@@ -620,16 +678,19 @@ async def demo_replay(demo_id: str, body: dict = None):
 async def demo_outcome(demo_id: str, body: dict):
     """Record replay outcome."""
     from jarvis.brain.demo_learning import demo_learner
+
     await demo_learner.record_replay_outcome(demo_id, body.get("success", True))
     return {"ok": True}
 
 
 # ===== DAG PLANNER =====
 
+
 @router.get("/dag/missions")
 async def dag_missions():
     """List all missions."""
     from jarvis.brain.dag_planner import dag_planner
+
     return {"missions": dag_planner.get_all_missions()}
 
 
@@ -637,13 +698,15 @@ async def dag_missions():
 async def dag_stats():
     """Get DAG planner stats."""
     from jarvis.brain.dag_planner import dag_planner
+
     return dag_planner.get_stats()
 
 
 @router.post("/dag/mission")
 async def dag_create_mission(body: dict):
     """Create a new mission with task DAG."""
-    from jarvis.brain.dag_planner import dag_planner, DAGNode
+    from jarvis.brain.dag_planner import DAGNode, dag_planner
+
     nodes = [
         DAGNode(
             id=n["id"],
@@ -663,6 +726,7 @@ async def dag_create_mission(body: dict):
 async def dag_mission_status(mission_id: str):
     """Get mission status."""
     from jarvis.brain.dag_planner import dag_planner
+
     return dag_planner.get_mission_status(mission_id)
 
 
@@ -670,6 +734,7 @@ async def dag_mission_status(mission_id: str):
 async def dag_next_tasks(mission_id: str):
     """Get next ready tasks."""
     from jarvis.brain.dag_planner import dag_planner
+
     return {"tasks": dag_planner.get_next_actions(mission_id)}
 
 
@@ -677,6 +742,7 @@ async def dag_next_tasks(mission_id: str):
 async def dag_start_task(mission_id: str, node_id: str):
     """Start a task."""
     from jarvis.brain.dag_planner import dag_planner
+
     node = dag_planner.start_task(mission_id, node_id)
     return {"ok": node is not None, "node": node.to_dict() if node else None}
 
@@ -685,6 +751,7 @@ async def dag_start_task(mission_id: str, node_id: str):
 async def dag_complete_task(mission_id: str, node_id: str, body: dict = None):
     """Complete a task."""
     from jarvis.brain.dag_planner import dag_planner
+
     node = dag_planner.complete_task(mission_id, node_id, (body or {}).get("result", ""))
     return {"ok": node is not None, "node": node.to_dict() if node else None}
 
@@ -693,15 +760,18 @@ async def dag_complete_task(mission_id: str, node_id: str, body: dict = None):
 async def dag_visualize(mission_id: str):
     """Get DAG visualization data."""
     from jarvis.brain.dag_planner import dag_planner
+
     return dag_planner.visualize(mission_id)
 
 
 # ===== DYNAMIC TEAMS =====
 
+
 @router.get("/teams/stats")
 async def team_stats():
     """Get team manager stats."""
     from jarvis.brain.teams import team_manager
+
     return team_manager.get_stats()
 
 
@@ -709,6 +779,7 @@ async def team_stats():
 async def team_form(body: dict):
     """Form a dynamic team."""
     from jarvis.brain.teams import team_manager
+
     team = await team_manager.form_team(
         team_name=body.get("name", "unnamed"),
         mission_id=body.get("mission_id", ""),
@@ -722,6 +793,7 @@ async def team_form(body: dict):
 async def team_detail(team_id: str):
     """Get team details."""
     from jarvis.brain.teams import team_manager
+
     team = await team_manager.get_team(team_id)
     return team.to_dict() if team else {"error": "Team not found"}
 
@@ -730,16 +802,19 @@ async def team_detail(team_id: str):
 async def team_disband(team_id: str):
     """Disband a team."""
     from jarvis.brain.teams import team_manager
+
     ok = await team_manager.disband_team(team_id)
     return {"ok": ok}
 
 
 # ===== MISSION TIMELINE =====
 
+
 @router.get("/timeline/{mission_id}")
 async def timeline_get(mission_id: str, limit: int = 100):
     """Get mission timeline."""
     from jarvis.brain.teams import mission_timeline
+
     return {"timeline": mission_timeline.get_timeline(mission_id, limit)}
 
 
@@ -747,6 +822,7 @@ async def timeline_get(mission_id: str, limit: int = 100):
 async def timeline_visualize(mission_id: str):
     """Get timeline visualization data."""
     from jarvis.brain.teams import mission_timeline
+
     return mission_timeline.visualize(mission_id)
 
 
@@ -754,6 +830,7 @@ async def timeline_visualize(mission_id: str):
 async def timeline_milestones(mission_id: str):
     """Get mission milestones."""
     from jarvis.brain.teams import mission_timeline
+
     return {"milestones": mission_timeline.get_milestones(mission_id)}
 
 
@@ -761,6 +838,7 @@ async def timeline_milestones(mission_id: str):
 async def timeline_activity(mission_id: str):
     """Get per-agent activity."""
     from jarvis.brain.teams import mission_timeline
+
     return {"activity": mission_timeline.get_agent_activity(mission_id)}
 
 
@@ -768,6 +846,7 @@ async def timeline_activity(mission_id: str):
 async def timeline_record_event(mission_id: str, body: dict):
     """Record a timeline event."""
     from jarvis.brain.teams import mission_timeline
+
     mission_timeline.record_event(
         mission_id=mission_id,
         event_type=body.get("event_type", "milestone"),
@@ -781,10 +860,12 @@ async def timeline_record_event(mission_id: str, body: dict):
 
 # ===== DIAGNOSTICS =====
 
+
 @router.get("/diagnostics")
 async def run_diagnostics_endpoint():
     """Run self-diagnostics and return results."""
     from jarvis.core.diagnostics import run_diagnostics
+
     results = await run_diagnostics()
     return {
         "results": [
@@ -798,17 +879,28 @@ async def run_diagnostics_endpoint():
 
 # ===== OBSERVABILITY =====
 
+
 @router.get("/health")
 async def system_health():
     """Get comprehensive system health."""
     from jarvis.brain.observability import observability
+
     return await observability.get_system_health()
 
 
+@router.get("/startup-timing")
+async def get_startup_timing():
+    """Get startup timing metrics (C1 performance monitoring)."""
+    from jarvis.core.startup_timer import startup_timer
+
+    return startup_timer.metrics.as_dict
+
+
 @router.get("/metrics")
-async def get_metrics(name: Optional[str] = None, limit: int = 100):
+async def get_metrics(name: str | None = None, limit: int = 100):
     """Get recorded metrics."""
     from jarvis.brain.observability import observability
+
     return {"metrics": observability.get_metrics(name=name, limit=limit)}
 
 
@@ -816,6 +908,7 @@ async def get_metrics(name: Optional[str] = None, limit: int = 100):
 async def get_counters():
     """Get metric counters."""
     from jarvis.brain.observability import observability
+
     return observability.get_counters()
 
 
@@ -823,6 +916,7 @@ async def get_counters():
 async def get_gauges():
     """Get metric gauges."""
     from jarvis.brain.observability import observability
+
     return observability.get_gauges()
 
 
@@ -830,6 +924,7 @@ async def get_gauges():
 async def record_metric(body: dict):
     """Record a custom metric."""
     from jarvis.brain.observability import observability
+
     observability.record_metric(
         name=body.get("name", "custom"),
         value=body.get("value", 0),
@@ -842,6 +937,7 @@ async def record_metric(body: dict):
 async def get_traces(limit: int = 20):
     """Get recent traces."""
     from jarvis.brain.observability import observability
+
     return {"traces": observability.get_recent_traces(limit)}
 
 
@@ -849,6 +945,7 @@ async def get_traces(limit: int = 20):
 async def get_trace(trace_id: str):
     """Get a specific trace."""
     from jarvis.brain.observability import observability
+
     trace = observability.get_trace(trace_id)
     return trace or {"error": "Trace not found"}
 
@@ -857,6 +954,7 @@ async def get_trace(trace_id: str):
 async def start_trace(body: dict):
     """Start a new trace."""
     from jarvis.brain.observability import observability
+
     trace_id = observability.start_trace(
         operation=body.get("operation", "unknown"),
         tags=body.get("tags", {}),
@@ -868,16 +966,19 @@ async def start_trace(body: dict):
 async def end_trace(trace_id: str, body: dict = None):
     """End a trace."""
     from jarvis.brain.observability import observability
+
     observability.end_trace(trace_id, status=(body or {}).get("status", "ok"))
     return {"ok": True}
 
 
 # ===== DEVELOPER MODE =====
 
+
 @router.get("/dev/stats")
 async def dev_stats():
     """Get developer mode stats."""
     from jarvis.brain.developer import developer_mode
+
     return developer_mode.get_stats()
 
 
@@ -885,6 +986,7 @@ async def dev_stats():
 async def dev_flags():
     """Get all feature flags."""
     from jarvis.brain.developer import developer_mode
+
     return {"flags": developer_mode.get_flags()}
 
 
@@ -892,6 +994,7 @@ async def dev_flags():
 async def dev_toggle_flag(flag_name: str):
     """Toggle a feature flag."""
     from jarvis.brain.developer import developer_mode
+
     flag = developer_mode.toggle(flag_name)
     return flag.to_dict() if flag else {"error": "Flag not found"}
 
@@ -900,6 +1003,7 @@ async def dev_toggle_flag(flag_name: str):
 async def dev_set_flag(flag_name: str, body: dict):
     """Set a feature flag."""
     from jarvis.brain.developer import developer_mode
+
     flag = developer_mode.set_flag(flag_name, body.get("enabled", True))
     return flag.to_dict()
 
@@ -908,6 +1012,7 @@ async def dev_set_flag(flag_name: str, body: dict):
 async def dev_internal_state():
     """Get internal state of all subsystems."""
     from jarvis.brain.developer import developer_mode
+
     return developer_mode.get_internal_state()
 
 
@@ -915,13 +1020,15 @@ async def dev_internal_state():
 async def dev_env():
     """Get sanitized environment variables."""
     from jarvis.brain.developer import developer_mode
+
     return developer_mode.get_env()
 
 
 @router.get("/dev/debug")
-async def dev_debug(key: Optional[str] = None):
+async def dev_debug(key: str | None = None):
     """Get debug data."""
     from jarvis.brain.developer import developer_mode
+
     data = developer_mode.get_debug(key)
     return {"data": data}
 
@@ -930,16 +1037,19 @@ async def dev_debug(key: Optional[str] = None):
 async def dev_set_debug(body: dict):
     """Store debug data."""
     from jarvis.brain.developer import developer_mode
+
     developer_mode.set_debug(body.get("key", ""), body.get("value"))
     return {"ok": True}
 
 
 # ===== GRAPHIFY KNOWLEDGE GRAPH =====
 
+
 @router.get("/graphify/stats")
 async def graphify_stats():
     """Get knowledge graph statistics."""
     from jarvis.brain.graphify_integration import get_graphify
+
     g = get_graphify()
     return g.get_stats()
 
@@ -948,6 +1058,7 @@ async def graphify_stats():
 async def graphify_query(q: str):
     """Query the knowledge graph."""
     from jarvis.brain.graphify_integration import get_graphify
+
     g = get_graphify()
     return g.query(q)
 
@@ -956,6 +1067,7 @@ async def graphify_query(q: str):
 async def graphify_node(node_id: str):
     """Get a node and its connections."""
     from jarvis.brain.graphify_integration import get_graphify
+
     g = get_graphify()
     result = g.get_node(node_id)
     if result is None:
@@ -967,6 +1079,7 @@ async def graphify_node(node_id: str):
 async def graphify_path(source: str, target: str):
     """Find shortest path between two nodes."""
     from jarvis.brain.graphify_integration import get_graphify
+
     g = get_graphify()
     path = g.shortest_path(source, target)
     if path is None:
@@ -978,6 +1091,7 @@ async def graphify_path(source: str, target: str):
 async def graphify_community(community_id: int):
     """Get all nodes in a community."""
     from jarvis.brain.graphify_integration import get_graphify
+
     g = get_graphify()
     nodes = g.get_community(community_id)
     return {"community_id": community_id, "nodes": nodes, "count": len(nodes)}
@@ -987,27 +1101,49 @@ async def graphify_community(community_id: int):
 async def graphify_threejs(max_nodes: int = 500):
     """Get graph data formatted for Three.js visualization."""
     from jarvis.brain.graphify_integration import get_graphify
+
     g = get_graphify()
     return g.to_three_js(max_nodes=max_nodes)
 
 
 class PermissionUpdate(BaseModel):
     permission: str
-    enabled: bool
+    enabled: bool | None = None
+    state: str | None = None
 
 
 @router.get("/permissions")
 async def get_permissions():
     """Get all permissions."""
     from jarvis.core.permissions import permission_center
+
     return {"permissions": permission_center.get_all()}
 
 
 @router.post("/permissions")
 async def update_permission(req: PermissionUpdate):
     """Update a permission."""
-    from jarvis.core.permissions import permission_center
-    success = permission_center.set(req.permission, req.enabled)
+    from jarvis.core.permissions import TrinityState, permission_center
+
+    if req.state is not None:
+        try:
+            trinity_state = TrinityState(req.state)
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid state: {req.state}. Use allow, ask, or deny."
+            )
+        success = permission_center.set_state(req.permission, trinity_state)
+    elif req.enabled is not None:
+        success = permission_center.set(req.permission, req.enabled)
+    else:
+        raise HTTPException(
+            status_code=400, detail="Provide 'state' (allow/ask/deny) or 'enabled' (true/false)"
+        )
+
     if not success:
         raise HTTPException(status_code=400, detail=f"Unknown permission: {req.permission}")
-    return {"ok": True, "permission": req.permission, "enabled": req.enabled}
+    return {
+        "ok": True,
+        "permission": req.permission,
+        "state": permission_center.get(req.permission),
+    }

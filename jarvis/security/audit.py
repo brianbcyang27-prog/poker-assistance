@@ -3,8 +3,7 @@
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
-
+from typing import Any
 
 _AUDIT_FILE = ".security_audit.jsonl"
 
@@ -12,11 +11,13 @@ _AUDIT_FILE = ".security_audit.jsonl"
 class AuditLog:
     """Append-only audit log for all secret operations."""
 
-    def __init__(self, log_dir: Optional[str] = None):
+    def __init__(self, log_dir: str | None = None):
         self._path = Path(log_dir) if log_dir else Path.cwd()
         self._audit_file = self._path / _AUDIT_FILE
 
-    def log(self, action: str, key: str, provider: str, details: Optional[Dict[str, Any]] = None) -> None:
+    def log(
+        self, action: str, key: str, provider: str, details: dict[str, Any] | None = None
+    ) -> None:
         """Append an audit entry."""
         entry = {
             "timestamp": time.time(),
@@ -33,7 +34,7 @@ class AuditLog:
         except OSError:
             pass
 
-    def get_entries(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_entries(self, limit: int = 100) -> list[dict[str, Any]]:
         """Read recent audit entries."""
         if not self._audit_file.exists():
             return []
@@ -49,7 +50,7 @@ class AuditLog:
 
         return entries
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get audit statistics."""
         entries = self.get_entries(limit=10000)
         if not entries:
@@ -59,7 +60,9 @@ class AuditLog:
         providers = {}
         for e in entries:
             actions[e.get("action", "unknown")] = actions.get(e.get("action", "unknown"), 0) + 1
-            providers[e.get("provider", "unknown")] = providers.get(e.get("provider", "unknown"), 0) + 1
+            providers[e.get("provider", "unknown")] = (
+                providers.get(e.get("provider", "unknown"), 0) + 1
+            )
 
         return {
             "total": len(entries),

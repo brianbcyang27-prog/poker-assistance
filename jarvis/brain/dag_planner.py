@@ -5,14 +5,14 @@ parallel execution paths, and critical path analysis.
 """
 
 import time
-from enum import Enum
-from dataclasses import dataclass, field
-from typing import Optional
 from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from enum import StrEnum
+
 from loguru import logger
 
 
-class DAGNodeStatus(str, Enum):
+class DAGNodeStatus(StrEnum):
     PENDING = "pending"
     READY = "ready"
     RUNNING = "running"
@@ -24,6 +24,7 @@ class DAGNodeStatus(str, Enum):
 @dataclass
 class DAGNode:
     """A node in the task DAG."""
+
     id: str
     name: str
     description: str = ""
@@ -111,7 +112,7 @@ class DAGPlanner:
                 ready.append(node)
         return sorted(ready, key=lambda n: -n.priority)
 
-    def start_task(self, mission_id: str, node_id: str) -> Optional[DAGNode]:
+    def start_task(self, mission_id: str, node_id: str) -> DAGNode | None:
         """Mark a task as running."""
         node = self._get_node(mission_id, node_id)
         if node and node.status == DAGNodeStatus.READY:
@@ -120,7 +121,7 @@ class DAGPlanner:
             return node
         return None
 
-    def complete_task(self, mission_id: str, node_id: str, result: str = "") -> Optional[DAGNode]:
+    def complete_task(self, mission_id: str, node_id: str, result: str = "") -> DAGNode | None:
         """Mark a task as completed."""
         node = self._get_node(mission_id, node_id)
         if node and node.status == DAGNodeStatus.RUNNING:
@@ -131,7 +132,7 @@ class DAGPlanner:
             return node
         return None
 
-    def fail_task(self, mission_id: str, node_id: str, error: str = "") -> Optional[DAGNode]:
+    def fail_task(self, mission_id: str, node_id: str, error: str = "") -> DAGNode | None:
         """Mark a task as failed."""
         node = self._get_node(mission_id, node_id)
         if node:
@@ -196,7 +197,7 @@ class DAGPlanner:
                 vis_edges.append({"source": dep_id, "target": n.id})
         return {"nodes": vis_nodes, "edges": vis_edges}
 
-    def _get_node(self, mission_id: str, node_id: str) -> Optional[DAGNode]:
+    def _get_node(self, mission_id: str, node_id: str) -> DAGNode | None:
         for n in self._missions.get(mission_id, []):
             if n.id == node_id:
                 return n
@@ -228,7 +229,7 @@ class DAGPlanner:
                     return True
         return False
 
-    def _topological_sort(self, nodes: list[DAGNode]) -> Optional[list[str]]:
+    def _topological_sort(self, nodes: list[DAGNode]) -> list[str] | None:
         """Topological sort of nodes."""
         node_map = {n.id: n for n in nodes}
         in_degree = defaultdict(int)
@@ -302,10 +303,7 @@ class DAGPlanner:
         return list(reversed(path))
 
     def get_all_missions(self) -> list[dict]:
-        return [
-            {"mission_id": mid, **self.get_mission_status(mid)}
-            for mid in self._missions
-        ]
+        return [{"mission_id": mid, **self.get_mission_status(mid)} for mid in self._missions]
 
     def get_stats(self) -> dict:
         total_missions = len(self._missions)

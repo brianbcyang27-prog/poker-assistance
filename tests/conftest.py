@@ -1,6 +1,8 @@
 """Shared test configuration — ensures jarvis is importable."""
-import sys
+
 import os
+import sys
+
 import pytest
 
 # Add project root to Python path at collection time

@@ -6,7 +6,7 @@ The Review Engine consumes this automatically.
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -15,16 +15,16 @@ class ToolResult:
 
     ok: bool
     data: Any = None
-    error: Optional[str] = None
+    error: str | None = None
     tool: str = ""
     duration_ms: float = 0.0
     confidence: float = 1.0
-    warnings: List[str] = field(default_factory=list)
-    artifacts: List[Dict[str, Any]] = field(default_factory=list)
-    screenshots: List[str] = field(default_factory=list)
-    logs: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
-    recovery: Optional[str] = None
+    warnings: list[str] = field(default_factory=list)
+    artifacts: list[dict[str, Any]] = field(default_factory=list)
+    screenshots: list[str] = field(default_factory=list)
+    logs: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    recovery: str | None = None
 
     def to_dict(self) -> dict:
         return {

@@ -7,13 +7,10 @@ Extends the basic SkillManager with:
 - Outcome-driven refinement
 """
 
-import time
 import json
+import time
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
-from dataclasses import dataclass, field, asdict
-from loguru import logger
-
 
 SKILLS_DIR = Path("memory_store")
 SKILLS_DIR.mkdir(parents=True, exist_ok=True)
@@ -23,6 +20,7 @@ EVOLUTION_FILE = SKILLS_DIR / "skill_evolution.json"
 @dataclass
 class StrategyVariant:
     """An alternative strategy for a skill."""
+
     name: str
     steps: list[dict]
     success_count: int = 0
@@ -43,6 +41,7 @@ class StrategyVariant:
 @dataclass
 class SkillEvolution:
     """Evolution state for a skill."""
+
     skill_name: str
     variants: list[StrategyVariant] = field(default_factory=list)
     current_variant: str = "default"
@@ -89,13 +88,15 @@ class SkillEvolver:
                         current_variant=evo_data.get("current_variant", "default"),
                     )
                     for v in evo_data.get("variants", []):
-                        evo.variants.append(StrategyVariant(
-                            name=v["name"],
-                            steps=v.get("steps", []),
-                            success_count=v.get("success_count", 0),
-                            failure_count=v.get("failure_count", 0),
-                            created_at=v.get("created_at", 0),
-                        ))
+                        evo.variants.append(
+                            StrategyVariant(
+                                name=v["name"],
+                                steps=v.get("steps", []),
+                                success_count=v.get("success_count", 0),
+                                failure_count=v.get("failure_count", 0),
+                                created_at=v.get("created_at", 0),
+                            )
+                        )
                     self._evolutions[name] = evo
             except (json.JSONDecodeError, KeyError):
                 pass
@@ -159,7 +160,7 @@ class SkillEvolver:
         self._save()
         return {"ok": True, "variant": variant.to_dict()}
 
-    async def select_best_variant(self, skill_name: str) -> Optional[StrategyVariant]:
+    async def select_best_variant(self, skill_name: str) -> StrategyVariant | None:
         """Select the best-performing variant."""
         evo = self._evolutions.get(skill_name)
         if not evo or not evo.variants:
@@ -167,6 +168,7 @@ class SkillEvolver:
 
         # Thompson sampling: balance exploration vs exploitation
         import random
+
         sampled = []
         for v in evo.variants:
             # Beta distribution approximation
@@ -192,7 +194,8 @@ class SkillEvolver:
             if evo.best_score < self.PRUNE_THRESHOLD:
                 # Remove the worst variants
                 evo.variants = [
-                    v for v in evo.variants
+                    v
+                    for v in evo.variants
                     if v.success_count + v.failure_count < self.MIN_ATTEMPTS_TO_PRUNE
                     or v.success_rate >= self.PRUNE_THRESHOLD
                 ]
@@ -221,17 +224,19 @@ class SkillEvolver:
             skill_name=composed_name,
             composed_from=composed_from,
         )
-        composed_evo.variants.append(StrategyVariant(
-            name="default",
-            steps=all_steps,
-            created_at=time.time(),
-        ))
+        composed_evo.variants.append(
+            StrategyVariant(
+                name="default",
+                steps=all_steps,
+                created_at=time.time(),
+            )
+        )
 
         self._evolutions[composed_name] = composed_evo
         self._save()
         return {"ok": True, "composed": composed_evo.to_dict()}
 
-    async def get_evolution(self, skill_name: str) -> Optional[dict]:
+    async def get_evolution(self, skill_name: str) -> dict | None:
         evo = self._evolutions.get(skill_name)
         return evo.to_dict() if evo else None
 
@@ -243,7 +248,8 @@ class SkillEvolver:
         total_variants = sum(len(e.variants) for e in self._evolutions.values())
         avg_score = (
             sum(e.best_score for e in self._evolutions.values()) / total_skills
-            if total_skills > 0 else 0
+            if total_skills > 0
+            else 0
         )
         return {
             "total_skills": total_skills,

@@ -6,10 +6,8 @@ agents, files, and decisions. Automatically compresses and expires old context.
 Think of this as JARVIS's "attention" — what it's currently focused on.
 """
 
-import time
-import json
 import logging
-from typing import Optional, Any
+import time
 from dataclasses import dataclass, field
 
 log = logging.getLogger("jarvis.memory.working")
@@ -27,25 +25,26 @@ SLOTS = {
 
 # Default expiration: 2 hours for most slots, longer for project/user_context
 SLOT_EXPIRATION = {
-    "conversation": 3600 * 1,       # 1 hour
-    "mission": 3600 * 4,            # 4 hours
-    "project": 3600 * 8,            # 8 hours
-    "agents": 3600 * 2,             # 2 hours
-    "files": 3600 * 2,              # 2 hours
-    "decisions": 3600 * 4,          # 4 hours
-    "user_context": 3600 * 8,       # 8 hours
+    "conversation": 3600 * 1,  # 1 hour
+    "mission": 3600 * 4,  # 4 hours
+    "project": 3600 * 8,  # 8 hours
+    "agents": 3600 * 2,  # 2 hours
+    "files": 3600 * 2,  # 2 hours
+    "decisions": 3600 * 4,  # 4 hours
+    "user_context": 3600 * 8,  # 8 hours
 }
 
 
 @dataclass
 class WorkingMemoryEntry:
     """A single working memory slot."""
+
     slot: str
     content: str
-    priority: int = 5          # 1-10, higher = more important
-    importance: float = 0.0    # computed importance
+    priority: int = 5  # 1-10, higher = more important
+    importance: float = 0.0  # computed importance
     created_at: float = field(default_factory=time.time)
-    expires_at: float = 0.0    # 0 = no expiration
+    expires_at: float = 0.0  # 0 = no expiration
     access_count: int = 0
     last_accessed: float = field(default_factory=time.time)
 
@@ -92,6 +91,7 @@ class WorkingMemoryManager:
             return
         if self._db is None:
             from ...core.database import get_db
+
             self._db = await get_db()
         self._initialized = True
         # Load existing working memory
@@ -101,26 +101,36 @@ class WorkingMemoryManager:
         """Load working memory from database."""
         try:
             cursor = await self._db.execute(
-                "SELECT slot, content, priority, importance, created_at, expires_at, access_count, last_accessed "
+                "SELECT slot, content, priority, importance, created_at, expires_at, "
+                "access_count, last_accessed "
                 "FROM working_memory"
             )
             rows = await cursor.fetchall()
             for row in rows:
                 entry = WorkingMemoryEntry(
-                    slot=row[0], content=row[1], priority=row[2],
-                    importance=row[3], created_at=row[4], expires_at=row[5],
-                    access_count=row[6], last_accessed=row[7],
+                    slot=row[0],
+                    content=row[1],
+                    priority=row[2],
+                    importance=row[3],
+                    created_at=row[4],
+                    expires_at=row[5],
+                    access_count=row[6],
+                    last_accessed=row[7],
                 )
                 if not entry.is_expired():
                     self._cache[entry.slot] = entry
                 else:
                     # Clean up expired entries
-                    await self._db.execute("DELETE FROM working_memory WHERE slot = ?", (entry.slot,))
+                    await self._db.execute(
+                        "DELETE FROM working_memory WHERE slot = ?", (entry.slot,)
+                    )
             await self._db.commit()
         except Exception as e:
             log.warning(f"Failed to load working memory: {e}")
 
-    async def set(self, slot: str, content: str, priority: int = 5, ttl: Optional[float] = None) -> dict:
+    async def set(
+        self, slot: str, content: str, priority: int = 5, ttl: float | None = None
+    ) -> dict:
         """Set a working memory slot.
 
         Args:
@@ -154,7 +164,8 @@ class WorkingMemoryManager:
 
         await self._db.execute(
             "INSERT OR REPLACE INTO working_memory "
-            "(slot, content, priority, importance, created_at, expires_at, access_count, last_accessed) "
+            "(slot, content, priority, importance, created_at, expires_at, "
+            "access_count, last_accessed) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (slot, content, priority, entry.importance, entry.created_at, entry.expires_at, 0, now),
         )
@@ -163,7 +174,27 @@ class WorkingMemoryManager:
         log.debug(f"Working memory set: {slot} = {content[:80]}...")
         return {"ok": True, "slot": slot}
 
-    async def get(self, slot: str) -> Optional[str]:
+    async def update(
+        self,
+        slot: str,
+        content: str,
+        importance: float = 0.5,
+        ttl_seconds: int | None = None,
+        metadata: dict | None = None,
+    ) -> dict:
+        """Update a working memory slot (called by the API router).
+
+        Args:
+            slot: The memory slot name (e.g., 'conversation', 'mission')
+            content: The content to remember
+            importance: 0-1 importance score (mapped to 1-10 priority)
+            ttl_seconds: Time to live in seconds. None = use slot default.
+            metadata: Additional metadata (stored but not persisted in current schema).
+        """
+        priority = max(1, min(10, int(importance * 10)))
+        return await self.set(slot, content, priority=priority, ttl=ttl_seconds)
+
+    async def get(self, slot: str) -> str | None:
         """Get content from a working memory slot."""
         await self._ensure_db()
 
@@ -180,7 +211,8 @@ class WorkingMemoryManager:
         entry.access_count += 1
         entry.last_accessed = time.time()
         await self._db.execute(
-            "UPDATE working_memory SET access_count = access_count + 1, last_accessed = ? WHERE slot = ?",
+            "UPDATE working_memory SET access_count = access_count + 1, last_accessed = ? "
+            "WHERE slot = ?",
             (entry.last_accessed, slot),
         )
         await self._db.commit()
@@ -193,7 +225,7 @@ class WorkingMemoryManager:
         self._cleanup_expired()
         return {slot: entry.to_dict() for slot, entry in self._cache.items()}
 
-    async def get_context(self, max_chars: Optional[int] = None) -> str:
+    async def get_context(self, max_chars: int | None = None) -> str:
         """Get a compressed context string for LLM consumption.
 
         Returns a human-readable summary of the current working context,
@@ -219,7 +251,7 @@ class WorkingMemoryManager:
                 # Try to fit a compressed version
                 remaining = max_chars - total_chars
                 if remaining > 100:
-                    content = content[:remaining - 3] + "..."
+                    content = content[: remaining - 3] + "..."
                 else:
                     break
 
@@ -229,7 +261,7 @@ class WorkingMemoryManager:
 
         return "\n".join(lines) if lines else "No active context."
 
-    async def clear(self, slot: Optional[str] = None):
+    async def clear(self, slot: str | None = None):
         """Clear a specific slot or all working memory."""
         await self._ensure_db()
         if slot:
@@ -252,8 +284,15 @@ class WorkingMemoryManager:
 
         # Boost importance for key signals
         important_keywords = [
-            "decision", "important", "remember", "never forget",
-            "architecture", "bug", "critical", "deadline", "goal",
+            "decision",
+            "important",
+            "remember",
+            "never forget",
+            "architecture",
+            "bug",
+            "critical",
+            "deadline",
+            "goal",
         ]
         keyword_boost = sum(0.05 for kw in important_keywords if kw in content.lower())
 
@@ -272,7 +311,6 @@ class WorkingMemoryManager:
 
         # Extract key signals
         user_msgs = [m for m in messages if m.get("role") == "user"]
-        assistant_msgs = [m for m in messages if m.get("role") == "assistant"]
 
         # Build summary
         parts = []
@@ -295,12 +333,45 @@ class WorkingMemoryManager:
     def _extract_topics(self, text: str) -> list[str]:
         """Extract key topics from text using simple keyword extraction."""
         import re
-        words = re.findall(r'\b[a-z]{4,}\b', text.lower())
+
+        words = re.findall(r"\b[a-z]{4,}\b", text.lower())
 
         # Simple TF-based extraction
         word_freq: dict[str, int] = {}
         for w in words:
-            if w not in {'this', 'that', 'with', 'from', 'have', 'been', 'were', 'they', 'their', 'what', 'when', 'where', 'which', 'about', 'would', 'could', 'should', 'there', 'more', 'also', 'some', 'very', 'just', 'into', 'only', 'other', 'than', 'then', 'them', 'these', 'those'}:
+            if w not in {
+                "this",
+                "that",
+                "with",
+                "from",
+                "have",
+                "been",
+                "were",
+                "they",
+                "their",
+                "what",
+                "when",
+                "where",
+                "which",
+                "about",
+                "would",
+                "could",
+                "should",
+                "there",
+                "more",
+                "also",
+                "some",
+                "very",
+                "just",
+                "into",
+                "only",
+                "other",
+                "than",
+                "then",
+                "them",
+                "these",
+                "those",
+            }:
                 word_freq[w] = word_freq.get(w, 0) + 1
 
         sorted_words = sorted(word_freq.items(), key=lambda x: -x[1])
@@ -308,7 +379,7 @@ class WorkingMemoryManager:
 
 
 # Module-level convenience
-_working_memory: Optional[WorkingMemoryManager] = None
+_working_memory: WorkingMemoryManager | None = None
 
 
 def get_working_memory(db=None) -> WorkingMemoryManager:

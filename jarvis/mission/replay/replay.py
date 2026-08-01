@@ -2,9 +2,9 @@
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from .models import MissionEvent, MissionReport, MissionReplayQuery
+from .models import MissionReplayQuery, MissionReport
 from .recorder import MissionRecorder
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class MissionReplay:
     # Timeline
     # ------------------------------------------------------------------
 
-    async def get_timeline(self, mission_id: str) -> List[Dict[str, Any]]:
+    async def get_timeline(self, mission_id: str) -> list[dict[str, Any]]:
         """Return a formatted timeline for the mission."""
         report = await self._recorder.get_report(mission_id)
         if report:
@@ -36,19 +36,22 @@ class MissionReplay:
         # Fallback: build from raw events
         events = await self._recorder.get_events(mission_id)
         events.sort(key=lambda e: e.timestamp)
-        return [{
-            "time": time.strftime("%H:%M", time.localtime(e.timestamp)),
-            "type": e.event_type,
-            "title": e.title,
-            "description": e.description[:200],
-            "success": e.success,
-        } for e in events]
+        return [
+            {
+                "time": time.strftime("%H:%M", time.localtime(e.timestamp)),
+                "type": e.event_type,
+                "title": e.title,
+                "description": e.description[:200],
+                "success": e.success,
+            }
+            for e in events
+        ]
 
     # ------------------------------------------------------------------
     # Report
     # ------------------------------------------------------------------
 
-    async def get_report(self, mission_id: str) -> Optional[MissionReport]:
+    async def get_report(self, mission_id: str) -> MissionReport | None:
         """Return the mission report."""
         return await self._recorder.get_report(mission_id)
 
@@ -88,14 +91,14 @@ class MissionReplay:
     # Lessons
     # ------------------------------------------------------------------
 
-    async def get_lessons(self, mission_id: str) -> List[str]:
+    async def get_lessons(self, mission_id: str) -> list[str]:
         """Return lessons learned during a mission."""
         report = await self._recorder.get_report(mission_id)
         if report:
             return list(report.lessons)
         # Derive from error/recovery events
         events = await self._recorder.get_events(mission_id)
-        lessons: List[str] = []
+        lessons: list[str] = []
         for event in events:
             if event.event_type == "recovery":
                 lessons.append(event.description)
@@ -105,10 +108,10 @@ class MissionReplay:
     # Search
     # ------------------------------------------------------------------
 
-    async def search_missions(self, query: MissionReplayQuery) -> List[Dict[str, Any]]:
+    async def search_missions(self, query: MissionReplayQuery) -> list[dict[str, Any]]:
         """Search missions by criteria."""
         summaries = await self._recorder.list_missions(limit=500)
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
 
         for summary in summaries:
             if query.mission_id and summary["mission_id"] != query.mission_id:
@@ -119,13 +122,13 @@ class MissionReplay:
                 continue
             results.append(summary)
 
-        return results[:query.limit]
+        return results[: query.limit]
 
     # ------------------------------------------------------------------
     # Stats
     # ------------------------------------------------------------------
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Return overall mission statistics."""
         summaries = await self._recorder.list_missions(limit=10000)
         total = len(summaries)
@@ -134,12 +137,8 @@ class MissionReplay:
 
         success = sum(1 for s in summaries if s.get("outcome") == "success")
         failed = sum(1 for s in summaries if s.get("outcome") == "failed")
-        avg_duration = (
-            sum(s.get("duration_seconds", 0) for s in summaries) / total
-        )
-        avg_events = (
-            sum(s.get("total_events", 0) for s in summaries) / total
-        )
+        avg_duration = sum(s.get("duration_seconds", 0) for s in summaries) / total
+        avg_events = sum(s.get("total_events", 0) for s in summaries) / total
 
         return {
             "total": total,
@@ -150,7 +149,7 @@ class MissionReplay:
             "avg_events": round(avg_events, 1),
         }
 
-    async def get_failed_missions(self) -> List[Dict[str, Any]]:
+    async def get_failed_missions(self) -> list[dict[str, Any]]:
         """Return summaries of all failed missions."""
         summaries = await self._recorder.list_missions(limit=10000)
         return [s for s in summaries if s.get("outcome") == "failed"]
@@ -167,10 +166,10 @@ class MissionReplay:
         if not events and not report:
             return f"Mission {mission_id}: no data found."
 
-        lines: List[str] = []
-        lines.append(f"{'='*60}")
+        lines: list[str] = []
+        lines.append(f"{'=' * 60}")
         lines.append(f"MISSION REPLAY: {mission_id}")
-        lines.append(f"{'='*60}")
+        lines.append(f"{'=' * 60}")
 
         if report:
             lines.append(f"Goal: {report.goal}")
@@ -184,15 +183,13 @@ class MissionReplay:
         for event in events_sorted:
             elapsed = event.timestamp - base_ts if base_ts else 0.0
             status = "+" if event.success else "!"
-            lines.append(
-                f"[{elapsed:7.1f}s] {status} {event.event_type:12s} | {event.title}"
-            )
+            lines.append(f"[{elapsed:7.1f}s] {status} {event.event_type:12s} | {event.title}")
             if event.description:
                 desc = event.description[:150].replace("\n", " ")
-                lines.append(f"           {' '*len(status)}   {desc}")
+                lines.append(f"           {' ' * len(status)}   {desc}")
             if event.metadata:
                 for k, v in event.metadata.items():
-                    lines.append(f"           {' '*len(status)}   {k}: {v}")
+                    lines.append(f"           {' ' * len(status)}   {k}: {v}")
 
         if report and report.lessons:
             lines.append("")
@@ -200,5 +197,5 @@ class MissionReplay:
             for lesson in report.lessons:
                 lines.append(f"  - {lesson}")
 
-        lines.append(f"{'='*60}")
+        lines.append(f"{'=' * 60}")
         return "\n".join(lines)

@@ -7,8 +7,9 @@ Usage:
     from jarvis.tools import tool
     result = await tool.search_web("python async patterns")
 """
+
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .result import ToolResult, timed
 
@@ -22,7 +23,7 @@ class Tool:
     """
 
     def __init__(self):
-        self._managers: Dict[str, Any] = {}
+        self._managers: dict[str, Any] = {}
 
     def _get_manager(self, name: str) -> Any:
         """Lazy-load manager by name."""
@@ -38,31 +39,36 @@ class Tool:
         try:
             if name == "browser":
                 from jarvis.browser.manager import BrowserManager
+
                 return BrowserManager()
             elif name == "computer":
                 from jarvis.computer.manager import ComputerManager
+
                 return ComputerManager()
             elif name == "accessibility":
                 from jarvis.computer.accessibility.manager import AccessibilityManager
+
                 return AccessibilityManager()
             elif name == "vision":
                 from jarvis.vision.manager import VisionManager
+
                 return VisionManager()
             elif name == "os":
                 from jarvis.os.manager import OSManager
+
                 return OSManager()
             elif name == "memory":
                 from jarvis.brain.core.memory import MemoryManager
+
                 return MemoryManager()
             elif name == "engineering":
                 from jarvis.engineering.knowledge import EngineeringKnowledgeManager
+
                 return EngineeringKnowledgeManager()
             elif name == "mission":
                 from jarvis.mission.manager import MissionManager
+
                 return MissionManager()
-            elif name == "project":
-                from jarvis.projects import ProjectManager
-                return ProjectManager()
             return None
         except Exception as e:
             log.warning("Failed to load manager %s: %s", name, e)
@@ -197,7 +203,7 @@ class Tool:
     # ─── ACCESSIBILITY ────────────────────────────────────
 
     @timed
-    async def a11y_click(self, query: str, app: Optional[str] = None) -> ToolResult:
+    async def a11y_click(self, query: str, app: str | None = None) -> ToolResult:
         """Click an accessibility element by description."""
         a11y = self._get_manager("accessibility")
         if not a11y:
@@ -209,7 +215,7 @@ class Tool:
             return ToolResult(ok=False, error=str(e), tool="a11y_click")
 
     @timed
-    async def a11y_type(self, query: str, text: str, app: Optional[str] = None) -> ToolResult:
+    async def a11y_type(self, query: str, text: str, app: str | None = None) -> ToolResult:
         """Type text into an accessibility element."""
         a11y = self._get_manager("accessibility")
         if not a11y:
@@ -221,7 +227,7 @@ class Tool:
             return ToolResult(ok=False, error=str(e), tool="a11y_type")
 
     @timed
-    async def a11y_find(self, query: str, app: Optional[str] = None) -> ToolResult:
+    async def a11y_find(self, query: str, app: str | None = None) -> ToolResult:
         """Find accessibility elements matching a query."""
         a11y = self._get_manager("accessibility")
         if not a11y:
@@ -233,7 +239,7 @@ class Tool:
             return ToolResult(ok=False, error=str(e), tool="a11y_find")
 
     @timed
-    async def a11y_summary(self, app: Optional[str] = None) -> ToolResult:
+    async def a11y_summary(self, app: str | None = None) -> ToolResult:
         """Get a summary of the accessibility tree."""
         a11y = self._get_manager("accessibility")
         if not a11y:
@@ -387,7 +393,7 @@ class Tool:
     # ─── ENGINEERING ──────────────────────────────────────
 
     @timed
-    async def create_cad_model(self, name: str, params: Optional[Dict] = None) -> ToolResult:
+    async def create_cad_model(self, name: str, params: dict | None = None) -> ToolResult:
         """Create a CAD model."""
         eng = self._get_manager("engineering")
         if not eng:
@@ -399,7 +405,7 @@ class Tool:
             return ToolResult(ok=False, error=str(e), tool="create_cad_model")
 
     @timed
-    async def design_pcb(self, name: str, params: Optional[Dict] = None) -> ToolResult:
+    async def design_pcb(self, name: str, params: dict | None = None) -> ToolResult:
         """Create a PCB design project."""
         eng = self._get_manager("engineering")
         if not eng:
@@ -415,7 +421,9 @@ class Tool:
         """Recommend a material for an engineering application."""
         eng = self._get_manager("engineering")
         if not eng:
-            return ToolResult(ok=False, error="Engineering not available", tool="recommend_material")
+            return ToolResult(
+                ok=False, error="Engineering not available", tool="recommend_material"
+            )
         try:
             result = eng.search_materials(application, **kwargs)
             return ToolResult(ok=True, data=result, tool="recommend_material")
@@ -429,7 +437,9 @@ class Tool:
         """Create a new mission with auto-workspace."""
         mission = self._get_manager("mission")
         if not mission:
-            return ToolResult(ok=False, error="Mission manager not available", tool="create_mission")
+            return ToolResult(
+                ok=False, error="Mission manager not available", tool="create_mission"
+            )
         try:
             result = await mission.create(goal, priority=priority)
             return ToolResult(ok=True, data=result, tool="create_mission")
@@ -441,7 +451,9 @@ class Tool:
         """Resume a paused or completed mission."""
         mission = self._get_manager("mission")
         if not mission:
-            return ToolResult(ok=False, error="Mission manager not available", tool="resume_mission")
+            return ToolResult(
+                ok=False, error="Mission manager not available", tool="resume_mission"
+            )
         try:
             result = await mission.resume(mission_id)
             return ToolResult(ok=True, data=result, tool="resume_mission")
@@ -453,7 +465,9 @@ class Tool:
         """Get status of a mission."""
         mission = self._get_manager("mission")
         if not mission:
-            return ToolResult(ok=False, error="Mission manager not available", tool="get_mission_status")
+            return ToolResult(
+                ok=False, error="Mission manager not available", tool="get_mission_status"
+            )
         try:
             result = await mission.get(mission_id)
             return ToolResult(ok=True, data=result, tool="get_mission_status")
@@ -462,14 +476,15 @@ class Tool:
 
     # ─── LISTING & INTROSPECTION ──────────────────────────
 
-    def list_tools(self) -> List[str]:
+    def list_tools(self) -> list[str]:
         """List all available tool methods."""
         return [
-            m for m in dir(self)
+            m
+            for m in dir(self)
             if not m.startswith("_") and callable(getattr(self, m)) and m != "list_tools"
         ]
 
-    def get_tool_info(self, tool_name: str) -> Optional[Dict]:
+    def get_tool_info(self, tool_name: str) -> dict | None:
         """Get metadata about a specific tool."""
         method = getattr(self, tool_name, None)
         if not method or not callable(method):

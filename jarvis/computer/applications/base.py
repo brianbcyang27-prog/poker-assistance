@@ -7,7 +7,6 @@ Each profile tells JARVIS:
   - What UI elements are typically present
 """
 
-from typing import Optional
 from dataclasses import dataclass, field
 
 
@@ -15,14 +14,14 @@ from dataclasses import dataclass, field
 class ApplicationProfile:
     """Description of a known application's UI patterns."""
 
-    name: str                           # Display name
-    bundle_id: str = ""                 # macOS bundle ID (e.g., com.apple.finder)
-    executable: str = ""                # Process name (e.g., "Finder")
-    category: str = "general"           # Category (browser, cad, editor, file_manager, terminal, etc.)
+    name: str  # Display name
+    bundle_id: str = ""  # macOS bundle ID (e.g., com.apple.finder)
+    executable: str = ""  # Process name (e.g., "Finder")
+    category: str = "general"  # Category (browser, cad, editor, file_manager, terminal, etc.)
 
     # Common UI elements
-    common_buttons: list[str] = field(default_factory=list)    # ["Save", "Cancel", "Open", ...]
-    common_menus: list[str] = field(default_factory=list)      # ["File", "Edit", "View", ...]
+    common_buttons: list[str] = field(default_factory=list)  # ["Save", "Cancel", "Open", ...]
+    common_menus: list[str] = field(default_factory=list)  # ["File", "Edit", "View", ...]
     common_shortcuts: dict[str, str] = field(default_factory=dict)  # {"save": "Cmd+S", ...}
 
     # Workflows
@@ -30,7 +29,7 @@ class ApplicationProfile:
     # {"save": ["File menu", "Save"], "export": ["File menu", "Export..."]}
 
     # How JARVIS should interact
-    interaction_notes: str = ""         # Free-text notes for the LLM
+    interaction_notes: str = ""  # Free-text notes for the LLM
 
     def describe(self) -> str:
         """Compact description for LLM context."""
@@ -61,7 +60,7 @@ class ApplicationRegistry:
         """Register an application profile."""
         self._profiles[profile.name.lower()] = profile
 
-    def get(self, app_name: str) -> Optional[ApplicationProfile]:
+    def get(self, app_name: str) -> ApplicationProfile | None:
         """Get a profile by name (case-insensitive)."""
         return self._profiles.get(app_name.lower())
 
@@ -69,14 +68,14 @@ class ApplicationRegistry:
         """List all registered app names."""
         return sorted(self._profiles.keys())
 
-    def find_by_bundle(self, bundle_id: str) -> Optional[ApplicationProfile]:
+    def find_by_bundle(self, bundle_id: str) -> ApplicationProfile | None:
         """Find a profile by macOS bundle ID."""
         for profile in self._profiles.values():
             if profile.bundle_id == bundle_id:
                 return profile
         return None
 
-    def find_by_executable(self, exe: str) -> Optional[ApplicationProfile]:
+    def find_by_executable(self, exe: str) -> ApplicationProfile | None:
         """Find a profile by executable name."""
         exe_lower = exe.lower()
         for profile in self._profiles.values():

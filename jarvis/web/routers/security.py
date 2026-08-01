@@ -1,9 +1,7 @@
 """Security API endpoints for the dashboard."""
 
-import time
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 
 router = APIRouter(prefix="/api/security", tags=["security"])
 
@@ -12,12 +10,15 @@ class VaultCreateRequest(BaseModel):
     password: str
     secrets: dict = {}
 
+
 class VaultUnlockRequest(BaseModel):
     password: str
+
 
 class VaultPasswordChangeRequest(BaseModel):
     old_password: str
     new_password: str
+
 
 class SecretSetRequest(BaseModel):
     key: str
@@ -28,7 +29,6 @@ class SecretSetRequest(BaseModel):
 async def security_status():
     """Get security system status."""
     from ...security import get_manager
-    from ...security.vault import EncryptedVault
     from ...security.audit import AuditLog
 
     mgr = get_manager()
@@ -77,6 +77,7 @@ async def vault_unlock(req: VaultUnlockRequest):
 async def vault_lock():
     """Lock the vault."""
     from ...security import get_manager
+
     mgr = get_manager()
     mgr.vault.lock()
     return {"ok": True, "message": "Vault locked"}
@@ -86,6 +87,7 @@ async def vault_lock():
 async def vault_change_password(req: VaultPasswordChangeRequest):
     """Change vault password."""
     from ...security import get_manager
+
     mgr = get_manager()
     try:
         mgr.vault.change_password(req.old_password, req.new_password)
@@ -98,6 +100,7 @@ async def vault_change_password(req: VaultPasswordChangeRequest):
 async def list_secrets():
     """List all secrets (masked)."""
     from ...security import get_manager
+
     mgr = get_manager()
     if not mgr.is_vault_ready:
         return {"secrets": {}, "vault_ready": False}
@@ -111,6 +114,7 @@ async def list_secrets():
 async def set_secret(req: SecretSetRequest):
     """Set a secret in the vault."""
     from ...security import get_manager
+
     mgr = get_manager()
     try:
         mgr.set(req.key, req.value)
@@ -123,6 +127,7 @@ async def set_secret(req: SecretSetRequest):
 async def delete_secret(key: str):
     """Delete a secret from the vault."""
     from ...security import get_manager
+
     mgr = get_manager()
     mgr.delete(key)
     return {"ok": True}
@@ -132,6 +137,7 @@ async def delete_secret(key: str):
 async def scan_repository():
     """Scan repository for secrets."""
     from ...security.scanner import SecretScanner
+
     scanner = SecretScanner()
     findings = scanner.scan()
     report = scanner.generate_report(findings)
@@ -142,6 +148,7 @@ async def scan_repository():
 async def scan_report_file():
     """Run scan and save security_report.md."""
     from ...security.scanner import SecretScanner
+
     scanner = SecretScanner()
     path = scanner.scan_and_save()
     return {"ok": True, "path": path}
@@ -151,6 +158,7 @@ async def scan_report_file():
 async def audit_log(limit: int = 100):
     """Get audit log entries."""
     from ...security.audit import AuditLog
+
     audit = AuditLog()
     return {"entries": audit.get_entries(limit), "stats": audit.get_stats()}
 
@@ -159,6 +167,7 @@ async def audit_log(limit: int = 100):
 async def list_providers():
     """List all secret providers and their status."""
     from ...security import get_manager
+
     mgr = get_manager()
     health = mgr.health_check()
     return {"providers": health}
@@ -168,6 +177,7 @@ async def list_providers():
 async def git_protection_status():
     """Get git protection status."""
     from ...security.git_protection import GitProtection
+
     gp = GitProtection()
     return gp.get_status()
 
@@ -176,6 +186,7 @@ async def git_protection_status():
 async def install_git_protection():
     """Install .gitignore entries and pre-commit hook."""
     from ...security.git_protection import GitProtection
+
     gp = GitProtection()
     gp.setup_gitignore()
     gp.install_pre_commit_hook()
@@ -186,4 +197,5 @@ async def install_git_protection():
 async def redact_text(text: str):
     """Redact secrets from text."""
     from ...security.redactor import redact
+
     return {"redacted": redact(text)}

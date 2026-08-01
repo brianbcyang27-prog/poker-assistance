@@ -10,20 +10,17 @@ If no vault exists, launch interactive setup:
 """
 
 import getpass
-import sys
 from pathlib import Path
-from typing import Optional
 
-from .vault import EncryptedVault
-from .migration import VaultMigration
-from .secret_manager import SecretManager
 from .audit import AuditLog
+from .migration import VaultMigration
+from .vault import EncryptedVault
 
 
 class FirstRunSetup:
     """Interactive first-run experience for JARVIS security."""
 
-    def __init__(self, vault_dir: Optional[str] = None):
+    def __init__(self, vault_dir: str | None = None):
         self._dir = Path(vault_dir) if vault_dir else Path.cwd()
         self._vault = EncryptedVault(str(self._dir))
         self._migration = VaultMigration(str(self._dir))
@@ -195,11 +192,10 @@ class FirstRunSetup:
         """Validate an NVIDIA API key by making a test request."""
         try:
             import urllib.request
-            import json
 
             req = urllib.request.Request(
                 "https://integrate.api.nvidia.com/v1/models",
-                headers={"Authorization": f"Bearer {key}"}
+                headers={"Authorization": f"Bearer {key}"},
             )
             with urllib.request.urlopen(req, timeout=10) as resp:
                 return resp.status == 200

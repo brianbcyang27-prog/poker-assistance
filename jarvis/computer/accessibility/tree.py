@@ -5,8 +5,8 @@ with find, filter, and traversal methods.
 """
 
 import logging
-from typing import Optional
-from .element import UIElement, ElementType
+
+from .element import ElementType, UIElement
 
 log = logging.getLogger("jarvis.computer.accessibility.tree")
 
@@ -50,7 +50,7 @@ class AccessibilityTree:
         # Index by type
         self._by_type.setdefault(element.type, []).append(element)
 
-    def find(self, query: str) -> Optional[UIElement]:
+    def find(self, query: str) -> UIElement | None:
         """Find the first element matching a natural language query.
 
         Tries in order:
@@ -131,11 +131,15 @@ class AccessibilityTree:
 
     def get_menus(self) -> list[UIElement]:
         """Get all menus."""
-        return self._by_type.get(ElementType.MENU, []) + self._by_type.get(ElementType.MENU_ITEM, [])
+        return self._by_type.get(ElementType.MENU, []) + self._by_type.get(
+            ElementType.MENU_ITEM, []
+        )
 
     def get_text_fields(self) -> list[UIElement]:
         """Get all text input fields."""
-        return self._by_type.get(ElementType.TEXT_FIELD, []) + self._by_type.get(ElementType.TEXT_AREA, [])
+        return self._by_type.get(ElementType.TEXT_FIELD, []) + self._by_type.get(
+            ElementType.TEXT_AREA, []
+        )
 
     def get_interactive(self) -> list[UIElement]:
         """Get all interactive elements (clickable + typeable)."""
@@ -218,4 +222,7 @@ class AccessibilityTree:
         return iter(self._elements)
 
     def __repr__(self):
-        return f"AccessibilityTree(app={self.app!r}, window={self.window!r}, elements={len(self._elements)})"
+        return (
+            f"AccessibilityTree(app={self.app!r}, window={self.window!r}, "
+            f"elements={len(self._elements)})"
+        )

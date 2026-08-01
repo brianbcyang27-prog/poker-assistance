@@ -11,48 +11,60 @@ Provides REST API for the human-like memory system:
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from typing import Optional
 
 router = APIRouter(prefix="/api/memory", tags=["memory"])
 
 
 # ── Request/Response Models ──────────────────────────────────
 
+
 class WorkingMemoryUpdate(BaseModel):
-    slot: str = Field(..., description="working|conversation|mission|project|agents|files|decisions|user_context")
+    slot: str = Field(
+        ..., description="working|conversation|mission|project|agents|files|decisions|user_context"
+    )
     content: str
     importance: float = Field(0.5, ge=0, le=1)
-    ttl_seconds: Optional[int] = Field(None, ge=0)
+    ttl_seconds: int | None = Field(None, ge=0)
     metadata: dict = Field(default_factory=dict)
+
 
 class EpisodeCreate(BaseModel):
     title: str
     summary: str = ""
-    episode_type: str = Field("conversation", pattern="^(conversation|decision|milestone|learning|bug|meeting|mission)$")
+    episode_type: str = Field(
+        "conversation", pattern="^(conversation|decision|milestone|learning|bug|meeting|mission)$"
+    )
     participants: list[str] = Field(default_factory=list)
     decisions: list[str] = Field(default_factory=list)
     importance_score: int = Field(50, ge=0, le=100)
     tags: list[str] = Field(default_factory=list)
 
+
 class PersonalMemoryCreate(BaseModel):
-    category: str = Field(..., pattern="^(preference|rule|goal|habit|fact|relationship|project_context|tool_usage|learning)$")
+    category: str = Field(
+        ...,
+        pattern="^(preference|rule|goal|habit|fact|relationship|project_context|tool_usage|learning)$",
+    )
     key: str
     value: str
     confidence: float = Field(0.6, ge=0, le=1)
-    remember_mode: str = Field("always_remember", pattern="^(always_remember|ask_before|never_remember)$")
+    remember_mode: str = Field("always", pattern="^(always|ask|never)$")
+
 
 class JournalUpdate(BaseModel):
-    summary: Optional[str] = None
-    highlights: Optional[list[str]] = None
-    decisions: Optional[list[str]] = None
-    tomorrow: Optional[list[str]] = None
-    mood: Optional[str] = Field(None, pattern="^(neutral|focused|productive|stuck)$")
-    tags: Optional[list[str]] = None
+    summary: str | None = None
+    highlights: list[str] | None = None
+    decisions: list[str] | None = None
+    tomorrow: list[str] | None = None
+    mood: str | None = Field(None, pattern="^(neutral|focused|productive|stuck)$")
+    tags: list[str] | None = None
+
 
 class RetrievalQuery(BaseModel):
     query: str
     max_results: int = Field(10, ge=1, le=50)
-    memory_types: Optional[list[str]] = None
+    memory_types: list[str] | None = None
+
 
 class ConsolidateRequest(BaseModel):
     force: bool = False
@@ -60,30 +72,45 @@ class ConsolidateRequest(BaseModel):
 
 # ── Root ─────────────────────────────────────────────────────
 
+
 @router.get("")
 async def root_memories(limit: int = 200):
     from ...brain.memory.episodic import get_episodic_memory
+
     em = get_episodic_memory()
     episodes = await em.get_recent(limit=limit)
-    return [{"id": ep.id, "title": ep.title, "summary": ep.summary,
-             "source": ep.episode_type, "importance": ep.importance_score / 100.0,
-             "created_at": ep.created_at} for ep in episodes]
+    return [
+        {
+            "id": ep.id,
+            "title": ep.title,
+            "summary": ep.summary,
+            "source": ep.episode_type,
+            "importance": ep.importance_score / 100.0,
+            "created_at": ep.created_at,
+        }
+        for ep in episodes
+    ]
 
 
 # ── Working Memory ───────────────────────────────────────────
 
+
 @router.get("/working")
 async def get_working_memory():
     from ...brain.memory.working import get_working_memory
+
     wm = get_working_memory()
     entries = await wm.get_all()
     context = await wm.get_context()
     return {
-        "slots": {k: {
-            "content": v.get("content", "")[:200],
-            "importance": v.get("importance", 0),
-            "created_at": v.get("created_at"),
-        } for k, v in entries.items()},
+        "slots": {
+            k: {
+                "content": v.get("content", "")[:200],
+                "importance": v.get("importance", 0),
+                "created_at": v.get("created_at"),
+            }
+            for k, v in entries.items()
+        },
         "context_summary": context[:500],
     }
 
@@ -91,9 +118,11 @@ async def get_working_memory():
 @router.post("/working")
 async def update_working_memory(req: WorkingMemoryUpdate):
     from ...brain.memory.working import get_working_memory
+
     wm = get_working_memory()
     await wm.update(
-        req.slot, req.content,
+        req.slot,
+        req.content,
         importance=req.importance,
         ttl_seconds=req.ttl_seconds,
         metadata=req.metadata,
@@ -103,9 +132,11 @@ async def update_working_memory(req: WorkingMemoryUpdate):
 
 # ── Episodes ─────────────────────────────────────────────────
 
+
 @router.get("/episodes")
-async def list_episodes(limit: int = 20, episode_type: Optional[str] = None):
+async def list_episodes(limit: int = 20, episode_type: str | None = None):
     from ...brain.memory.episodic import get_episodic_memory
+
     em = get_episodic_memory()
     if episode_type:
         # Filter by type via search
@@ -119,6 +150,7 @@ async def list_episodes(limit: int = 20, episode_type: Optional[str] = None):
 @router.post("/episodes")
 async def create_episode(req: EpisodeCreate):
     from ...brain.memory.episodic import get_episodic_memory
+
     em = get_episodic_memory()
     result = await em.create_episode(
         title=req.title,
@@ -135,6 +167,7 @@ async def create_episode(req: EpisodeCreate):
 @router.get("/episodes/{episode_id}")
 async def get_episode(episode_id: int):
     from ...brain.memory.episodic import get_episodic_memory
+
     em = get_episodic_memory()
     ep = await em.get(episode_id)
     if not ep:
@@ -145,6 +178,7 @@ async def get_episode(episode_id: int):
 @router.get("/episodes/timeline")
 async def episode_timeline(days: int = 30):
     from ...brain.memory.episodic import get_episodic_memory
+
     em = get_episodic_memory()
     timeline = await em.get_timeline(days=days)
     return {"timeline": timeline}
@@ -152,14 +186,24 @@ async def episode_timeline(days: int = 30):
 
 # ── Personal Memory ──────────────────────────────────────────
 
+
 @router.get("/personal")
-async def list_personal_memory(category: Optional[str] = None):
+async def list_personal_memory(category: str | None = None):
     from ...brain.memory.personal import get_personal_memory
+
     pm = get_personal_memory()
     if category:
         memories = await pm.get_by_category(category)
     else:
-        categories = ["preference", "rule", "goal", "habit", "fact", "project_context", "tool_usage"]
+        categories = [
+            "preference",
+            "rule",
+            "goal",
+            "habit",
+            "fact",
+            "project_context",
+            "tool_usage",
+        ]
         memories = []
         for cat in categories:
             memories.extend(await pm.get_by_category(cat))
@@ -169,9 +213,12 @@ async def list_personal_memory(category: Optional[str] = None):
 @router.post("/personal")
 async def create_personal_memory(req: PersonalMemoryCreate):
     from ...brain.memory.personal import get_personal_memory
+
     pm = get_personal_memory()
     result = await pm.remember(
-        req.category, req.key, req.value,
+        req.category,
+        req.key,
+        req.value,
         confidence=req.confidence,
         remember_mode=req.remember_mode,
     )
@@ -181,6 +228,7 @@ async def create_personal_memory(req: PersonalMemoryCreate):
 @router.get("/personal/profile")
 async def get_profile():
     from ...brain.memory.personal import get_personal_memory
+
     pm = get_personal_memory()
     profile = await pm.get_profile()
     return {"profile": profile}
@@ -189,6 +237,7 @@ async def get_profile():
 @router.delete("/personal/{category}/{key}")
 async def forget_personal_memory(category: str, key: str):
     from ...brain.memory.personal import get_personal_memory
+
     pm = get_personal_memory()
     result = await pm.forget(category=category, key=key)
     if not result.get("ok"):
@@ -198,9 +247,11 @@ async def forget_personal_memory(category: str, key: str):
 
 # ── Journal ──────────────────────────────────────────────────
 
+
 @router.get("/journal")
 async def get_journal_entries(days: int = 7):
     from ...brain.memory.journal import get_journal
+
     j = get_journal()
     entries = await j.get_recent(days)
     return {"entries": [e.__dict__ for e in entries]}
@@ -209,6 +260,7 @@ async def get_journal_entries(days: int = 7):
 @router.get("/journal/today")
 async def get_today_journal():
     from ...brain.memory.journal import get_journal
+
     j = get_journal()
     entry = await j.get_today()
     return entry.__dict__ if entry else {"date": j._today(), "empty": True}
@@ -217,6 +269,7 @@ async def get_today_journal():
 @router.put("/journal")
 async def update_journal(req: JournalUpdate):
     from ...brain.memory.journal import get_journal
+
     j = get_journal()
     if req.summary:
         await j.set_summary(req.summary)
@@ -235,9 +288,11 @@ async def update_journal(req: JournalUpdate):
 
 # ── Retrieval ────────────────────────────────────────────────
 
+
 @router.post("/retrieve")
 async def retrieve_memories(req: RetrievalQuery):
     from ...brain.memory.retrieval import get_retrieval_engine
+
     engine = get_retrieval_engine()
     results = await engine.retrieve(
         req.query,
@@ -254,9 +309,11 @@ async def retrieve_memories(req: RetrievalQuery):
 
 # ── Consolidation ────────────────────────────────────────────
 
+
 @router.post("/consolidate")
 async def trigger_consolidation(req: ConsolidateRequest):
     from ...brain.memory.consolidation import get_consolidator
+
     c = get_consolidator()
     result = await c.consolidate(force=req.force)
     return result
@@ -264,9 +321,11 @@ async def trigger_consolidation(req: ConsolidateRequest):
 
 # ── Importance Scoring ───────────────────────────────────────
 
+
 @router.post("/score")
 async def score_importance(body: dict):
     from ...brain.memory.importance import importance_scorer
+
     score = importance_scorer.score(
         body.get("content", ""),
         context=body.get("context", {}),
@@ -279,4 +338,5 @@ async def score_importance(body: dict):
 async def memory_health():
     """Check memory system health."""
     from jarvis.core.memory_validation import memory_validator
+
     return await memory_validator.validate_memory_health()

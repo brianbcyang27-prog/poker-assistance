@@ -9,11 +9,7 @@ Extends the existing graph.py with:
 """
 
 import re
-import time
-import math
-from collections import defaultdict, deque
-from typing import Optional
-from loguru import logger
+from collections import deque
 
 
 class GraphAnalyzer:
@@ -22,7 +18,9 @@ class GraphAnalyzer:
     def __init__(self, graph):
         self._graph = graph
 
-    async def shortest_path(self, source_id: str, target_id: str, max_depth: int = 6) -> Optional[list[str]]:
+    async def shortest_path(
+        self, source_id: str, target_id: str, max_depth: int = 6
+    ) -> list[str] | None:
         """BFS shortest path between two nodes."""
         conn = await self._graph._get_conn()
 
@@ -105,9 +103,7 @@ class GraphAnalyzer:
 
         # Get out-degrees
         for nid in node_ids:
-            cursor = await conn.execute(
-                "SELECT COUNT(*) FROM edges WHERE source = ?", (nid,)
-            )
+            cursor = await conn.execute("SELECT COUNT(*) FROM edges WHERE source = ?", (nid,))
             row = await cursor.fetchone()
             out_degree[nid] = max(1, row[0])
 
@@ -116,9 +112,7 @@ class GraphAnalyzer:
             new_scores = {}
             for nid in node_ids:
                 # Sum contributions from incoming edges
-                cursor = await conn.execute(
-                    "SELECT source FROM edges WHERE target = ?", (nid,)
-                )
+                cursor = await conn.execute("SELECT source FROM edges WHERE target = ?", (nid,))
                 incoming = await cursor.fetchall()
                 rank_sum = 0.0
                 for row in incoming:
@@ -161,7 +155,6 @@ class GraphAnalyzer:
             rows = await cursor.fetchall()
             for r in rows:
                 rd = dict(r)
-                edge_key = (rd["source"], rd["target"], rd["relation"])
                 edges.append(rd)
                 # Add unseen neighbors
                 neighbor = rd["target"] if rd["source"] == current else rd["source"]
@@ -180,16 +173,12 @@ class GraphAnalyzer:
         edge_count = (await cursor.fetchone())[0]
 
         # Type distribution
-        cursor = await conn.execute(
-            "SELECT type, COUNT(*) as cnt FROM nodes GROUP BY type"
-        )
+        cursor = await conn.execute("SELECT type, COUNT(*) as cnt FROM nodes GROUP BY type")
         types = await cursor.fetchall()
         type_dist = {r["type"]: r["cnt"] for r in types}
 
         # Relation distribution
-        cursor = await conn.execute(
-            "SELECT relation, COUNT(*) as cnt FROM edges GROUP BY relation"
-        )
+        cursor = await conn.execute("SELECT relation, COUNT(*) as cnt FROM edges GROUP BY relation")
         rels = await cursor.fetchall()
         rel_dist = {r["relation"]: r["cnt"] for r in rels}
 
@@ -222,20 +211,20 @@ class EntityExtractor:
 
     # Common entity patterns
     ENTITY_PATTERNS = {
-        "person": r'\b[A-Z][a-z]+ [A-Z][a-z]+\b',
-        "file": r'[\w/\\.-]+\.\w{1,5}\b',
+        "person": r"\b[A-Z][a-z]+ [A-Z][a-z]+\b",
+        "file": r"[\w/\\.-]+\.\w{1,5}\b",
         "url": r'https?://[^\s<>"]+',
-        "command": r'(?:npm|pip|python|git|curl|mkdir|cd|ls|cat|grep)\s+\S+',
-        "number": r'\b\d+(?:\.\d+)?\b',
+        "command": r"(?:npm|pip|python|git|curl|mkdir|cd|ls|cat|grep)\s+\S+",
+        "number": r"\b\d+(?:\.\d+)?\b",
     }
 
     # Relation patterns
     RELATION_PATTERNS = [
-        (r'(.+?)\s+(?:uses?|uses?|depends on|requires)\s+(.+)', "depends_on"),
-        (r'(.+?)\s+(?:is part of|belongs to|in)\s+(.+)', "part_of"),
-        (r'(.+?)\s+(?:creates?|generates?|produces?)\s+(.+)', "creates"),
-        (r'(.+?)\s+(?:calls?|invokes?|triggers?)\s+(.+)', "calls"),
-        (r'(.+?)\s+(?:related to|similar to|like)\s+(.+)', "related_to"),
+        (r"(.+?)\s+(?:uses?|uses?|depends on|requires)\s+(.+)", "depends_on"),
+        (r"(.+?)\s+(?:is part of|belongs to|in)\s+(.+)", "part_of"),
+        (r"(.+?)\s+(?:creates?|generates?|produces?)\s+(.+)", "creates"),
+        (r"(.+?)\s+(?:calls?|invokes?|triggers?)\s+(.+)", "calls"),
+        (r"(.+?)\s+(?:related to|similar to|like)\s+(.+)", "related_to"),
     ]
 
     def extract_entities(self, text: str) -> list[dict]:
@@ -244,11 +233,13 @@ class EntityExtractor:
         for etype, pattern in self.ENTITY_PATTERNS.items():
             matches = re.findall(pattern, text)
             for match in set(matches):
-                entities.append({
-                    "type": etype,
-                    "value": match,
-                    "id": f"{etype}_{re.sub(r'[^a-zA-Z0-9]', '_', match).lower()[:50]}",
-                })
+                entities.append(
+                    {
+                        "type": etype,
+                        "value": match,
+                        "id": f"{etype}_{re.sub(r'[^a-zA-Z0-9]', '_', match).lower()[:50]}",
+                    }
+                )
         return entities
 
     def extract_relations(self, text: str) -> list[dict]:
@@ -260,16 +251,18 @@ class EntityExtractor:
                 source = source.strip()[:100]
                 target = target.strip()[:100]
                 if source and target and source != target:
-                    relations.append({
-                        "source": source,
-                        "target": target,
-                        "relation": rel_type,
-                    })
+                    relations.append(
+                        {
+                            "source": source,
+                            "target": target,
+                            "relation": rel_type,
+                        }
+                    )
         return relations
 
     async def auto_extract(self, graph, text: str, source_id: str = None) -> dict:
         """Auto-extract entities and relations and add to graph."""
-        from jarvis.brain.memory.graph import Node, Edge
+        from jarvis.brain.memory.graph import Edge, Node
 
         entities = self.extract_entities(text)
         relations = self.extract_relations(text)
@@ -299,11 +292,13 @@ class EntityExtractor:
                 if not existing:
                     await graph.add_node(Node(id=nid, label=label, type="concept"))
 
-            await graph.add_edge(Edge(
-                source=source_id_rel,
-                target=target_id_rel,
-                relation=rel["relation"],
-            ))
+            await graph.add_edge(
+                Edge(
+                    source=source_id_rel,
+                    target=target_id_rel,
+                    relation=rel["relation"],
+                )
+            )
             created_edges += 1
 
         return {

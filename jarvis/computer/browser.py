@@ -1,9 +1,7 @@
 """Browser automation via Playwright."""
+
 import asyncio
-import base64
-import os
 from pathlib import Path
-from typing import Optional
 
 SCREENSHOT_DIR = Path("screenshots")
 SCREENSHOT_DIR.mkdir(exist_ok=True)
@@ -20,14 +18,14 @@ class BrowserController:
 
     async def start(self, headless: bool = True):
         from playwright.async_api import async_playwright
+
         self.playwright = await async_playwright().start()
         self.browser = await self.playwright.chromium.launch(
-            headless=headless,
-            args=["--no-sandbox", "--disable-dev-shm-usage"]
+            headless=headless, args=["--no-sandbox", "--disable-dev-shm-usage"]
         )
         self._context = await self.browser.new_context(
             viewport={"width": 1280, "height": 800},
-            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+            user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
         )
         self.page = await self._context.new_page()
         return True
@@ -51,16 +49,18 @@ class BrowserController:
                 "ok": True,
                 "url": self.page.url,
                 "title": title,
-                "status": resp.status if resp else None
+                "status": resp.status if resp else None,
             }
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    async def screenshot(self, name: Optional[str] = None) -> dict:
+    async def screenshot(self, name: str | None = None) -> dict:
         if not self.page:
             return {"ok": False, "error": "No page open"}
         try:
-            fname = name or f"screen_{int(asyncio.get_event_loop().time())}"
+            import time
+
+            fname = name or f"screen_{int(time.time())}"
             path = SCREENSHOT_DIR / f"{fname}.png"
             await self.page.screenshot(path=str(path), full_page=False)
             return {"ok": True, "path": str(path), "filename": path.name}
@@ -132,7 +132,7 @@ class BrowserController:
             await self.page.goto(
                 f"https://www.google.com/search?q={query}",
                 wait_until="domcontentloaded",
-                timeout=15000
+                timeout=15000,
             )
             await asyncio.sleep(1)
             results = await self.page.evaluate("""

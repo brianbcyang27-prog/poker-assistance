@@ -2,12 +2,10 @@
 
 import asyncio
 import os
-import time
 import shutil
 import socket
+import time
 from pathlib import Path
-from typing import Optional
-
 
 CACHE_TTL = 60  # seconds
 
@@ -16,7 +14,7 @@ class WorldModel:
     """Tracks projects, repos, devices, servers, git status, and system health."""
 
     def __init__(self):
-        self._cache: Optional[dict] = None
+        self._cache: dict | None = None
         self._cache_ts: float = 0
         self._home = Path("/Users/brianyang")
 
@@ -46,9 +44,9 @@ class WorldModel:
             machine = "unknown"
 
         disk = shutil.disk_usage("/")
-        disk_total_gb = round(disk.total / (1024 ** 3), 1)
-        disk_used_gb = round(disk.used / (1024 ** 3), 1)
-        disk_free_gb = round(disk.free / (1024 ** 3), 1)
+        disk_total_gb = round(disk.total / (1024**3), 1)
+        disk_used_gb = round(disk.used / (1024**3), 1)
+        disk_free_gb = round(disk.free / (1024**3), 1)
         disk_pct = round(disk.used / disk.total * 100, 1) if disk.total else 0
 
         python_ver, node_ver, git_ver = await asyncio.gather(
@@ -76,10 +74,7 @@ class WorldModel:
         """Find git repos under /Users/brianyang up to 4 levels deep."""
         repos = []
         try:
-            find_cmd = (
-                f"find {self._home} -maxdepth 4 -name .git -type d "
-                f"2>/dev/null"
-            )
+            find_cmd = f"find {self._home} -maxdepth 4 -name .git -type d 2>/dev/null"
             raw = await self._run(find_cmd, timeout=15)
             if not raw:
                 return repos
@@ -87,13 +82,13 @@ class WorldModel:
             git_dirs = [d.strip() for d in raw.splitlines() if d.strip()]
 
             # Limit concurrent git checks to avoid overwhelming the system
-            async def check_repo(git_dir: str) -> Optional[dict]:
+            async def check_repo(git_dir: str) -> dict | None:
                 repo_path = str(Path(git_dir).parent)
                 return await self.get_project_status(repo_path)
 
             # Process repos in batches of 5
             for i in range(0, len(git_dirs), 5):
-                batch = git_dirs[i:i+5]
+                batch = git_dirs[i : i + 5]
                 results = await asyncio.gather(
                     *[check_repo(d) for d in batch],
                     return_exceptions=True,
@@ -154,12 +149,14 @@ class WorldModel:
                 pid = parts[1]
                 addr = parts[8] if len(parts) > 8 else ""
                 port = addr.rsplit(":", 1)[-1] if ":" in addr else ""
-                servers.append({
-                    "name": name,
-                    "pid": pid,
-                    "address": addr,
-                    "port": port,
-                })
+                servers.append(
+                    {
+                        "name": name,
+                        "pid": pid,
+                        "address": addr,
+                        "port": port,
+                    }
+                )
         except Exception:
             pass
         return servers

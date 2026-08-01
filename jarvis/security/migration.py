@@ -1,19 +1,16 @@
 """Automatic migration from .env to encrypted vault."""
 
-import json
-import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
-from .vault import EncryptedVault
 from .audit import AuditLog
 from .exceptions import MigrationError
+from .vault import EncryptedVault
 
 
 class VaultMigration:
     """Migrate plaintext .env secrets to encrypted vault."""
 
-    def __init__(self, vault_dir: Optional[str] = None):
+    def __init__(self, vault_dir: str | None = None):
         self._dir = Path(vault_dir) if vault_dir else Path.cwd()
         self._vault = EncryptedVault(str(self._dir))
         self._audit = AuditLog(str(self._dir))
@@ -25,7 +22,7 @@ class VaultMigration:
         return env_path.exists() and not self._vault.exists
 
     @property
-    def migration_status(self) -> Dict[str, any]:
+    def migration_status(self) -> dict[str, any]:
         """Get current migration status."""
         env_path = self._dir / ".env"
         return {
@@ -35,11 +32,11 @@ class VaultMigration:
             "env_secrets": len(self._parse_env()) if env_path.exists() else 0,
         }
 
-    def parse_env(self) -> Dict[str, str]:
+    def parse_env(self) -> dict[str, str]:
         """Parse .env file into a dict."""
         return self._parse_env()
 
-    def _parse_env(self) -> Dict[str, str]:
+    def _parse_env(self) -> dict[str, str]:
         env_path = self._dir / ".env"
         if not env_path.exists():
             return {}
@@ -57,7 +54,7 @@ class VaultMigration:
                     result[k] = v
         return result
 
-    def migrate(self, password: str, delete_env: bool = False) -> Tuple[bool, Dict[str, any]]:
+    def migrate(self, password: str, delete_env: bool = False) -> tuple[bool, dict[str, any]]:
         """Migrate .env secrets to encrypted vault.
 
         Returns (success, details).
@@ -75,10 +72,15 @@ class VaultMigration:
             raise MigrationError(f"Failed to create vault: {e}")
 
         migrated_keys = list(secrets.keys())
-        self._audit.log("migration", "complete", "migration", {
-            "keys_migrated": migrated_keys,
-            "count": len(migrated_keys),
-        })
+        self._audit.log(
+            "migration",
+            "complete",
+            "migration",
+            {
+                "keys_migrated": migrated_keys,
+                "count": len(migrated_keys),
+            },
+        )
 
         if delete_env:
             env_path = self._dir / ".env"
@@ -92,7 +94,7 @@ class VaultMigration:
             "env_deleted": delete_env,
         }
 
-    def verify_migration(self, password: str) -> Tuple[bool, Dict[str, any]]:
+    def verify_migration(self, password: str) -> tuple[bool, dict[str, any]]:
         """Verify that vault matches .env after migration."""
         env_secrets = self._parse_env()
 

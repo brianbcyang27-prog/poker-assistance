@@ -8,13 +8,11 @@ Persistent browser sessions with:
 - Database-backed persistence
 """
 
-import os
 import json
-import time
 import logging
-from pathlib import Path
-from typing import Optional
+import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 log = logging.getLogger("jarvis.browser.sessions")
 
@@ -25,6 +23,7 @@ SESSIONS_DIR = Path.home() / ".jarvis" / "browser_sessions"
 @dataclass
 class BrowserSession:
     """A persistent browser session profile."""
+
     id: str = ""
     name: str = ""
     description: str = ""
@@ -70,7 +69,7 @@ class SessionManager:
         session = await mgr.restore("personal")
     """
 
-    def __init__(self, storage_dir: Optional[str] = None):
+    def __init__(self, storage_dir: str | None = None):
         self.storage_dir = Path(storage_dir) if storage_dir else SESSIONS_DIR
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         self._sessions: dict[str, BrowserSession] = {}
@@ -79,7 +78,7 @@ class SessionManager:
         self,
         name: str,
         description: str = "",
-        profile_dir: Optional[str] = None,
+        profile_dir: str | None = None,
     ) -> BrowserSession:
         """Create a new browser session profile."""
         if name in self._sessions:
@@ -102,7 +101,7 @@ class SessionManager:
         log.info(f"Created session: {name}")
         return session
 
-    async def get(self, name: str) -> Optional[BrowserSession]:
+    async def get(self, name: str) -> BrowserSession | None:
         """Get a session by name."""
         if name in self._sessions:
             return self._sessions[name]
@@ -112,7 +111,7 @@ class SessionManager:
             self._sessions[name] = session
         return session
 
-    async def restore(self, name: str) -> Optional[BrowserSession]:
+    async def restore(self, name: str) -> BrowserSession | None:
         """Restore a session for use (loads cookies, etc)."""
         session = await self.get(name)
         if session:
@@ -159,6 +158,7 @@ class SessionManager:
         profile_dir = self.storage_dir / name
         if profile_dir.exists():
             import shutil
+
             shutil.rmtree(profile_dir, ignore_errors=True)
         return session is not None
 
@@ -182,7 +182,7 @@ class SessionManager:
         except Exception as e:
             log.debug(f"Failed to persist session: {e}")
 
-    async def _load(self, name: str) -> Optional[BrowserSession]:
+    async def _load(self, name: str) -> BrowserSession | None:
         """Load session from disk."""
         session_file = self.storage_dir / name / "session.json"
         if not session_file.exists():

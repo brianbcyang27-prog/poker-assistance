@@ -8,8 +8,6 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-
 
 _SECRET_PATTERNS = [
     ("NVIDIA API Key", r"nvapi-[A-Za-z0-9\-_]{20,}", "critical"),
@@ -19,7 +17,11 @@ _SECRET_PATTERNS = [
     ("AWS Access Key", r"AKIA[0-9A-Z]{16}", "critical"),
     ("AWS Secret Key", r"(?i)aws_secret_access_key\s*[=:]\s*['\"]?[A-Za-z0-9/+=]{40}", "critical"),
     ("Google API Key", r"AIza[0-9A-Za-z\-_]{35}", "high"),
-    ("Azure Connection String", r"DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{44}", "critical"),
+    (
+        "Azure Connection String",
+        r"DefaultEndpointsProtocol=https;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{44}",
+        "critical",
+    ),
     ("JWT Token", r"eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_.+/=]+", "high"),
     ("Bearer Token", r"(?i)bearer\s+[A-Za-z0-9\-_\.]{20,}", "high"),
     ("Private Key", r"-----BEGIN (RSA |EC )?PRIVATE KEY-----", "critical"),
@@ -30,31 +32,68 @@ _SECRET_PATTERNS = [
 ]
 
 _IGNORE_DIRS = {
-    "node_modules", ".git", "__pycache__", ".venv", "venv",
-    "env", ".env", "dist", "build", ".tox", ".mypy_cache",
-    "graphify-out", "test-output",
+    "node_modules",
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "env",
+    ".env",
+    "dist",
+    "build",
+    ".tox",
+    ".mypy_cache",
+    "graphify-out",
+    "test-output",
 }
 
 _IGNORE_FILES = {
-    ".env.example", "test_secret_manager.py", "test_vault.py",
-    "security_report.md", ".secrets.meta.json",
+    ".env.example",
+    "test_secret_manager.py",
+    "test_vault.py",
+    "security_report.md",
+    ".secrets.meta.json",
 }
 
 
 class SecretScanner:
     """Scan repository for hardcoded secrets."""
 
-    def __init__(self, repo_dir: Optional[str] = None):
+    def __init__(self, repo_dir: str | None = None):
         self._dir = Path(repo_dir) if repo_dir else Path.cwd()
-        self._findings: List[Dict] = []
+        self._findings: list[dict] = []
 
-    def scan(self, include_tests: bool = False) -> List[Dict]:
+    def scan(self, include_tests: bool = False) -> list[dict]:
         """Scan the entire repository for secrets."""
         self._findings = []
-        extensions = {".py", ".js", ".ts", ".json", ".yaml", ".yml", ".toml",
-                      ".cfg", ".ini", ".sh", ".bash", ".zsh", ".env", ".txt",
-                      ".md", ".html", ".css", ".jsx", ".tsx", ".vue", ".svelte",
-                      ".pem", ".key", ".crt", ".j2", ".conf"}
+        extensions = {
+            ".py",
+            ".js",
+            ".ts",
+            ".json",
+            ".yaml",
+            ".yml",
+            ".toml",
+            ".cfg",
+            ".ini",
+            ".sh",
+            ".bash",
+            ".zsh",
+            ".env",
+            ".txt",
+            ".md",
+            ".html",
+            ".css",
+            ".jsx",
+            ".tsx",
+            ".vue",
+            ".svelte",
+            ".pem",
+            ".key",
+            ".crt",
+            ".j2",
+            ".conf",
+        }
 
         for root, dirs, files in os.walk(self._dir):
             dirs[:] = [d for d in dirs if d not in _IGNORE_DIRS]
@@ -98,16 +137,18 @@ class SecretScanner:
                     context_end = min(len(line), match.end() + 20)
                     context = line[context_start:context_end].strip()
 
-                    self._findings.append({
-                        "file": rel_path,
-                        "line": line_num,
-                        "type": pattern_name,
-                        "severity": severity,
-                        "context": context,
-                        "matched_length": len(matched_text),
-                    })
+                    self._findings.append(
+                        {
+                            "file": rel_path,
+                            "line": line_num,
+                            "type": pattern_name,
+                            "severity": severity,
+                            "context": context,
+                            "matched_length": len(matched_text),
+                        }
+                    )
 
-    def generate_report(self, findings: Optional[List[Dict]] = None) -> str:
+    def generate_report(self, findings: list[dict] | None = None) -> str:
         """Generate security_report.md from findings."""
         if findings is None:
             findings = self._findings
@@ -124,8 +165,8 @@ class SecretScanner:
             "",
             "## Summary",
             "",
-            f"| Severity | Count |",
-            f"|----------|-------|",
+            "| Severity | Count |",
+            "|----------|-------|",
             f"| Critical | {len(critical)} |",
             f"| High | {len(high)} |",
             f"| Medium | {len(medium)} |",
@@ -142,7 +183,10 @@ class SecretScanner:
             report.append("|---|----------|------|------|------|---------|")
             for i, f in enumerate(findings, 1):
                 ctx = f["context"].replace("|", "\\|")[:60]
-                report.append(f"| {i} | {f['severity'].upper()} | {f['type']} | `{f['file']}` | {f['line']} | `{ctx}` |")
+                report.append(
+                    f"| {i} | {f['severity'].upper()} | {f['type']} | `{f['file']}` | "
+                    f"{f['line']} | `{ctx}` |"
+                )
 
             report.append("\n## Recommendations\n")
             if critical:
@@ -151,14 +195,16 @@ class SecretScanner:
                 report.append("3. Use `jarvis.security.SecretManager` instead of hardcoded values")
             if high:
                 report.append("4. Review high-severity findings and move to vault")
-            report.append("5. Enable git pre-commit hook: `python -m jarvis.security.git_hook install`")
+            report.append(
+                "5. Enable git pre-commit hook: `python -m jarvis.security.git_hook install`"
+            )
         else:
             report.append("## Status: CLEAN\n")
             report.append("No secrets found in the repository.\n")
 
         return "\n".join(report)
 
-    def scan_and_save(self, output_path: Optional[str] = None) -> str:
+    def scan_and_save(self, output_path: str | None = None) -> str:
         """Scan and save report to file."""
         findings = self.scan()
         report = self.generate_report(findings)

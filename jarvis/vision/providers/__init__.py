@@ -5,16 +5,15 @@ Supports:
   - Cloud: NVIDIA, OpenAI-compatible APIs
 """
 
-import os
 import logging
-from typing import Optional
+import os
 
 from .base import VisionProvider
 
 log = logging.getLogger("jarvis.vision.providers")
 
 
-def get_vision_provider() -> Optional[VisionProvider]:
+def get_vision_provider() -> VisionProvider | None:
     """Load the configured vision provider.
 
     Configuration via environment variables:
@@ -29,15 +28,18 @@ def get_vision_provider() -> Optional[VisionProvider]:
 
     if provider_name == "ollama":
         from .local import OllamaVisionProvider
+
         return OllamaVisionProvider()
 
     if provider_name in ("nvidia", "openai"):
         from .cloud import CloudVisionProvider
+
         return CloudVisionProvider(provider=provider_name)
 
     # Auto-detect: try Ollama first, then cloud
     try:
         from .local import OllamaVisionProvider
+
         p = OllamaVisionProvider()
         if p._check_ollama_sync():
             return p
@@ -49,6 +51,7 @@ def get_vision_provider() -> Optional[VisionProvider]:
     openai_key = os.environ.get("OPENAI_API_KEY", "")
     if nvidia_key or openai_key:
         from .cloud import CloudVisionProvider
+
         provider = "nvidia" if nvidia_key else "openai"
         return CloudVisionProvider(provider=provider)
 

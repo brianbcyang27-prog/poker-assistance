@@ -5,10 +5,10 @@ v4.4.0: Added application awareness — workers know which app they're controlli
 Workers NEVER directly control the OS — they go through the manager.
 """
 
-import time
 import logging
+
+from ...core.models import Rank, Suit
 from .base import BaseWorker
-from ...core.models import Suit, Rank
 
 log = logging.getLogger("jarvis.workers.system")
 

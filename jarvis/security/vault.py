@@ -4,14 +4,12 @@ Stores secrets in .secrets.enc with AES-256-GCM encryption.
 """
 
 import json
-import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .crypto import VaultCrypto
-from .exceptions import VaultError, VaultCorruptedError, VaultLockedError, DecryptionError
-
+from .exceptions import DecryptionError, VaultError, VaultLockedError
 
 _VAULT_FILE = ".secrets.enc"
 _VAULT_META = ".secrets.meta.json"
@@ -29,13 +27,13 @@ _DEFAULT_SECRETS = {
 class EncryptedVault:
     """AES-256-GCM encrypted secret vault with integrity verification."""
 
-    def __init__(self, vault_dir: Optional[str] = None):
+    def __init__(self, vault_dir: str | None = None):
         self._dir = Path(vault_dir) if vault_dir else Path.cwd()
         self._vault_path = self._dir / _VAULT_FILE
         self._meta_path = self._dir / _VAULT_META
         self._crypto = VaultCrypto()
-        self._password: Optional[str] = None
-        self._secrets: Dict[str, str] = {}
+        self._password: str | None = None
+        self._secrets: dict[str, str] = {}
         self._dirty = False
         self._unlocked = False
 
@@ -51,7 +49,7 @@ class EncryptedVault:
     def secret_count(self) -> int:
         return len([v for v in self._secrets.values() if v])
 
-    def create(self, password: str, secrets: Optional[Dict[str, str]] = None) -> None:
+    def create(self, password: str, secrets: dict[str, str] | None = None) -> None:
         """Create a new vault with the given password."""
         if self.exists:
             raise VaultError("Vault already exists — delete it first or use unlock()")
@@ -109,23 +107,23 @@ class EncryptedVault:
             return True
         return False
 
-    def list_secrets(self) -> Dict[str, str]:
+    def list_secrets(self) -> dict[str, str]:
         """Return all secrets (values masked)."""
         if not self._unlocked:
             raise VaultLockedError("Vault is locked")
         return {k: self._mask(v) for k, v in self._secrets.items() if v}
 
-    def list_all_keys(self) -> List[str]:
+    def list_all_keys(self) -> list[str]:
         """Return all secret keys."""
         return list(self._secrets.keys())
 
-    def to_dict(self) -> Dict[str, str]:
+    def to_dict(self) -> dict[str, str]:
         """Return all secrets as a dict (use with caution)."""
         if not self._unlocked:
             raise VaultLockedError("Vault is locked")
         return dict(self._secrets)
 
-    def update(self, secrets: Dict[str, str]) -> None:
+    def update(self, secrets: dict[str, str]) -> None:
         """Bulk update secrets."""
         if not self._unlocked:
             raise VaultLockedError("Vault is locked")
@@ -193,7 +191,7 @@ class EncryptedVault:
             meta["password_changed_at"] = time.time()
             self._meta_path.write_text(json.dumps(meta, indent=2))
 
-    def get_meta(self) -> Dict[str, Any]:
+    def get_meta(self) -> dict[str, Any]:
         """Get vault metadata."""
         if self._meta_path.exists():
             return json.loads(self._meta_path.read_text())

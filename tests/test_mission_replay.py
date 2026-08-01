@@ -1,21 +1,25 @@
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import asyncio
 import tempfile
-import time
-import pytest
 
-from jarvis.mission.replay.models import MissionEvent, MissionReport, MissionReplayQuery, MissionEventType
+from jarvis.mission.replay.models import (
+    MissionEvent,
+    MissionReplayQuery,
+    MissionReport,
+)
 from jarvis.mission.replay.recorder import MissionRecorder
 from jarvis.mission.replay.replay import MissionReplay
 
-
-loop = asyncio.get_event_loop()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 
 # ── MissionEvent ──────────────────────────────────────────────────────────────
+
 
 class TestMissionEvent:
     def test_create_default(self):
@@ -68,6 +72,7 @@ class TestMissionEvent:
 
 
 # ── MissionReport ─────────────────────────────────────────────────────────────
+
 
 class TestMissionReport:
     def test_create_default(self):
@@ -134,6 +139,7 @@ class TestMissionReport:
 
 # ── MissionReplayQuery ────────────────────────────────────────────────────────
 
+
 class TestMissionReplayQuery:
     def test_create_default(self):
         q = MissionReplayQuery()
@@ -150,6 +156,7 @@ class TestMissionReplayQuery:
 
 # ── MissionRecorder ───────────────────────────────────────────────────────────
 
+
 class TestMissionRecorder:
     def _make(self):
         tmpdir = tempfile.mkdtemp()
@@ -161,9 +168,7 @@ class TestMissionRecorder:
 
     def test_start_recording(self):
         rec = self._make()
-        event = loop.run_until_complete(
-            rec.start_recording("m1", "Build chat app")
-        )
+        event = loop.run_until_complete(rec.start_recording("m1", "Build chat app"))
         assert event.event_type == "started"
         assert event.mission_id == "m1"
         assert "Build chat app" in event.description
@@ -180,18 +185,14 @@ class TestMissionRecorder:
     def test_record_error(self):
         rec = self._make()
         loop.run_until_complete(rec.start_recording("m1", "goal"))
-        event = loop.run_until_complete(
-            rec.record_error("m1", "ImportError", "missing module")
-        )
+        event = loop.run_until_complete(rec.record_error("m1", "ImportError", "missing module"))
         assert event.event_type == "error"
         assert event.success is False
 
     def test_record_recovery(self):
         rec = self._make()
         loop.run_until_complete(rec.start_recording("m1", "goal"))
-        event = loop.run_until_complete(
-            rec.record_recovery("m1", "Installed missing package")
-        )
+        event = loop.run_until_complete(rec.record_recovery("m1", "Installed missing package"))
         assert event.event_type == "recovery"
         assert event.success is True
 
@@ -273,6 +274,7 @@ class TestMissionRecorder:
 
 
 # ── MissionReplay ─────────────────────────────────────────────────────────────
+
 
 class TestMissionReplay:
     def _make(self):

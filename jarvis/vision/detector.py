@@ -5,8 +5,8 @@ text fields, and other interactive elements.
 """
 
 import logging
-from typing import Optional, List
-from .providers.base import VisionResult, DetectedObject
+
+from .providers.base import DetectedObject, VisionResult
 
 log = logging.getLogger("jarvis.vision.detector")
 
@@ -35,7 +35,7 @@ class ObjectDetector:
     def objects(self) -> list:
         return self._result.objects
 
-    def find(self, query: str) -> Optional[DetectedObject]:
+    def find(self, query: str) -> DetectedObject | None:
         """Find the best matching object for a natural language query.
 
         Matches against type, name, description, and color.
@@ -46,7 +46,7 @@ class ObjectDetector:
             return None
         return max(matches, key=lambda o: o.confidence)
 
-    def find_all(self, query: str = "", type: str = "", name: str = "") -> List[DetectedObject]:
+    def find_all(self, query: str = "", type: str = "", name: str = "") -> list[DetectedObject]:
         """Find all objects matching criteria.
 
         All parameters are optional filters.
@@ -56,7 +56,8 @@ class ObjectDetector:
         if query:
             query_lower = query.lower()
             results = [
-                o for o in results
+                o
+                for o in results
                 if query_lower in o.type.lower()
                 or query_lower in o.name.lower()
                 or query_lower in o.description.lower()
@@ -71,23 +72,23 @@ class ObjectDetector:
 
         return results
 
-    def find_buttons(self, name: str = "") -> List[DetectedObject]:
+    def find_buttons(self, name: str = "") -> list[DetectedObject]:
         """Find all buttons, optionally filtered by name."""
         return self.find_all(type="button", name=name)
 
-    def find_menus(self, name: str = "") -> List[DetectedObject]:
+    def find_menus(self, name: str = "") -> list[DetectedObject]:
         """Find all menus/menu items."""
         return self.find_all(type="menu", name=name)
 
-    def find_text_fields(self, name: str = "") -> List[DetectedObject]:
+    def find_text_fields(self, name: str = "") -> list[DetectedObject]:
         """Find all text input fields."""
         return self.find_all(type="text_field", name=name)
 
-    def find_by_color(self, color: str) -> List[DetectedObject]:
+    def find_by_color(self, color: str) -> list[DetectedObject]:
         """Find objects by dominant color."""
         return [o for o in self._result.objects if color.lower() in o.color.lower()]
 
-    def nearest_to(self, x: int, y: int) -> Optional[DetectedObject]:
+    def nearest_to(self, x: int, y: int) -> DetectedObject | None:
         """Find the object closest to given coordinates."""
         if not self._result.objects:
             return None
@@ -99,21 +100,27 @@ class ObjectDetector:
 
         return min(self._result.objects, key=distance)
 
-    def highest_confidence(self, min_confidence: float = 0.5) -> List[DetectedObject]:
+    def highest_confidence(self, min_confidence: float = 0.5) -> list[DetectedObject]:
         """Get objects above a confidence threshold, sorted by confidence."""
-        filtered = [
-            o for o in self._result.objects
-            if o.confidence >= min_confidence
-        ]
+        filtered = [o for o in self._result.objects if o.confidence >= min_confidence]
         return sorted(filtered, key=lambda o: o.confidence, reverse=True)
 
-    def interactive_elements(self) -> List[DetectedObject]:
+    def interactive_elements(self) -> list[DetectedObject]:
         """Get all interactive UI elements (buttons, menus, fields, links)."""
-        interactive_types = {"button", "menu", "menu_item", "text_field", "text_area",
-                             "link", "checkbox", "radio_button", "tab", "dropdown"}
+        interactive_types = {
+            "button",
+            "menu",
+            "menu_item",
+            "text_field",
+            "text_area",
+            "link",
+            "checkbox",
+            "radio_button",
+            "tab",
+            "dropdown",
+        }
         return [
-            o for o in self._result.objects
-            if any(t in o.type.lower() for t in interactive_types)
+            o for o in self._result.objects if any(t in o.type.lower() for t in interactive_types)
         ]
 
     def summary(self) -> dict:

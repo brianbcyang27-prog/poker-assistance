@@ -110,19 +110,20 @@ Each domain gets an abstract base class defining the interface:
 # jarvis/engineering/cad/base.py
 from abc import ABC, abstractmethod
 
+
 class CADProvider(ABC):
     @abstractmethod
     async def create_model(self, name: str, params: dict) -> dict: ...
-    
+
     @abstractmethod
     async def edit_model(self, model_id: str, changes: dict) -> dict: ...
-    
+
     @abstractmethod
     async def export(self, model_id: str, format: str, path: str) -> dict: ...
-    
+
     @abstractmethod
     async def get_measurements(self, model_id: str) -> dict: ...
-    
+
     @abstractmethod
     async def list_models(self, workspace: str) -> list: ...
 ```
@@ -131,22 +132,23 @@ class CADProvider(ABC):
 # jarvis/engineering/pcb/base.py
 from abc import ABC, abstractmethod
 
+
 class PCBProvider(ABC):
     @abstractmethod
     async def create_project(self, name: str, params: dict) -> dict: ...
-    
+
     @abstractmethod
     async def add_component(self, project_id: str, component: dict) -> dict: ...
-    
+
     @abstractmethod
     async def route(self, project_id: str, nets: list) -> dict: ...
-    
+
     @abstractmethod
     async def export_gerber(self, project_id: str, path: str) -> dict: ...
-    
+
     @abstractmethod
     async def generate_bom(self, project_id: str) -> dict: ...
-    
+
     @abstractmethod
     async def check_drc(self, project_id: str) -> dict: ...
 ```
@@ -155,19 +157,20 @@ class PCBProvider(ABC):
 # jarvis/engineering/embedded/base.py
 from abc import ABC, abstractmethod
 
+
 class EmbeddedProvider(ABC):
     @abstractmethod
     async def create_project(self, name: str, platform: str, params: dict) -> dict: ...
-    
+
     @abstractmethod
     async def compile(self, project_id: str) -> dict: ...
-    
+
     @abstractmethod
     async def upload(self, project_id: str, device: str) -> dict: ...
-    
+
     @abstractmethod
     async def monitor(self, project_id: str, device: str) -> dict: ...
-    
+
     @abstractmethod
     async def list_devices(self) -> list: ...
 ```
@@ -343,7 +346,6 @@ ENGINEERING_TOOLS = {
     "cad_export": "Export CAD model to STL/STEP/OBJ/FBX",
     "cad_measure": "Get measurements from a CAD model",
     "cad_list_models": "List models in workspace",
-    
     # PCB
     "pcb_create_project": "Create a new PCB design project",
     "pcb_add_component": "Add component to schematic",
@@ -352,20 +354,17 @@ ENGINEERING_TOOLS = {
     "pcb_generate_bom": "Generate bill of materials",
     "pcb_check_drc": "Run design rule check",
     "pcb_list_components": "Search component library",
-    
     # Embedded
     "firmware_create_project": "Create embedded project",
     "firmware_compile": "Compile firmware",
     "firmware_upload": "Upload firmware to device",
     "firmware_monitor": "Monitor serial output",
     "firmware_list_devices": "List connected devices",
-    
     # Mechanical
     "mechanical_calculate": "Run engineering calculation",
     "mechanical_select_material": "Select material by properties",
     "mechanical_gear_design": "Design gear system",
     "mechanical_bearing_select": "Select bearing for load",
-    
     # Simulation (architecture only)
     "simulate_thermal": "Thermal analysis (future)",
     "simulate_stress": "Stress analysis (future)",
@@ -486,7 +485,7 @@ class EngineeringWorkspace:
 ```python
 class EngineeringFileIntel:
     """Recognize and understand engineering file formats."""
-    
+
     FILE_TYPES = {
         # CAD
         ".stl": {"type": "cad", "format": "STL", "description": "3D mesh"},
@@ -494,29 +493,26 @@ class EngineeringFileIntel:
         ".obj": {"type": "cad", "format": "OBJ", "description": "3D model"},
         ".f3d": {"type": "cad", "format": "Fusion360", "description": "Fusion 360 archive"},
         ".scad": {"type": "cad", "format": "OpenSCAD", "description": "Parametric model"},
-        
         # PCB
         ".kicad_pcb": {"type": "pcb", "format": "KiCad", "description": "PCB layout"},
         ".kicad_sch": {"type": "pcb", "format": "KiCad", "description": "Schematic"},
         ".brd": {"type": "pcb", "format": "Eagle", "description": "PCB layout"},
         ".sch": {"type": "pcb", "format": "Eagle", "description": "Schematic"},
         ".gbr": {"type": "pcb", "format": "Gerber", "description": "Manufacturing"},
-        
         # Embedded
         ".ino": {"type": "firmware", "format": "Arduino", "description": "Arduino sketch"},
         ".cpp": {"type": "firmware", "format": "C++", "description": "C++ source"},
         ".h": {"type": "firmware", "format": "C++", "description": "C++ header"},
         ".py": {"type": "firmware", "format": "Python", "description": "MicroPython"},
-        
         # Documentation
         ".pdf": {"type": "doc", "format": "PDF", "description": "Document"},
         ".png": {"type": "image", "format": "PNG", "description": "Image"},
     }
-    
+
     def analyze_file(self, path: str) -> dict:
         """Analyze an engineering file."""
         ...
-    
+
     def find_related_files(self, path: str) -> list:
         """Find files related to the given file."""
         ...
@@ -539,11 +535,13 @@ from rich.progress import Progress
 
 console = Console()
 
+
 @click.group()
 @click.version_option(version="3.3.0")
 def cli():
     """JARVIS — AI Engineering Operating System"""
     pass
+
 
 # === Chat ===
 @cli.command()
@@ -553,16 +551,19 @@ def chat(message, session):
     """Interactive chat with JARVIS"""
     ...
 
+
 # === Missions ===
 @cli.group()
 def mission():
     """Mission management"""
     pass
 
+
 @mission.command("list")
 def mission_list():
     """List active missions"""
     ...
+
 
 @mission.command("create")
 @click.argument("goal")
@@ -570,11 +571,13 @@ def mission_create(goal):
     """Create a new mission"""
     ...
 
+
 @mission.command("status")
 @click.argument("mission_id")
 def mission_status(mission_id):
     """Show mission status"""
     ...
+
 
 # === Agents ===
 @cli.command()
@@ -587,11 +590,13 @@ def agents():
     ...
     console.print(table)
 
+
 # === Memory ===
 @cli.group()
 def memory():
     """Memory operations"""
     pass
+
 
 @memory.command("search")
 @click.argument("query")
@@ -599,11 +604,13 @@ def memory_search(query):
     """Search memory"""
     ...
 
+
 # === Workspace ===
 @cli.group()
 def workspace():
     """Workspace management"""
     pass
+
 
 # === Engineering ===
 @cli.group()
@@ -611,11 +618,13 @@ def engineer():
     """Engineering operations"""
     pass
 
+
 @engineer.command("cad")
 @click.argument("action")
 def engineer_cad(action):
     """CAD operations"""
     ...
+
 
 @engineer.command("pcb")
 @click.argument("action")
@@ -623,11 +632,13 @@ def engineer_pcb(action):
     """PCB operations"""
     ...
 
+
 @engineer.command("firmware")
 @click.argument("action")
 def engineer_firmware(action):
     """Firmware operations"""
     ...
+
 
 # === System ===
 @cli.command()
@@ -635,15 +646,18 @@ def doctor():
     """System health check"""
     ...
 
+
 @cli.command()
 def config():
     """Configuration management"""
     ...
 
+
 @cli.command()
 def update():
     """Update JARVIS"""
     ...
+
 
 if __name__ == "__main__":
     cli()
@@ -655,6 +669,7 @@ if __name__ == "__main__":
 # Streaming response with Rich
 from rich.live import Live
 from rich.markdown import Markdown
+
 
 async def stream_chat(message: str):
     """Stream chat response with Rich rendering."""
@@ -668,10 +683,8 @@ async def stream_chat(message: str):
 ```python
 # Click completion
 @cli.command()
-@click.option("--complete", is_flag=True, expose_value=False, 
-              is_eager=True, callback=complete)
-def main(complete):
-    ...
+@click.option("--complete", is_flag=True, expose_value=False, is_eager=True, callback=complete)
+def main(complete): ...
 ```
 
 ---
@@ -694,37 +707,37 @@ Add engineering-specific UI to the web interface:
 # New engineering router
 router = APIRouter(prefix="/api/engineering", tags=["engineering"])
 
+
 @router.post("/cad/model")
-async def create_cad_model(params: dict):
-    ...
+async def create_cad_model(params: dict): ...
+
 
 @router.get("/cad/models")
-async def list_cad_models():
-    ...
+async def list_cad_models(): ...
+
 
 @router.post("/pcb/project")
-async def create_pcb_project(params: dict):
-    ...
+async def create_pcb_project(params: dict): ...
+
 
 @router.post("/pcb/gerber")
-async def export_gerber(project_id: str):
-    ...
+async def export_gerber(project_id: str): ...
+
 
 @router.post("/firmware/compile")
-async def compile_firmware(project_id: str):
-    ...
+async def compile_firmware(project_id: str): ...
+
 
 @router.post("/firmware/upload")
-async def upload_firmware(project_id: str, device: str):
-    ...
+async def upload_firmware(project_id: str, device: str): ...
+
 
 @router.get("/knowledge/materials")
-async def get_materials():
-    ...
+async def get_materials(): ...
+
 
 @router.post("/calculate")
-async def engineering_calculate(formula: str, params: dict):
-    ...
+async def engineering_calculate(formula: str, params: dict): ...
 ```
 
 ---

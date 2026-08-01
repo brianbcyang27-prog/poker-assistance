@@ -8,13 +8,11 @@ No dependencies beyond macOS built-ins (osascript, screencapture).
 
 import asyncio
 import logging
-import time
-from typing import Optional
 
 from jarvis.core.reliability import config as reliability_config
 
 from .base import AccessibilityProvider
-from .element import UIElement, ElementType, ElementState
+from .element import ElementState, ElementType, UIElement
 
 log = logging.getLogger("jarvis.computer.accessibility.macos")
 
@@ -26,7 +24,7 @@ def _parse_elements_from_applescript(raw: str, app: str = "", window: str = "") 
         role<TAB>name<TAB>description<TAB>enabled<TAB>focused<TAB>x<TAB>y<TAB>width<TAB>height
     """
     elements = []
-    lines = [l.strip() for l in raw.strip().split("\n") if l.strip()]
+    lines = [line_str.strip() for line_str in raw.strip().split("\n") if line_str.strip()]
 
     for idx, line in enumerate(lines):
         parts = line.split("\t")
@@ -124,17 +122,21 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
         """Run an AppleScript and return stdout."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.http_timeout)
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=reliability_config.http_timeout
+            )
             if proc.returncode != 0:
                 err = stderr.decode().strip()
                 log.warning("AppleScript error: %s", err)
                 return ""
             return stdout.decode().strip()
-        except asyncio.TimeoutError:
+        except TimeoutError:
             log.warning("AppleScript timed out")
             return ""
         except FileNotFoundError:
@@ -157,7 +159,8 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
                     set procWindows to every window of proc
                     repeat with win in procWindows
                         set winTitle to name of win
-                        set end of windowList to procName & "\t" & winTitle & "\t" & (procPID as text)
+                        set end of windowList to procName & "\t" & winTitle & "\t" & (procPID ¬
+                            as text)
                     end repeat
                 end try
             end repeat
@@ -173,12 +176,14 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
         for line in raw.split("\n"):
             parts = line.split("\t")
             if len(parts) >= 3:
-                windows.append({
-                    "app": parts[0].strip(),
-                    "title": parts[1].strip(),
-                    "pid": int(parts[2].strip()) if parts[2].strip().isdigit() else 0,
-                    "focused": False,
-                })
+                windows.append(
+                    {
+                        "app": parts[0].strip(),
+                        "title": parts[1].strip(),
+                        "pid": int(parts[2].strip()) if parts[2].strip().isdigit() else 0,
+                        "focused": False,
+                    }
+                )
 
         # Mark the frontmost window as focused
         if windows:
@@ -186,7 +191,7 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
 
         return windows
 
-    async def get_active_window(self) -> Optional[dict]:
+    async def get_active_window(self) -> dict | None:
         """Get the currently focused window."""
         script = """
         tell application "System Events"
@@ -211,7 +216,9 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
             return {
                 "app": parts[0].strip(),
                 "title": parts[1].strip(),
-                "pid": int(parts[2].strip()) if len(parts) > 2 and parts[2].strip().isdigit() else 0,
+                "pid": int(parts[2].strip())
+                if len(parts) > 2 and parts[2].strip().isdigit()
+                else 0,
             }
         return None
 
@@ -282,7 +289,8 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
                         set posParts to "0\t0\t0\t0"
                     end if
 
-                    set end of elemList to elemRole & "\t" & elemName & "\t" & elemDesc & "\t" & elemEnabled & "\t" & elemFocused & "\t" & posParts
+                    set end of elemList to elemRole & "\t" & elemName & "\t" & elemDesc ¬
+                        & "\t" & elemEnabled & "\t" & elemFocused & "\t" & posParts
                 end try
             end repeat
             set AppleScript's text item delimiters to "\n"
@@ -297,12 +305,14 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
         name: str = "",
         role: str = "",
         app: str = "",
-    ) -> Optional[UIElement]:
+    ) -> UIElement | None:
         """Find a specific UI element by name and/or role."""
         elements = await self.get_elements()
         for el in elements:
             name_match = not name or el.matches(name)
-            role_match = not role or role.lower() in el.role.lower() or role.lower() == el.type.lower()
+            role_match = (
+                not role or role.lower() in el.role.lower() or role.lower() == el.type.lower()
+            )
             app_match = not app or el.app.lower() == app.lower()
             if name_match and role_match and app_match:
                 return el
@@ -324,7 +334,7 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
             click at {{{x}, {y}}}
         end tell
         '''
-        raw = await self._run_applescript(script)
+        await self._run_applescript(script)
         return {"ok": True, "x": x, "y": y, "element": element.name}
 
     async def type_text(self, element: UIElement, text: str) -> dict:
@@ -351,6 +361,7 @@ class MacOSAccessibilityProvider(AccessibilityProvider):
         app = active["app"] if active else ""
         win = window_title or (active["title"] if active else "")
         from .tree import AccessibilityTree
+
         tree = AccessibilityTree(elements, app=app, window=win)
         return tree.to_dict()
 

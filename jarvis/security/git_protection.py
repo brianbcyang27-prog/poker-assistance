@@ -1,9 +1,7 @@
 """Git protection — .gitignore management and pre-commit hooks."""
 
-import os
 import stat
 from pathlib import Path
-from typing import Optional
 
 _GITIGNORE_ENTRIES = [
     "# JARVIS Security",
@@ -79,7 +77,7 @@ exit 0
 class GitProtection:
     """Manage .gitignore entries and pre-commit hooks."""
 
-    def __init__(self, repo_dir: Optional[str] = None):
+    def __init__(self, repo_dir: str | None = None):
         self._dir = Path(repo_dir) if repo_dir else Path.cwd()
         self._git_dir = self._dir / ".git"
         self._hooks_dir = self._git_dir / "hooks"

@@ -7,13 +7,11 @@ Provides safe execution contexts for commands that need isolation:
 - Rollback support for file operations
 """
 
+import asyncio
+import logging
 import os
 import shutil
-import asyncio
 import tempfile
-import logging
-from pathlib import Path
-from typing import Optional
 from dataclasses import dataclass, field
 
 log = logging.getLogger("jarvis.computer.sandbox")
@@ -22,9 +20,10 @@ log = logging.getLogger("jarvis.computer.sandbox")
 @dataclass
 class SandboxConfig:
     """Configuration for a sandbox execution."""
+
     timeout_seconds: int = 30
     max_output_bytes: int = 1_000_000  # 1MB
-    working_dir: Optional[str] = None
+    working_dir: str | None = None
     env: dict = field(default_factory=dict)
     capture_output: bool = True
     create_temp_dir: bool = False
@@ -33,11 +32,12 @@ class SandboxConfig:
 @dataclass
 class SandboxResult:
     """Result of a sandboxed execution."""
+
     stdout: str = ""
     stderr: str = ""
     returncode: int = -1
     timed_out: bool = False
-    temp_dir: Optional[str] = None
+    temp_dir: str | None = None
     duration_ms: float = 0.0
 
     @property
@@ -65,16 +65,16 @@ class Sandbox:
             print(result.stdout)
     """
 
-    def __init__(self, config: Optional[SandboxConfig] = None):
+    def __init__(self, config: SandboxConfig | None = None):
         self.config = config or SandboxConfig()
         self._temp_dirs: list[str] = []
 
     async def run(
         self,
         command: str,
-        timeout: Optional[int] = None,
-        working_dir: Optional[str] = None,
-        env: Optional[dict] = None,
+        timeout: int | None = None,
+        working_dir: str | None = None,
+        env: dict | None = None,
     ) -> SandboxResult:
         """Execute a command in the sandbox.
 
@@ -88,6 +88,7 @@ class Sandbox:
             SandboxResult with stdout, stderr, returncode
         """
         import time
+
         start = time.time()
 
         timeout = timeout or self.config.timeout_seconds
@@ -121,7 +122,7 @@ class Sandbox:
                     proc.communicate(),
                     timeout=timeout,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 proc.kill()
                 await proc.wait()
                 duration = (time.time() - start) * 1000
@@ -133,8 +134,8 @@ class Sandbox:
                     stderr=f"Command timed out after {timeout}s",
                 )
 
-            stdout = stdout_bytes.decode("utf-8", errors="replace")[:self.config.max_output_bytes]
-            stderr = stderr_bytes.decode("utf-8", errors="replace")[:self.config.max_output_bytes]
+            stdout = stdout_bytes.decode("utf-8", errors="replace")[: self.config.max_output_bytes]
+            stderr = stderr_bytes.decode("utf-8", errors="replace")[: self.config.max_output_bytes]
 
             duration = (time.time() - start) * 1000
             return SandboxResult(
@@ -157,24 +158,23 @@ class Sandbox:
     async def run_safe(
         self,
         command: str,
-        timeout: Optional[int] = None,
-        working_dir: Optional[str] = None,
+        timeout: int | None = None,
+        working_dir: str | None = None,
     ) -> SandboxResult:
         """Execute with extra safety: no shell expansion, strict timeout."""
         # Escape the command to prevent shell injection
         import shlex
+
         safe_cmd = shlex.quote(command)
         return await self.run(safe_cmd, timeout=timeout, working_dir=working_dir)
 
     async def run_python(
         self,
         code: str,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
     ) -> SandboxResult:
         """Execute Python code in a sandbox."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".py", delete=False, dir="/tmp"
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, dir="/tmp") as f:
             f.write(code)
             f.flush()
             script_path = f.name

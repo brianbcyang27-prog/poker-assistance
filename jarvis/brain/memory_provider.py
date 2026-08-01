@@ -21,18 +21,16 @@ Usage:
 """
 
 import json
-import time
 import logging
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Optional
-from pathlib import Path
-from enum import Enum
+from enum import StrEnum
 
 log = logging.getLogger("jarvis.memory")
 
 
-class MemoryType(str, Enum):
+class MemoryType(StrEnum):
     CONVERSATION = "conversation"
     MISSION = "mission"
     TASK = "task"
@@ -49,6 +47,7 @@ class MemoryType(str, Enum):
 @dataclass
 class MemoryEntry:
     """A single memory entry."""
+
     id: str = ""
     type: str = ""
     content: str = ""
@@ -74,14 +73,15 @@ class MemoryEntry:
 @dataclass
 class MemoryQuery:
     """Query parameters for memory retrieval."""
-    type: Optional[str] = None
+
+    type: str | None = None
     text: str = ""
     tags: list[str] = field(default_factory=list)
-    source: Optional[str] = None
+    source: str | None = None
     limit: int = 10
     min_relevance: float = 0.0
-    since: Optional[float] = None  # timestamp
-    until: Optional[float] = None  # timestamp
+    since: float | None = None  # timestamp
+    until: float | None = None  # timestamp
 
 
 class MemoryProvider(ABC):
@@ -107,7 +107,7 @@ class MemoryProvider(ABC):
         ...
 
     @abstractmethod
-    async def get(self, entry_id: str) -> Optional[MemoryEntry]:
+    async def get(self, entry_id: str) -> MemoryEntry | None:
         """Get a specific memory by ID."""
         ...
 
@@ -117,7 +117,7 @@ class MemoryProvider(ABC):
         ...
 
     @abstractmethod
-    async def count(self, type: Optional[str] = None) -> int:
+    async def count(self, type: str | None = None) -> int:
         """Count memories, optionally filtered by type."""
         ...
 
@@ -140,6 +140,7 @@ class SQLiteMemoryProvider(MemoryProvider):
     async def _get_db(self):
         if self._db is None:
             from ..core.database import get_db
+
             self._db = await get_db()
         return self._db
 
@@ -203,15 +204,17 @@ class SQLiteMemoryProvider(MemoryProvider):
 
         entries = []
         for row in rows:
-            entries.append(MemoryEntry(
-                id=row[0],
-                type=row[1],
-                content=row[2],
-                metadata=json.loads(row[3]) if row[3] else {},
-                source=row[4] or "",
-                tags=json.loads(row[5]) if row[5] else [],
-                timestamp=row[6] or 0,
-            ))
+            entries.append(
+                MemoryEntry(
+                    id=row[0],
+                    type=row[1],
+                    content=row[2],
+                    metadata=json.loads(row[3]) if row[3] else {},
+                    source=row[4] or "",
+                    tags=json.loads(row[5]) if row[5] else [],
+                    timestamp=row[6] or 0,
+                )
+            )
 
         return entries
 
@@ -237,16 +240,18 @@ class SQLiteMemoryProvider(MemoryProvider):
 
             entries = []
             for row in rows:
-                entries.append(MemoryEntry(
-                    id=row[0],
-                    type=row[1],
-                    content=row[2],
-                    metadata=json.loads(row[3]) if row[3] else {},
-                    source=row[4] or "",
-                    tags=json.loads(row[5]) if row[5] else [],
-                    timestamp=row[6] or 0,
-                    relevance=abs(row[8]) if row[8] else 0,
-                ))
+                entries.append(
+                    MemoryEntry(
+                        id=row[0],
+                        type=row[1],
+                        content=row[2],
+                        metadata=json.loads(row[3]) if row[3] else {},
+                        source=row[4] or "",
+                        tags=json.loads(row[5]) if row[5] else [],
+                        timestamp=row[6] or 0,
+                        relevance=abs(row[8]) if row[8] else 0,
+                    )
+                )
             return entries
         except Exception:
             # Fallback to LIKE search if FTS5 table doesn't exist
@@ -260,27 +265,31 @@ class SQLiteMemoryProvider(MemoryProvider):
             rows = await cursor.fetchall()
             return [
                 MemoryEntry(
-                    id=r[0], type=r[1], content=r[2],
+                    id=r[0],
+                    type=r[1],
+                    content=r[2],
                     metadata=json.loads(r[3]) if r[3] else {},
-                    source=r[4] or "", tags=json.loads(r[5]) if r[5] else [],
+                    source=r[4] or "",
+                    tags=json.loads(r[5]) if r[5] else [],
                     timestamp=r[6] or 0,
                 )
                 for r in rows
             ]
 
-    async def get(self, entry_id: str) -> Optional[MemoryEntry]:
+    async def get(self, entry_id: str) -> MemoryEntry | None:
         """Get a specific memory by ID."""
         db = await self._get_db()
-        cursor = await db._db.execute(
-            "SELECT * FROM memories WHERE id = ?", (entry_id,)
-        )
+        cursor = await db._db.execute("SELECT * FROM memories WHERE id = ?", (entry_id,))
         row = await cursor.fetchone()
         if not row:
             return None
         return MemoryEntry(
-            id=row[0], type=row[1], content=row[2],
+            id=row[0],
+            type=row[1],
+            content=row[2],
             metadata=json.loads(row[3]) if row[3] else {},
-            source=row[4] or "", tags=json.loads(row[5]) if row[5] else [],
+            source=row[4] or "",
+            tags=json.loads(row[5]) if row[5] else [],
             timestamp=row[6] or 0,
         )
 
@@ -292,13 +301,11 @@ class SQLiteMemoryProvider(MemoryProvider):
         await db._db.commit()
         return {"ok": True}
 
-    async def count(self, type: Optional[str] = None) -> int:
+    async def count(self, type: str | None = None) -> int:
         """Count memories."""
         db = await self._get_db()
         if type:
-            cursor = await db._db.execute(
-                "SELECT COUNT(*) FROM memories WHERE type = ?", (type,)
-            )
+            cursor = await db._db.execute("SELECT COUNT(*) FROM memories WHERE type = ?", (type,))
         else:
             cursor = await db._db.execute("SELECT COUNT(*) FROM memories")
         row = await cursor.fetchone()
@@ -307,9 +314,7 @@ class SQLiteMemoryProvider(MemoryProvider):
     async def list_types(self) -> dict[str, int]:
         """List all memory types and their counts."""
         db = await self._get_db()
-        cursor = await db._db.execute(
-            "SELECT type, COUNT(*) FROM memories GROUP BY type"
-        )
+        cursor = await db._db.execute("SELECT type, COUNT(*) FROM memories GROUP BY type")
         rows = await cursor.fetchall()
         return {row[0]: row[1] for row in rows}
 
@@ -319,7 +324,7 @@ _providers: dict[str, type[MemoryProvider]] = {
     "sqlite": SQLiteMemoryProvider,
 }
 _active_provider_name = "sqlite"
-_memory_instance: Optional[MemoryProvider] = None
+_memory_instance: MemoryProvider | None = None
 
 
 def register_provider(name: str, provider_class: type[MemoryProvider]) -> None:

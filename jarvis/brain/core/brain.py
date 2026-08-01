@@ -1,13 +1,14 @@
 """JARVISBrain — the main facade for all brain operations."""
+
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from .models import BrainContext, MemoryEntry, ReasoningResult, ActionDecision
 from .context import BrainContextManager
-from .memory import MemoryManager
-from .reasoning import ReasoningEngine
 from .decision import BrainDecisionEngine
+from .memory import MemoryManager
+from .models import ActionDecision, BrainContext, MemoryEntry, ReasoningResult
+from .reasoning import ReasoningEngine
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class JARVISBrain:
         await brain.remember("robot arm uses 6 DOF", memory_type="fact")
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         self._config = config or {}
         self._initialized = False
 
@@ -78,14 +79,12 @@ class JARVISBrain:
         self,
         goal: str,
         project_name: str = "",
-        tools: Optional[List[str]] = None,
+        tools: list[str] | None = None,
     ) -> BrainContext:
         """Build complete context for a goal — call before any agent runs."""
         return await self.context.build_context(goal, project_name, tools)
 
-    async def reason(
-        self, goal: str, context: BrainContext
-    ) -> ReasoningResult:
+    async def reason(self, goal: str, context: BrainContext) -> ReasoningResult:
         """Perform evidence-based reasoning toward a goal."""
         return await self.reasoning.reason(goal, context)
 
@@ -93,7 +92,7 @@ class JARVISBrain:
         self,
         goal: str,
         context: BrainContext,
-        options: Optional[List[Dict[str, Any]]] = None,
+        options: list[dict[str, Any]] | None = None,
     ) -> ActionDecision:
         """Choose the best action from available options."""
         return await self.decisions.decide(goal, context, options)
@@ -104,13 +103,17 @@ class JARVISBrain:
         memory_type: str = "fact",
         importance: str = "useful",
         source: str = "brain",
-        related_entities: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        related_entities: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> MemoryEntry:
         """Store a memory across all subsystems."""
         return await self.memory.remember(
-            content, memory_type, importance, source,
-            related_entities, metadata,
+            content,
+            memory_type,
+            importance,
+            source,
+            related_entities,
+            metadata,
         )
 
     async def recall(
@@ -118,7 +121,7 @@ class JARVISBrain:
         query: str,
         limit: int = 10,
         memory_type: str = "",
-    ) -> List[MemoryEntry]:
+    ) -> list[MemoryEntry]:
         """Search all memory sources."""
         return await self.memory.recall(query, limit, memory_type)
 
@@ -126,7 +129,7 @@ class JARVISBrain:
         """Explain why a particular decision was made."""
         return await self.decisions.explain(decision_id)
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Return brain statistics and health info."""
         mem_stats = await self.memory.get_stats()
         return {
@@ -137,21 +140,24 @@ class JARVISBrain:
             "decision_history": len(self.decisions._action_history),
         }
 
-    async def consolidate(self) -> Dict[str, Any]:
+    async def consolidate(self) -> dict[str, Any]:
         """Run memory consolidation."""
         return await self.memory.consolidate()
 
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """Brain health check — returns operational status."""
         stats = await self.get_stats()
         health = "healthy"
-        issues: List[str] = []
+        issues: list[str] = []
 
         if not self._initialized:
             health = "degraded"
             issues.append("Not initialized with external engines")
 
-        if stats["memory"].get("local_memories", 0) == 0 and stats["memory"].get("kg_stats", {}).get("entities", 0) == 0:
+        if (
+            stats["memory"].get("local_memories", 0) == 0
+            and stats["memory"].get("kg_stats", {}).get("entities", 0) == 0
+        ):
             health = "empty"
             issues.append("No memories stored yet")
 

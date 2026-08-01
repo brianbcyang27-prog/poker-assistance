@@ -4,10 +4,9 @@ Each provider (Ollama, NVIDIA, OpenAI) implements this interface
 so JARVIS can use different vision models interchangeably.
 """
 
-import time
 import logging
+import time
 from abc import ABC, abstractmethod
-from typing import Optional, List
 from dataclasses import dataclass, field
 
 log = logging.getLogger("jarvis.vision.providers")
@@ -16,16 +15,17 @@ log = logging.getLogger("jarvis.vision.providers")
 @dataclass
 class DetectedObject:
     """A visual object detected in a screenshot."""
-    type: str = ""          # button, menu, icon, text, window, dialog, toolbar, etc.
-    name: str = ""          # label/text on the object
-    x: int = 0              # center x coordinate
-    y: int = 0              # center y coordinate
-    width: int = 0          # bounding box width
-    height: int = 0         # bounding box height
-    confidence: float = 0.0 # 0.0 to 1.0
-    description: str = ""   # additional context
-    color: str = ""         # dominant color if relevant
-    state: str = ""         # enabled/disabled/active/etc.
+
+    type: str = ""  # button, menu, icon, text, window, dialog, toolbar, etc.
+    name: str = ""  # label/text on the object
+    x: int = 0  # center x coordinate
+    y: int = 0  # center y coordinate
+    width: int = 0  # bounding box width
+    height: int = 0  # bounding box height
+    confidence: float = 0.0  # 0.0 to 1.0
+    description: str = ""  # additional context
+    color: str = ""  # dominant color if relevant
+    state: str = ""  # enabled/disabled/active/etc.
 
     def to_dict(self) -> dict:
         return {
@@ -48,14 +48,15 @@ class DetectedObject:
 @dataclass
 class VisionResult:
     """Result from a vision provider analysis."""
-    application: str = ""           # detected application name
-    screen_description: str = ""    # natural language description
-    objects: List[DetectedObject] = field(default_factory=list)
+
+    application: str = ""  # detected application name
+    screen_description: str = ""  # natural language description
+    objects: list[DetectedObject] = field(default_factory=list)
     layout: dict = field(default_factory=dict)  # layout structure
-    text_content: str = ""          # extracted text
-    raw_response: str = ""          # raw model response
-    provider: str = ""              # which provider was used
-    model: str = ""                 # which model was used
+    text_content: str = ""  # extracted text
+    raw_response: str = ""  # raw model response
+    provider: str = ""  # which provider was used
+    model: str = ""  # which model was used
     duration_ms: float = 0.0
     timestamp: float = field(default_factory=time.time)
     success: bool = True
@@ -80,14 +81,15 @@ class VisionResult:
         """Find objects matching a natural language query."""
         query_lower = query.lower()
         return [
-            obj for obj in self.objects
+            obj
+            for obj in self.objects
             if query_lower in obj.type.lower()
             or query_lower in obj.name.lower()
             or query_lower in obj.description.lower()
             or query_lower in obj.color.lower()
         ]
 
-    def find_best_match(self, query: str) -> Optional[DetectedObject]:
+    def find_best_match(self, query: str) -> DetectedObject | None:
         """Find the single best matching object."""
         matches = self.find_objects(query)
         if not matches:

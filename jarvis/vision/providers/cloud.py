@@ -6,16 +6,15 @@ Supports:
 """
 
 import asyncio
+import base64
 import json
 import logging
 import os
 import time
-import base64
-from typing import Optional
 
 from jarvis.core.reliability import config as reliability_config
 
-from .base import VisionProvider, VisionResult, DetectedObject
+from .base import DetectedObject, VisionProvider, VisionResult
 
 log = logging.getLogger("jarvis.vision.providers.cloud")
 
@@ -72,7 +71,7 @@ class CloudVisionProvider(VisionProvider):
             return {
                 "ok": False,
                 "error": f"No API key for {self._provider_name}. "
-                         f"Set {'NVIDIA_API_KEY' if self._provider_name == 'nvidia' else 'OPENAI_API_KEY'}.",
+                f"Set {'NVIDIA_API_KEY' if self._provider_name == 'nvidia' else 'OPENAI_API_KEY'}.",
             }
 
         self._initialized = True
@@ -96,15 +95,23 @@ class CloudVisionProvider(VisionProvider):
         auth_header = f"Bearer {self._api_key}"
 
         proc = await asyncio.create_subprocess_exec(
-            "curl", "-s", "-X", "POST",
+            "curl",
+            "-s",
+            "-X",
+            "POST",
             f"{self._base_url}/chat/completions",
-            "-H", "Content-Type: application/json",
-            "-H", f"Authorization: {auth_header}",
-            "-d", payload_json,
+            "-H",
+            "Content-Type: application/json",
+            "-H",
+            f"Authorization: {auth_header}",
+            "-d",
+            payload_json,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.llm_timeout)
+        stdout, _ = await asyncio.wait_for(
+            proc.communicate(), timeout=reliability_config.llm_timeout
+        )
         return json.loads(stdout.decode())
 
     async def analyze_image(
@@ -122,14 +129,18 @@ class CloudVisionProvider(VisionProvider):
                     image_base64 = base64.b64encode(f.read()).decode()
             except Exception as e:
                 return VisionResult(
-                    success=False, error=f"Failed to read image: {e}",
-                    provider=self.name, model=self._model,
+                    success=False,
+                    error=f"Failed to read image: {e}",
+                    provider=self.name,
+                    model=self._model,
                 )
 
         if not image_base64:
             return VisionResult(
-                success=False, error="No image provided",
-                provider=self.name, model=self._model,
+                success=False,
+                error="No image provided",
+                provider=self.name,
+                model=self._model,
             )
 
         prompt = prompt or (
@@ -170,20 +181,25 @@ class CloudVisionProvider(VisionProvider):
             return VisionResult(
                 success=False,
                 error=error.get("message", str(response)),
-                provider=self.name, model=self._model,
+                provider=self.name,
+                model=self._model,
                 duration_ms=duration,
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return VisionResult(
-                success=False, error="Cloud API request timed out",
-                provider=self.name, model=self._model,
+                success=False,
+                error="Cloud API request timed out",
+                provider=self.name,
+                model=self._model,
                 duration_ms=(time.time() - start) * 1000,
             )
         except Exception as e:
             return VisionResult(
-                success=False, error=str(e),
-                provider=self.name, model=self._model,
+                success=False,
+                error=str(e),
+                provider=self.name,
+                model=self._model,
                 duration_ms=(time.time() - start) * 1000,
             )
 
@@ -192,7 +208,7 @@ class CloudVisionProvider(VisionProvider):
         result = await self.analyze_image(
             image_path=image_path,
             prompt="Describe what you see on this screen in 2-3 sentences. "
-                   "Include the application name, main content, and any notable UI elements.",
+            "Include the application name, main content, and any notable UI elements.",
         )
         return result.screen_description or result.raw_response
 
@@ -201,8 +217,8 @@ class CloudVisionProvider(VisionProvider):
         result = await self.analyze_image(
             image_path=image_path,
             prompt=f'Find all UI elements matching "{query}" in this screenshot. '
-                   "Return a JSON array of objects with type, name, x, y, width, height, confidence. "
-                   "Return ONLY the JSON array, no markdown.",
+            "Return a JSON array of objects with type, name, x, y, width, height, confidence. "
+            "Return ONLY the JSON array, no markdown.",
         )
         return result.objects
 
@@ -235,7 +251,8 @@ class CloudVisionProvider(VisionProvider):
             data = json.loads(text)
         except json.JSONDecodeError:
             import re
-            json_match = re.search(r'\{[\s\S]*\}', text)
+
+            json_match = re.search(r"\{[\s\S]*\}", text)
             if json_match:
                 try:
                     data = json.loads(json_match.group())
@@ -255,17 +272,19 @@ class CloudVisionProvider(VisionProvider):
         if isinstance(objects_raw, list):
             for obj in objects_raw:
                 if isinstance(obj, dict):
-                    result.objects.append(DetectedObject(
-                        type=obj.get("type", "unknown"),
-                        name=obj.get("name", ""),
-                        x=int(obj.get("x", 0)),
-                        y=int(obj.get("y", 0)),
-                        width=int(obj.get("width", 0)),
-                        height=int(obj.get("height", 0)),
-                        confidence=float(obj.get("confidence", 0.5)),
-                        description=obj.get("description", ""),
-                        color=obj.get("color", ""),
-                        state=obj.get("state", ""),
-                    ))
+                    result.objects.append(
+                        DetectedObject(
+                            type=obj.get("type", "unknown"),
+                            name=obj.get("name", ""),
+                            x=int(obj.get("x", 0)),
+                            y=int(obj.get("y", 0)),
+                            width=int(obj.get("width", 0)),
+                            height=int(obj.get("height", 0)),
+                            confidence=float(obj.get("confidence", 0.5)),
+                            description=obj.get("description", ""),
+                            color=obj.get("color", ""),
+                            state=obj.get("state", ""),
+                        )
+                    )
 
         return result

@@ -1,24 +1,24 @@
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import asyncio
 import time
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from jarvis.brain.core.models import BrainContext, MemoryEntry, ReasoningResult, ActionDecision
+from jarvis.brain.core.brain import JARVISBrain
 from jarvis.brain.core.context import BrainContextManager
 from jarvis.brain.core.memory import MemoryManager
+from jarvis.brain.core.models import ActionDecision, BrainContext, MemoryEntry, ReasoningResult
 from jarvis.brain.core.reasoning import ReasoningEngine
-from jarvis.brain.core.decision import BrainDecisionEngine
-from jarvis.brain.core.brain import JARVISBrain
 
-
-loop = asyncio.get_event_loop()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 
 # ── BrainContext ──────────────────────────────────────────────────────────────
+
 
 class TestBrainContext:
     def test_create_default(self):
@@ -67,7 +67,7 @@ class TestBrainContext:
         prefs = {f"key{i}": f"val{i}" for i in range(10)}
         ctx = BrainContext(user_preferences=prefs, confidence=0.5)
         text = ctx.to_prompt_context()
-        lines = [l.strip() for l in text.split("\n") if l.strip().startswith("-")]
+        lines = [line.strip() for line in text.split("\n") if line.strip().startswith("-")]
         assert len(lines) <= 6  # max 5 prefs + possible memory/decision lines
 
     def test_timestamp_auto_set(self):
@@ -78,6 +78,7 @@ class TestBrainContext:
 
 
 # ── MemoryEntry ───────────────────────────────────────────────────────────────
+
 
 class TestMemoryEntry:
     def test_create_default(self):
@@ -121,6 +122,7 @@ class TestMemoryEntry:
 
 # ── ReasoningResult ───────────────────────────────────────────────────────────
 
+
 class TestReasoningResult:
     def test_create_default(self):
         r = ReasoningResult()
@@ -159,6 +161,7 @@ class TestReasoningResult:
 
 # ── ActionDecision ────────────────────────────────────────────────────────────
 
+
 class TestActionDecision:
     def test_create_default(self):
         a = ActionDecision()
@@ -195,6 +198,7 @@ class TestActionDecision:
 
 
 # ── BrainContextManager ───────────────────────────────────────────────────────
+
 
 class TestBrainContextManager:
     def test_create_default(self):
@@ -242,6 +246,7 @@ class TestBrainContextManager:
 
 # ── MemoryManager ─────────────────────────────────────────────────────────────
 
+
 class TestMemoryManager:
     def test_create_default(self):
         mgr = MemoryManager()
@@ -249,18 +254,14 @@ class TestMemoryManager:
 
     def test_remember(self):
         mgr = MemoryManager()
-        entry = loop.run_until_complete(
-            mgr.remember("robot uses 6 DOF", memory_type="fact")
-        )
+        entry = loop.run_until_complete(mgr.remember("robot uses 6 DOF", memory_type="fact"))
         assert entry.content == "robot uses 6 DOF"
         assert entry.memory_type == "fact"
         assert entry.id in mgr._memories
 
     def test_remember_with_metadata(self):
         mgr = MemoryManager()
-        entry = loop.run_until_complete(
-            mgr.remember("test", metadata={"key": "val"})
-        )
+        entry = loop.run_until_complete(mgr.remember("test", metadata={"key": "val"}))
         assert entry.metadata == {"key": "val"}
 
     def test_recall_local(self):
@@ -281,12 +282,8 @@ class TestMemoryManager:
 
     def test_recall_sorted_by_confidence(self):
         mgr = MemoryManager()
-        e1 = loop.run_until_complete(
-            mgr.remember("robot arm v1", memory_type="fact")
-        )
-        e2 = loop.run_until_complete(
-            mgr.remember("robot arm v2", memory_type="fact")
-        )
+        e1 = loop.run_until_complete(mgr.remember("robot arm v1", memory_type="fact"))
+        e2 = loop.run_until_complete(mgr.remember("robot arm v2", memory_type="fact"))
         mgr._memories[e1.id].confidence = 0.5
         mgr._memories[e2.id].confidence = 0.99
         results = loop.run_until_complete(mgr.recall("robot arm"))
@@ -330,6 +327,7 @@ class TestMemoryManager:
 
 
 # ── ReasoningEngine ───────────────────────────────────────────────────────────
+
 
 class TestReasoningEngine:
     def test_create_default(self):
@@ -412,6 +410,7 @@ class TestReasoningEngine:
 
 # ── JARVISBrain ───────────────────────────────────────────────────────────────
 
+
 class TestJARVISBrain:
     def test_create_default(self):
         brain = JARVISBrain()
@@ -442,10 +441,14 @@ class TestJARVISBrain:
         brain = JARVISBrain()
         ctx = loop.run_until_complete(brain.think("ship it"))
         decision = loop.run_until_complete(
-            brain.decide("ship it", ctx, options=[
-                {"action": "deploy now", "reason": "all good"},
-                {"action": "wait", "reason": "more tests"},
-            ])
+            brain.decide(
+                "ship it",
+                ctx,
+                options=[
+                    {"action": "deploy now", "reason": "all good"},
+                    {"action": "wait", "reason": "more tests"},
+                ],
+            )
         )
         assert decision.action != ""
         assert decision.confidence > 0

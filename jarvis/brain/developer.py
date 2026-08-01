@@ -5,16 +5,18 @@ for development and troubleshooting.
 """
 
 import os
-import time
 import sys
+import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
+
 from loguru import logger
 
 
 @dataclass
 class FeatureFlag:
     """A feature flag with toggle capability."""
+
     name: str
     enabled: bool = True
     description: str = ""
@@ -62,7 +64,7 @@ class DeveloperMode:
         flag = self._flags.get(flag_name)
         return flag.enabled if flag else True  # default to enabled
 
-    def toggle(self, flag_name: str) -> Optional[FeatureFlag]:
+    def toggle(self, flag_name: str) -> FeatureFlag | None:
         """Toggle a feature flag."""
         flag = self._flags.get(flag_name)
         if flag:
@@ -113,13 +115,13 @@ class DeveloperMode:
         # Event Bus state
         try:
             from jarvis.core.events import event_bus
+
             state["event_bus"] = event_bus.get_stats()
         except Exception:
             state["event_bus"] = {"error": "not initialized"}
 
         # Capability Registry state
         try:
-            from jarvis.core.capabilities import registry
             state["capabilities"] = {"status": "available"}
         except Exception:
             state["capabilities"] = {"error": "not initialized"}
@@ -127,6 +129,7 @@ class DeveloperMode:
         # Memory Provider state
         try:
             from jarvis.brain.memory_provider import get_memory
+
             mem = get_memory()
             state["memory"] = {
                 "provider": type(mem).__name__,
@@ -140,8 +143,13 @@ class DeveloperMode:
     def get_env(self) -> dict:
         """Get relevant environment variables (sanitized)."""
         safe_keys = [
-            "JARVIS_DEV_MODE", "VIEW_MODE", "CHAT_MODE",
-            "NVIDIA_MODEL", "DB_PATH", "HOST", "PORT",
+            "JARVIS_DEV_MODE",
+            "VIEW_MODE",
+            "CHAT_MODE",
+            "NVIDIA_MODEL",
+            "DB_PATH",
+            "HOST",
+            "PORT",
         ]
         return {k: os.getenv(k, "not set") for k in safe_keys}
 

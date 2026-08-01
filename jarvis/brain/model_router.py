@@ -5,14 +5,15 @@ and historical success rates. Integrates with the Capability Registry.
 """
 
 import time
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional
+from enum import StrEnum
+
 from loguru import logger
 
 
-class TaskType(str, Enum):
+class TaskType(StrEnum):
     """Classification of task types for routing."""
+
     CODING = "coding"
     REASONING = "reasoning"
     WRITING = "writing"
@@ -27,6 +28,7 @@ class TaskType(str, Enum):
 @dataclass
 class ModelProfile:
     """Profile for an available model."""
+
     model_id: str
     display_name: str
     api_base: str
@@ -45,17 +47,19 @@ class ModelProfile:
     _ewma_latency: float = 0.0
 
     # Task affinity (higher = better for this task type)
-    task_affinity: dict = field(default_factory=lambda: {
-        TaskType.CODING: 0.5,
-        TaskType.REASONING: 0.5,
-        TaskType.WRITING: 0.5,
-        TaskType.ANALYSIS: 0.5,
-        TaskType.SEARCH: 0.5,
-        TaskType.CASUAL: 0.5,
-        TaskType.TOOL_USE: 0.5,
-        TaskType.PLANNING: 0.5,
-        TaskType.CREATIVE: 0.5,
-    })
+    task_affinity: dict = field(
+        default_factory=lambda: {
+            TaskType.CODING: 0.5,
+            TaskType.REASONING: 0.5,
+            TaskType.WRITING: 0.5,
+            TaskType.ANALYSIS: 0.5,
+            TaskType.SEARCH: 0.5,
+            TaskType.CASUAL: 0.5,
+            TaskType.TOOL_USE: 0.5,
+            TaskType.PLANNING: 0.5,
+            TaskType.CREATIVE: 0.5,
+        }
+    )
 
     def record_call(self, latency_ms: float, success: bool):
         """Record a call and update EWMA metrics."""
@@ -99,7 +103,7 @@ class ModelRouter:
         self._models[profile.model_id] = profile
         logger.info(f"Model registered: {profile.display_name}")
 
-    def get(self, model_id: str) -> Optional[ModelProfile]:
+    def get(self, model_id: str) -> ModelProfile | None:
         return self._models.get(model_id)
 
     def list_models(self) -> list[ModelProfile]:
@@ -110,24 +114,90 @@ class ModelRouter:
         lower = task_description.lower()
 
         # Code-related keywords
-        code_kw = ["code", "function", "class", "bug", "debug", "refactor",
-                    "implement", "script", "python", "javascript", "typescript",
-                    "api", "endpoint", "sql", "database", "test", "compile",
-                    "error", "traceback", "import", "variable", "loop"]
+        code_kw = [
+            "code",
+            "function",
+            "class",
+            "bug",
+            "debug",
+            "refactor",
+            "implement",
+            "script",
+            "python",
+            "javascript",
+            "typescript",
+            "api",
+            "endpoint",
+            "sql",
+            "database",
+            "test",
+            "compile",
+            "error",
+            "traceback",
+            "import",
+            "variable",
+            "loop",
+        ]
         # Reasoning keywords
-        reason_kw = ["why", "how does", "explain", "analyze", "reason",
-                     "compare", "evaluate", "trade-off", " pros", "cons",
-                     "architecture", "design decision"]
+        reason_kw = [
+            "why",
+            "how does",
+            "explain",
+            "analyze",
+            "reason",
+            "compare",
+            "evaluate",
+            "trade-off",
+            " pros",
+            "cons",
+            "architecture",
+            "design decision",
+        ]
         # Writing keywords
-        write_kw = ["write", "draft", "compose", "email", "letter", "essay",
-                    "summarize", "rewrite", "edit", "proofread", "blog"]
+        write_kw = [
+            "write",
+            "draft",
+            "compose",
+            "email",
+            "letter",
+            "essay",
+            "summarize",
+            "rewrite",
+            "edit",
+            "proofread",
+            "blog",
+        ]
         # Planning keywords
-        plan_kw = ["plan", "roadmap", "phase", "milestone", "schedule",
-                   "next steps", "prioritize", "strategy", "timeline"]
+        plan_kw = [
+            "plan",
+            "roadmap",
+            "phase",
+            "milestone",
+            "schedule",
+            "next steps",
+            "prioritize",
+            "strategy",
+            "timeline",
+        ]
         # Tool/execution keywords
-        tool_kw = ["open", "run", "execute", "launch", "start", "stop",
-                   "install", "search", "navigate", "click", "type", "scroll",
-                   "screenshot", "screen", "browser", "terminal"]
+        tool_kw = [
+            "open",
+            "run",
+            "execute",
+            "launch",
+            "start",
+            "stop",
+            "install",
+            "search",
+            "navigate",
+            "click",
+            "type",
+            "scroll",
+            "screenshot",
+            "screen",
+            "browser",
+            "terminal",
+        ]
 
         scores = {
             TaskType.CODING: sum(1 for kw in code_kw if kw in lower),
@@ -145,11 +215,11 @@ class ModelRouter:
 
     def route(
         self,
-        task_type: Optional[TaskType] = None,
+        task_type: TaskType | None = None,
         task_description: str = "",
         prefer_low_cost: bool = False,
         require_tools: bool = False,
-    ) -> Optional[ModelProfile]:
+    ) -> ModelProfile | None:
         """Find the best model for a task.
 
         Scoring: task_affinity * 40% + success_rate * 30% + (1/latency) * 15% + (1/cost) * 15%
@@ -174,26 +244,27 @@ class ModelRouter:
                 cost_score *= 1.5
 
             score = (
-                affinity * 0.40
-                + m.success_rate * 0.30
-                + latency_score * 0.15
-                + cost_score * 0.15
+                affinity * 0.40 + m.success_rate * 0.30 + latency_score * 0.15 + cost_score * 0.15
             )
             scored.append((m, score))
 
         scored.sort(key=lambda x: x[1], reverse=True)
         best_model, best_score = scored[0]
 
-        self._routing_history.append({
-            "model": best_model.model_id,
-            "task_type": task_type.value if task_type else "unknown",
-            "score": round(best_score, 3),
-            "timestamp": time.time(),
-        })
+        self._routing_history.append(
+            {
+                "model": best_model.model_id,
+                "task_type": task_type.value if task_type else "unknown",
+                "score": round(best_score, 3),
+                "timestamp": time.time(),
+            }
+        )
         if len(self._routing_history) > self._max_history:
-            self._routing_history = self._routing_history[-self._max_history:]
+            self._routing_history = self._routing_history[-self._max_history :]
 
-        logger.info(f"Routed to {best_model.display_name} (score={best_score:.3f}, type={task_type})")
+        logger.info(
+            f"Routed to {best_model.display_name} (score={best_score:.3f}, type={task_type})"
+        )
         return best_model
 
     def record_outcome(self, model_id: str, latency_ms: float, success: bool):
@@ -225,50 +296,55 @@ router = ModelRouter()
 def _register_defaults():
     """Register default models from config."""
     from ..core.config import get_config
+
     config = get_config()
 
     if config.nvidia_api_key:
-        router.register(ModelProfile(
-            model_id="llama-3.1-8b",
-            display_name="Llama 3.1 8B (NVIDIA)",
-            api_base=config.nvidia_api_base,
-            api_key=config.nvidia_api_key,
-            cost_per_1k_tokens=0.0,  # Free tier
+        router.register(
+            ModelProfile(
+                model_id="llama-3.1-8b",
+                display_name="Llama 3.1 8B (NVIDIA)",
+                api_base=config.nvidia_api_base,
+                api_key=config.nvidia_api_key,
+                cost_per_1k_tokens=0.0,  # Free tier
+                max_tokens=4096,
+                context_window=8192,
+                task_affinity={
+                    TaskType.CODING: 0.6,
+                    TaskType.REASONING: 0.5,
+                    TaskType.WRITING: 0.7,
+                    TaskType.ANALYSIS: 0.5,
+                    TaskType.SEARCH: 0.4,
+                    TaskType.CASUAL: 0.8,
+                    TaskType.TOOL_USE: 0.5,
+                    TaskType.PLANNING: 0.4,
+                    TaskType.CREATIVE: 0.6,
+                },
+            )
+        )
+
+    # Ollama fallback
+    router.register(
+        ModelProfile(
+            model_id="ollama-llama3.2",
+            display_name="Llama 3.2 (Ollama Local)",
+            api_base="http://localhost:11434/v1",
+            cost_per_1k_tokens=0.0,
             max_tokens=4096,
             context_window=8192,
             task_affinity={
-                TaskType.CODING: 0.6,
-                TaskType.REASONING: 0.5,
-                TaskType.WRITING: 0.7,
-                TaskType.ANALYSIS: 0.5,
-                TaskType.SEARCH: 0.4,
-                TaskType.CASUAL: 0.8,
-                TaskType.TOOL_USE: 0.5,
-                TaskType.PLANNING: 0.4,
-                TaskType.CREATIVE: 0.6,
+                TaskType.CODING: 0.5,
+                TaskType.REASONING: 0.4,
+                TaskType.WRITING: 0.6,
+                TaskType.ANALYSIS: 0.4,
+                TaskType.SEARCH: 0.3,
+                TaskType.CASUAL: 0.7,
+                TaskType.TOOL_USE: 0.4,
+                TaskType.PLANNING: 0.3,
+                TaskType.CREATIVE: 0.5,
             },
-        ))
-
-    # Ollama fallback
-    router.register(ModelProfile(
-        model_id="ollama-llama3.2",
-        display_name="Llama 3.2 (Ollama Local)",
-        api_base="http://localhost:11434/v1",
-        cost_per_1k_tokens=0.0,
-        max_tokens=4096,
-        context_window=8192,
-        task_affinity={
-            TaskType.CODING: 0.5,
-            TaskType.REASONING: 0.4,
-            TaskType.WRITING: 0.6,
-            TaskType.ANALYSIS: 0.4,
-            TaskType.SEARCH: 0.3,
-            TaskType.CASUAL: 0.7,
-            TaskType.TOOL_USE: 0.4,
-            TaskType.PLANNING: 0.3,
-            TaskType.CREATIVE: 0.5,
-        },
-    ))
+        )
+    )
 
 
 # Auto-register on import

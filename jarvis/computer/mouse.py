@@ -1,13 +1,14 @@
 """Mouse and keyboard control via native macOS commands."""
+
 import asyncio
 import shlex
-import subprocess
-from typing import Optional
 
 _SUBPROCESS_TIMEOUT = 10  # seconds
 
 
-async def _run_subprocess(cmd: list[str], timeout: float = _SUBPROCESS_TIMEOUT) -> tuple[bytes, bytes]:
+async def _run_subprocess(
+    cmd: list[str], timeout: float = _SUBPROCESS_TIMEOUT
+) -> tuple[bytes, bytes]:
     """Run a subprocess with timeout. Returns (stdout, stderr)."""
     proc = await asyncio.create_subprocess_exec(
         *cmd,
@@ -17,7 +18,7 @@ async def _run_subprocess(cmd: list[str], timeout: float = _SUBPROCESS_TIMEOUT) 
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         return stdout, stderr
-    except asyncio.TimeoutError:
+    except TimeoutError:
         proc.kill()
         await proc.wait()
         raise TimeoutError(f"Command timed out after {timeout}s: {cmd[0]}")
@@ -34,7 +35,7 @@ class MouseController:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    async def click(self, x: Optional[int] = None, y: Optional[int] = None, button: str = "left") -> dict:
+    async def click(self, x: int | None = None, y: int | None = None, button: str = "left") -> dict:
         try:
             if x is not None and y is not None:
                 await self.move(x, y)
@@ -55,7 +56,6 @@ class MouseController:
         """Type text using clipboard paste (works with all characters)."""
         try:
             # Use pbcopy + Cmd+V for reliable typing
-            safe_text = text.replace("'", "'\\''")
             await _run_subprocess(["bash", "-c", f"printf %s {shlex.quote(text)} | pbcopy"])
             await asyncio.sleep(0.05)
 
@@ -89,7 +89,9 @@ class MouseController:
 
             if modifiers:
                 mod_str = " & ".join(modifiers)
-                script = f'tell application "System Events" to keystroke "{key}" using {{{mod_str}}}'
+                script = (
+                    f'tell application "System Events" to keystroke "{key}" using {{{mod_str}}}'
+                )
             else:
                 script = f'tell application "System Events" to keystroke "{key}"'
 
@@ -104,13 +106,21 @@ class MouseController:
         """Press a special key (return, tab, escape, delete, etc.)."""
         try:
             key_map = {
-                "enter": "return", "return": "return",
-                "tab": "tab", "escape": "escape",
-                "delete": "delete", "backspace": "delete",
-                "up": "up arrow", "down": "down arrow",
-                "left": "left arrow", "right": "right arrow",
-                "space": "space", "home": "home", "end": "end",
-                "pageup": "page up", "pagedown": "page down",
+                "enter": "return",
+                "return": "return",
+                "tab": "tab",
+                "escape": "escape",
+                "delete": "delete",
+                "backspace": "delete",
+                "up": "up arrow",
+                "down": "down arrow",
+                "left": "left arrow",
+                "right": "right arrow",
+                "space": "space",
+                "home": "home",
+                "end": "end",
+                "pageup": "page up",
+                "pagedown": "page down",
             }
             mapped = key_map.get(key.lower(), key)
             script = f'tell application "System Events" to key code {self._key_code(mapped)}'
@@ -121,12 +131,19 @@ class MouseController:
 
     def _key_code(self, key: str) -> int:
         codes = {
-            "return": 36, "tab": 48, "escape": 53,
-            "delete": 51, "space": 49,
-            "up arrow": 126, "down arrow": 125,
-            "left arrow": 123, "right arrow": 124,
-            "home": 115, "end": 119,
-            "page up": 116, "page down": 121,
+            "return": 36,
+            "tab": 48,
+            "escape": 53,
+            "delete": 51,
+            "space": 49,
+            "up arrow": 126,
+            "down arrow": 125,
+            "left arrow": 123,
+            "right arrow": 124,
+            "home": 115,
+            "end": 119,
+            "page up": 116,
+            "page down": 121,
         }
         return codes.get(key, 0)
 
@@ -141,12 +158,12 @@ class MouseController:
 
     async def get_mouse_position(self) -> dict:
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set pos to position of mouse
                 return item 1 of pos & "," & item 2 of pos
             end tell
-            '''
+            """
             stdout, _ = await _run_subprocess(["osascript", "-e", script])
             pos = stdout.decode().strip().split(",")
             return {"ok": True, "x": int(pos[0]), "y": int(pos[1])}
@@ -155,12 +172,12 @@ class MouseController:
 
     async def get_screen_size(self) -> dict:
         try:
-            script = '''
+            script = """
             tell application "Finder"
                 set screenBounds to bounds of window of desktop
                 return item 3 of screenBounds & "," & item 4 of screenBounds
             end tell
-            '''
+            """
             stdout, _ = await _run_subprocess(["osascript", "-e", script])
             size = stdout.decode().strip().split(",")
             return {"ok": True, "width": int(size[0]), "height": int(size[1])}

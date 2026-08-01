@@ -1,8 +1,6 @@
 """Web search via DuckDuckGo or Google."""
-import asyncio
-import json
+
 import urllib.parse
-from typing import Optional
 
 import aiohttp
 
@@ -18,16 +16,23 @@ class WebSearch:
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
             }
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                async with session.get(
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=15)
+                ) as resp:
                     html = await resp.text()
 
             results = []
             import re
+
             # Parse HTML results
-            blocks = re.findall(r'class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)</a>.*?class="result__snippet"[^>]*>(.*?)</span>', html, re.DOTALL)
+            blocks = re.findall(
+                r'class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)</a>.*?class="result__snippet"[^>]*>(.*?)</span>',
+                html,
+                re.DOTALL,
+            )
             for href, title, snippet in blocks[:max_results]:
-                title = re.sub(r'<[^>]+>', '', title).strip()
-                snippet = re.sub(r'<[^>]+>', '', snippet).strip()
+                title = re.sub(r"<[^>]+>", "", title).strip()
+                snippet = re.sub(r"<[^>]+>", "", snippet).strip()
                 # DuckDuckGo wraps URLs in a redirect
                 if "uddg=" in href:
                     href = urllib.parse.unquote(href.split("uddg=")[1].split("&")[0])
@@ -50,22 +55,30 @@ class WebSearch:
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
             }
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=20)) as resp:
+                async with session.get(
+                    url, headers=headers, timeout=aiohttp.ClientTimeout(total=20)
+                ) as resp:
                     if resp.status != 200:
                         return {"ok": False, "error": f"HTTP {resp.status}"}
                     html = await resp.text()
 
             # Simple HTML to text extraction
             import re
+
             # Remove scripts and styles
-            html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
-            html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL)
+            html = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL)
+            html = re.sub(r"<style[^>]*>.*?</style>", "", html, flags=re.DOTALL)
             # Remove HTML tags
-            text = re.sub(r'<[^>]+>', ' ', html)
+            text = re.sub(r"<[^>]+>", " ", html)
             # Collapse whitespace
-            text = re.sub(r'\s+', ' ', text).strip()
+            text = re.sub(r"\s+", " ", text).strip()
             # Decode entities
-            text = text.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>').replace('&quot;', '"')
+            text = (
+                text.replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", '"')
+            )
 
             return {"ok": True, "text": text[:max_chars], "url": url, "length": len(text)}
         except Exception as e:

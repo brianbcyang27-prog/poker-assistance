@@ -6,13 +6,14 @@ and pre-warm agents or queue micro-tasks to reduce perceived latency.
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+
 from loguru import logger
 
 
 @dataclass
 class SpeculativeTask:
     """A predicted follow-up task."""
+
     task_type: str
     description: str
     confidence: float  # 0-1 how likely this follow-up is
@@ -27,31 +28,96 @@ class SpeculativePlanner:
     # Pattern: task_type -> likely follow-ups
     PREDICTION_PATTERNS = {
         "code_review": [
-            {"type": "write_tests", "desc": "Write tests for the reviewed code", "confidence": 0.7, "worker": "♠3"},
-            {"type": "refactor", "desc": "Refactor based on review feedback", "confidence": 0.4, "worker": "♠4"},
+            {
+                "type": "write_tests",
+                "desc": "Write tests for the reviewed code",
+                "confidence": 0.7,
+                "worker": "♠3",
+            },
+            {
+                "type": "refactor",
+                "desc": "Refactor based on review feedback",
+                "confidence": 0.4,
+                "worker": "♠4",
+            },
         ],
         "write_code": [
-            {"type": "code_review", "desc": "Review the written code", "confidence": 0.8, "worker": "♠5"},
-            {"type": "write_tests", "desc": "Write tests for the new code", "confidence": 0.6, "worker": "♠3"},
+            {
+                "type": "code_review",
+                "desc": "Review the written code",
+                "confidence": 0.8,
+                "worker": "♠5",
+            },
+            {
+                "type": "write_tests",
+                "desc": "Write tests for the new code",
+                "confidence": 0.6,
+                "worker": "♠3",
+            },
         ],
         "web_search": [
-            {"type": "summarize", "desc": "Summarize search results", "confidence": 0.9, "worker": "♦2"},
-            {"type": "fact_check", "desc": "Fact-check key claims", "confidence": 0.5, "worker": "♦4"},
+            {
+                "type": "summarize",
+                "desc": "Summarize search results",
+                "confidence": 0.9,
+                "worker": "♦2",
+            },
+            {
+                "type": "fact_check",
+                "desc": "Fact-check key claims",
+                "confidence": 0.5,
+                "worker": "♦4",
+            },
         ],
         "screen_capture": [
-            {"type": "analyze_image", "desc": "Analyze the screenshot content", "confidence": 0.7, "worker": "♣3"},
-            {"type": "extract_text", "desc": "Extract text from screenshot", "confidence": 0.6, "worker": "♣4"},
+            {
+                "type": "analyze_image",
+                "desc": "Analyze the screenshot content",
+                "confidence": 0.7,
+                "worker": "♣3",
+            },
+            {
+                "type": "extract_text",
+                "desc": "Extract text from screenshot",
+                "confidence": 0.6,
+                "worker": "♣4",
+            },
         ],
         "browser_navigate": [
-            {"type": "browser_interact", "desc": "Interact with the loaded page", "confidence": 0.8, "worker": "♣3"},
-            {"type": "browser_screenshot", "desc": "Screenshot the page", "confidence": 0.5, "worker": "♣4"},
+            {
+                "type": "browser_interact",
+                "desc": "Interact with the loaded page",
+                "confidence": 0.8,
+                "worker": "♣3",
+            },
+            {
+                "type": "browser_screenshot",
+                "desc": "Screenshot the page",
+                "confidence": 0.5,
+                "worker": "♣4",
+            },
         ],
         "shell_execute": [
-            {"type": "analyze_output", "desc": "Analyze command output", "confidence": 0.6, "worker": "♣5"},
+            {
+                "type": "analyze_output",
+                "desc": "Analyze command output",
+                "confidence": 0.6,
+                "worker": "♣5",
+            },
         ],
         "resume_project": [
-            {"type": "check_status", "desc": "Check project status and recent changes", "confidence": 0.9, "worker": "♣6"},
-            {"type": "run_project", "desc": "Start the project server", "confidence": 0.7, "worker": "♣6"},
+            {
+                "type": "check_status",
+                "desc": "Check project status and recent changes",
+                "confidence": 0.9,
+                "worker": "♣6",
+            },
+            {
+                "type": "run_project",
+                "desc": "Start the project server",
+                "confidence": 0.7,
+                "worker": "♣6",
+            },
         ],
     }
 
@@ -77,10 +143,12 @@ class SpeculativePlanner:
 
         # Trim old predictions
         if len(self._predictions) > self._max_predictions:
-            self._predictions = self._predictions[-self._max_predictions:]
+            self._predictions = self._predictions[-self._max_predictions :]
 
         if predictions:
-            logger.info(f"Speculative: predicted {len(predictions)} follow-ups for '{completed_task_type}'")
+            logger.info(
+                f"Speculative: predicted {len(predictions)} follow-ups for '{completed_task_type}'"
+            )
         return predictions
 
     def confirm(self, task_type: str):

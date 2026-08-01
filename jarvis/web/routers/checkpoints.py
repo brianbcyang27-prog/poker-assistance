@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 
 from jarvis.core.checkpoint import checkpoint_manager
 
@@ -11,7 +10,7 @@ router = APIRouter(prefix="/api/checkpoints", tags=["checkpoints"])
 
 class FileCheckpointRequest(BaseModel):
     file_path: str
-    description: Optional[str] = ""
+    description: str | None = ""
 
 
 class RestoreRequest(BaseModel):
@@ -42,7 +41,7 @@ async def restore_file_checkpoint(req: RestoreRequest):
 class MissionCheckpointRequest(BaseModel):
     mission_id: str
     state: dict
-    description: Optional[str] = ""
+    description: str | None = ""
 
 
 @router.post("/mission")
@@ -66,7 +65,7 @@ async def restore_mission_checkpoint(req: RestoreRequest):
 
 
 @router.get("")
-async def list_checkpoints(type: Optional[str] = None, limit: int = 50):
+async def list_checkpoints(type: str | None = None, limit: int = 50):
     """List checkpoints."""
     cps = checkpoint_manager.list_checkpoints(type_filter=type, limit=limit)
     return {"checkpoints": [cp.to_dict() for cp in cps]}

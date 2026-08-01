@@ -7,13 +7,13 @@ profile = ApplicationProfile(
     bundle_id="com.apple.Terminal",
     executable="Terminal",
     category="terminal",
-
     common_buttons=[
-        "New Window", "New Tab", "Close Window", "Close Tab",
+        "New Window",
+        "New Tab",
+        "Close Window",
+        "Close Tab",
     ],
-
     common_menus=["Shell", "Edit", "View", "Window", "Help"],
-
     common_shortcuts={
         "new_window": "Cmd+N",
         "new_tab": "Cmd+T",
@@ -28,7 +28,6 @@ profile = ApplicationProfile(
         "split_pane_horizontal": "Shift+Cmd+D",
         "toggle_fullscreen": "Cmd+Enter",
     },
-
     workflows={
         "run_command": ["Type command in active terminal", "Press Enter"],
         "open_new_tab": ["Cmd+T"],
@@ -36,7 +35,6 @@ profile = ApplicationProfile(
         "list_files": ["Type 'ls -la'", "Press Enter"],
         "search_output": ["Cmd+F", "Type search term"],
     },
-
     interaction_notes=(
         "Terminal is a plain text interface — no clickable UI elements beyond the menu bar. "
         "All interaction is via keyboard input to the shell prompt. "

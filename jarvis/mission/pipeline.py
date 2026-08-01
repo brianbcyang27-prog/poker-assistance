@@ -19,7 +19,9 @@ import logging
 from datetime import datetime
 
 from .mission import (
-    Mission, MissionStatus, MissionStage,
+    Mission,
+    MissionStage,
+    MissionStatus,
 )
 
 log = logging.getLogger("jarvis.mission")
@@ -125,7 +127,9 @@ class MissionPipeline:
         finally:
             mission.completed_at = datetime.now()
             if mission.started_at:
-                mission.duration_ms = (mission.completed_at - mission.started_at).total_seconds() * 1000
+                mission.duration_ms = (
+                    mission.completed_at - mission.started_at
+                ).total_seconds() * 1000
 
         return mission
 
@@ -137,7 +141,7 @@ class MissionPipeline:
         mission.goal = mission.user_request
 
         # Extract key aspects
-        if self.research_engine and hasattr(self.research_engine, 'understand_goal'):
+        if self.research_engine and hasattr(self.research_engine, "understand_goal"):
             understanding = await self.research_engine.understand_goal(mission.user_request)
             mission.goal = understanding.get("goal", mission.user_request)
 
@@ -149,8 +153,14 @@ class MissionPipeline:
 
         # Research across multiple sources
         sources = [
-            "github", "pypi", "npm", "docs", "stackoverflow",
-            "awesome_lists", "huggingface", "docker",
+            "github",
+            "pypi",
+            "npm",
+            "docs",
+            "stackoverflow",
+            "awesome_lists",
+            "huggingface",
+            "docker",
         ]
 
         for source in sources:
@@ -234,7 +244,10 @@ class MissionPipeline:
             failed = [v for v in results if not v.passed]
             if failed and self.execution_engine:
                 for retry in range(self.max_retries):
-                    log.info(f"Verification failed ({len(failed)} checks). Auto-repair attempt {retry + 1}")
+                    log.info(
+                        f"Verification failed ({len(failed)} checks). "
+                        f"Auto-repair attempt {retry + 1}"
+                    )
                     try:
                         repair_results = await self.execution_engine.repair(
                             failed_checks=failed,
@@ -330,7 +343,7 @@ class MissionPipeline:
         # Architecture
         if mission.architecture_plan:
             plan = mission.architecture_plan
-            lines.append(f"\n## Architecture\n")
+            lines.append("\n## Architecture\n")
             lines.append(f"- **Modules:** {len(plan.modules)}")
             lines.append(f"- **Files to modify:** {len(plan.files_to_modify)}")
             lines.append(f"- **New files:** {len(plan.new_files)}")

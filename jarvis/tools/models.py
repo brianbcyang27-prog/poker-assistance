@@ -1,10 +1,10 @@
 """Tool intelligence data models."""
+
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from enum import Enum
+from enum import StrEnum
 
 
-class ToolCategory(str, Enum):
+class ToolCategory(StrEnum):
     CAD = "cad"
     PCB = "pcb"
     FIRMWARE = "firmware"
@@ -26,8 +26,8 @@ class ToolCategory(str, Enum):
 class ToolCapability:
     name: str = ""
     description: str = ""
-    input_types: List[str] = field(default_factory=list)
-    output_types: List[str] = field(default_factory=list)
+    input_types: list[str] = field(default_factory=list)
+    output_types: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -43,10 +43,10 @@ class ToolInfo:
     name: str = ""
     category: str = ""
     description: str = ""
-    capabilities: List[ToolCapability] = field(default_factory=list)
-    requirements: List[str] = field(default_factory=list)
-    common_failures: List[Dict[str, str]] = field(default_factory=list)
-    examples: List[str] = field(default_factory=list)
+    capabilities: list[ToolCapability] = field(default_factory=list)
+    requirements: list[str] = field(default_factory=list)
+    common_failures: list[dict[str, str]] = field(default_factory=list)
+    examples: list[str] = field(default_factory=list)
     check_command: str = ""
     install_command: str = ""
     version_command: str = ""

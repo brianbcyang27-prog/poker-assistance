@@ -1,7 +1,6 @@
 """Continuous Learning Engine data models."""
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
 
 
 @dataclass
@@ -9,12 +8,12 @@ class LearningRecord:
     """Record of learnings from a completed mission."""
 
     mission_id: str
-    libraries_discovered: List[str]
-    patterns_learned: List[str]
-    mistakes: List[str]
-    speed_improvements: List[str]
-    skill_suggestions: List[str]
-    knowledge_updates: List[str]
+    libraries_discovered: list[str]
+    patterns_learned: list[str]
+    mistakes: list[str]
+    speed_improvements: list[str]
+    skill_suggestions: list[str]
+    knowledge_updates: list[str]
 
 
 @dataclass
@@ -23,7 +22,7 @@ class SkillUpdate:
 
     skill_name: str
     description: str
-    before: Optional[str]
+    before: str | None
     after: str
     reason: str
     confidence: float
