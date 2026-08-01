@@ -32,11 +32,12 @@ jarvis: JarvisAgent = None
 workspace_manager: WorkspaceManager = None
 architecture_registry: ArchitectureRegistry = None
 current_architecture = None
+domain_registry = None
 
 
 def initialize_agents() -> JarvisAgent:
     """Initialize the JARVIS agent hierarchy."""
-    global jarvis
+    global jarvis, domain_registry
 
     # Create JARVIS
     jarvis = JarvisAgent()
@@ -52,6 +53,12 @@ def initialize_agents() -> JarvisAgent:
     jarvis.register_king(personal_king)
     jarvis.register_king(research_king)
     jarvis.register_king(system_king)
+
+    # Build the v10 domain registry (new domains + King-backed domains)
+    from jarvis.domains.registry import DomainRegistry
+
+    domain_registry = DomainRegistry()
+    domain_registry.attach_kings(jarvis.get_all_kings())
 
     return jarvis
 
@@ -124,6 +131,33 @@ async def _register_capabilities():
                         description=worker.name,
                         tags=[king.suit.value] if king.suit else [],
                         category="engineering",
+                    )
+                )
+
+    # v10: register standalone domain masters and their workers
+    if domain_registry:
+        for master in domain_registry.all():
+            if master.is_king_backed:
+                continue
+            await registry.register(
+                Capability(
+                    name=master.member_id,
+                    owner=master.member_id,
+                    type=CapType.WORKER,
+                    description=f"{master.name} — {master.domain.label} domain master",
+                    tags=[master.domain.value],
+                    category="domain",
+                )
+            )
+            for member in master.get_all_members():
+                await registry.register(
+                    Capability(
+                        name=member.member_id,
+                        owner=master.member_id,
+                        type=CapType.WORKER,
+                        description=member.name,
+                        tags=[master.domain.value],
+                        category="domain",
                     )
                 )
     memory_caps = [
@@ -384,6 +418,7 @@ def create_app() -> FastAPI:
         chat,
         checkpoints,
         computer,
+        domains,
         engineering,
         iot,
         memory,
@@ -401,6 +436,7 @@ def create_app() -> FastAPI:
     app.include_router(checkpoints.router)
     app.include_router(chat.router)
     app.include_router(agents.router)
+    app.include_router(domains.router)
     app.include_router(workspace.router)
     app.include_router(memory.router)
     app.include_router(voice.router)
