@@ -78,13 +78,39 @@ async def chat(request: Request, req: ChatRequest):
     web_main.jarvis._last_intent["interaction_mode"] = tracker.current_mode.value
     web_main.jarvis._last_intent["interaction_intent"] = intent.value
 
+    # v9.0.0 M2: Project Intelligence task flow (task/project intents only)
+    task_flow_result = None
+    if intent.value in ("task", "project"):
+        from jarvis.projects.task_flow import route_task
+
+        task_flow_result = await route_task(
+            req.message,
+            domain_registry=web_main.domain_registry,
+            session_id=session_id,
+        )
+        if not task_flow_result.get("skipped"):
+            task_flow_result["workspace_id"] = workspace_id
+            web_main.jarvis._last_intent["project_id"] = task_flow_result.get("project_id")
+
     # Process through active architecture (with timeout)
     import asyncio
 
     try:
-        # Get active architecture
-        arch = get_architecture()
-        get_settings_manager().get()
+        if task_flow_result is not None and not task_flow_result.get("skipped"):
+            if task_flow_result.get("result") and task_flow_result["result"].get("status") in (
+                "completed",
+                "needs_revision",
+            ):
+                response = task_flow_result["result"].get("content", "Task completed.")
+            else:
+                response = (
+                    f"Task flow failed: domain '{task_flow_result.get('domain')}' "
+                    "could not execute the mission."
+                )
+        else:
+            # Get active architecture
+            arch = get_architecture()
+            get_settings_manager().get()
 
         if arch and arch.name == "Hermes":
             # Use Hermes architecture for planning and execution
@@ -240,11 +266,59 @@ async def chat_stream(message: str, session_id: str | None = None):
                 capability_prompt = await registry.generate_capability_prompt()
                 system_prompt = capability_prompt if capability_prompt else None
 
+            # v9.0.0 M2: Project Intelligence task flow (task/project intents only)
+            task_flow_result = None
+            if intent.value in ("task", "project"):
+                import asyncio as _asyncio
+
+                from jarvis.agents.workers.research import FactCheckWorker
+                from jarvis.projects.task_flow import route_task
+
+                event_queue: _asyncio.Queue = _asyncio.Queue()
+
+                async def _emit(event: dict):
+                    await event_queue.put(event)
+
+                flow_task = _asyncio.create_task(
+                    route_task(
+                        message,
+                        domain_registry=web_main.domain_registry,
+                        emit=_emit,
+                        session_id=sid,
+                        fact_checker=FactCheckWorker().verify,
+                    )
+                )
+                while not flow_task.done() or not event_queue.empty():
+                    try:
+                        event = await _asyncio.wait_for(event_queue.get(), timeout=0.5)
+                        yield (
+                            f"data: {json.dumps({'type': event['type'], **event['payload']})}"
+                            "\n\n"
+                        )
+                    except TimeoutError:
+                        pass
+                task_flow_result = flow_task.result()
+                if not task_flow_result.get("skipped"):
+                    web_main.jarvis._last_intent["project_id"] = task_flow_result.get("project_id")
+
             # Get active architecture
             arch = get_architecture()
 
+            if task_flow_result is not None and not task_flow_result.get("skipped"):
+                if task_flow_result.get("result") and task_flow_result["result"].get(
+                    "status"
+                ) in ("completed", "needs_revision"):
+                    response = task_flow_result["result"].get("content", "Task completed.")
+                else:
+                    response = (
+                        f"Task flow failed: domain '{task_flow_result.get('domain')}' "
+                        "could not execute the mission."
+                    )
+                for token in response:
+                    yield f"data: {json.dumps({'type': 'token', 'content': token})}\n\n"
+
             # If Hermes architecture, use plan/execute flow and emit mission events
-            if arch and arch.name == "Hermes":
+            elif arch and arch.name == "Hermes":
                 mission_ctx = MissionContext(
                     mission_id=sid,
                     user_request=message,

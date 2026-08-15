@@ -92,11 +92,36 @@
   --color-info: #3b82f6;
   --color-info-dim: rgba(59, 130, 246, 0.1);
 
-  /* === DEPARTMENT COLORS (Card Suits) === */
-  --color-spades: #00d4ff;    /* Engineering — Cyan */
-  --color-hearts: #f472b6;    /* Personal — Pink */
-  --color-diamonds: #fbbf24;  /* Research — Amber */
-  --color-clubs: #4ade80;     /* System — Emerald */
+  /* === DEPARTMENT COLORS — Domain Architecture === */
+  --dept-engineering: #00d4ff;  /* Cyan  — Engineering */
+  --dept-personal: #f472b6;     /* Pink   — Personal */
+  --dept-research: #fbbf24;     /* Amber  — Research */
+  --dept-system: #4ade80;       /* Emerald— System (internal) */
+  --dept-education: #a78bfa;    /* Violet — Education */
+  --dept-studio: #f97316;       /* Orange — 3D */
+  --dept-finance: #2dd4bf;      /* Teal   — Finance */
+
+  /* === SEMANTIC ALIASES — Design-Doc Vocabulary ===
+     Concise aliases in the vocabulary used by JARVIS_DESIGN_SYSTEM.md
+     (--brand-*, --bg-*, --text-*, --border-*). New components should
+     prefer these; legacy --color-* tokens remain for backward compat. */
+  --brand-primary: var(--color-brand-primary);
+  --brand-accent: var(--color-brand-secondary);
+  --brand-success: var(--color-brand-tertiary);
+  /* Department accent — used by .dept-badge borders; overridable per badge */
+  --dept-color: var(--color-brand-secondary);
+  --bg-canvas: var(--color-bg-canvas);
+  --bg-base: var(--color-bg-base);
+  --bg-surface: var(--color-bg-elevated);
+  --bg-raised: var(--color-bg-elevated);
+  --bg-overlay: var(--color-bg-overlay);
+  --bg-glass: var(--color-bg-glass);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-tertiary);
+  --border-subtle: var(--color-border-subtle);
+  --border-default: var(--color-border-default);
+  --border-strong: var(--color-border-emphasis);
 
   /* === TYPOGRAPHY — SF Pro / Inter Scale === */
   --font-family-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', system-ui, sans-serif;
@@ -230,4 +255,67 @@
   --right-panel-width: 300px;
   --header-height: 48px;
   --input-bar-height: 64px;
+}
+
+/* === LIGHT MODE SUPPORT (via media query) === */
+@media (prefers-color-scheme: light) {
+  :root:not(.dark) {
+    --color-bg-canvas: var(--color-neutral-50);
+    --color-bg-base: var(--color-neutral-100);
+    --color-bg-elevated: var(--color-neutral-0);
+    --color-bg-overlay: rgba(255, 255, 255, 0.95);
+    --color-bg-glass: rgba(255, 255, 255, 0.8);
+    --color-bg-glass-strong: rgba(255, 255, 255, 0.9);
+    --color-bg-hover: rgba(0, 0, 0, 0.03);
+    --color-bg-active: rgba(0, 0, 0, 0.06);
+    --color-bg-selected: rgba(0, 212, 255, 0.1);
+
+    --color-border-hairline: rgba(0, 0, 0, 0.04);
+    --color-border-subtle: rgba(0, 0, 0, 0.06);
+    --color-border-default: rgba(0, 0, 0, 0.08);
+    --color-border-emphasis: rgba(0, 0, 0, 0.12);
+
+    --color-text-primary: rgba(15, 23, 42, 0.94);
+    --color-text-secondary: rgba(51, 65, 85, 0.72);
+    --color-text-tertiary: rgba(100, 116, 139, 0.56);
+    --color-text-quaternary: rgba(148, 163, 184, 0.44);
+    --color-text-inverse: var(--color-neutral-0);
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.07);
+    --shadow-3: 0 4px 8px rgba(0, 0, 0, 0.08);
+    --shadow-4: 0 8px 16px rgba(0, 0, 0, 0.1);
+    --shadow-5: 0 12px 24px rgba(0, 0, 0, 0.12);
+    --shadow-6: 0 20px 40px rgba(0, 0, 0, 0.15);
+
+    --shadow-glow-sm: 0 0 8px rgba(0, 212, 255, 0.1);
+    --shadow-glow: 0 0 20px rgba(0, 212, 255, 0.2);
+  }
+}
+
+/* Force dark mode when .dark class is present */
+.dark {
+  /* Dark mode values are the defaults above */
+}
+
+/* === REDUCED MOTION === */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-enter: var(--duration-instant) var(--ease-linear);
+    --motion-exit: var(--duration-instant) var(--ease-linear);
+    --motion-transition: var(--duration-instant) var(--ease-linear);
+    --motion-spring: var(--duration-instant) var(--ease-linear);
+    --motion-spring-gentle: var(--duration-instant) var(--ease-linear);
+  }
+}
+
+/* === HIGH CONTRAST MODE === */
+@media (prefers-contrast: more) {
+  :root {
+    --color-border-subtle: rgba(255, 255, 255, 0.12);
+    --color-border-default: rgba(255, 255, 255, 0.2);
+    --color-border-emphasis: rgba(255, 255, 255, 0.3);
+    --color-text-secondary: rgba(255, 255, 255, 0.85);
+    --color-text-tertiary: rgba(255, 255, 255, 0.7);
+  }
 }

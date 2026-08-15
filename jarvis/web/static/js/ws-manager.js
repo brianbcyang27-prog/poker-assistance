@@ -10,6 +10,8 @@ class WebSocketManager {
         this._reconnectDelay = 1000;
         this._maxReconnectDelay = 30000;
         this._intentionalClose = false;
+        this._heartbeatTimer = null;
+        this._heartbeatInterval = 10000; // 10s — server drops clients silent for 30s
     }
 
     connect(url) {
@@ -25,6 +27,7 @@ class WebSocketManager {
 
         this._ws.onopen = () => {
             this._reconnectDelay = 1000;
+            this._startHeartbeat();
             this._emit('open');
         };
 
@@ -39,6 +42,7 @@ class WebSocketManager {
         };
 
         this._ws.onclose = () => {
+            this._stopHeartbeat();
             this._emit('close');
             if (!this._intentionalClose) {
                 this._scheduleReconnect();
@@ -48,6 +52,21 @@ class WebSocketManager {
         this._ws.onerror = () => {
             this._emit('error');
         };
+    }
+
+    _startHeartbeat() {
+        this._stopHeartbeat();
+        this._heartbeatTimer = setInterval(() => {
+            // Any received message resets last_pong server-side — send a lightweight ping
+            this.send({ type: 'ping', t: Date.now() });
+        }, this._heartbeatInterval);
+    }
+
+    _stopHeartbeat() {
+        if (this._heartbeatTimer) {
+            clearInterval(this._heartbeatTimer);
+            this._heartbeatTimer = null;
+        }
     }
 
     _scheduleReconnect() {
@@ -84,6 +103,7 @@ class WebSocketManager {
 
     close() {
         this._intentionalClose = true;
+        this._stopHeartbeat();
         clearTimeout(this._reconnectTimer);
         if (this._ws) {
             this._ws.close();
@@ -92,7 +112,7 @@ class WebSocketManager {
     }
 
     get connected() {
-        return this._ws && this._ws.readyState === WebSocket.OPEN;
+        return !!(this._ws && this._ws.readyState === WebSocket.OPEN);
     }
 }
 

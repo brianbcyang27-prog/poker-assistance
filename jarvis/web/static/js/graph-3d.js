@@ -803,10 +803,24 @@ class Graph3D {
     // ================================================================
     // STATE SYSTEM (The Brain)
     // ================================================================
+    _setCoreTint(hex) {
+        const apply = (mesh, fallback) => {
+            if (mesh && mesh.material && mesh.material.uniforms && mesh.material.uniforms.uColor) {
+                mesh.material.uniforms.uColor.value.setHex(hex || fallback);
+            }
+        };
+        apply(this.coreGlow, this.GOLD);
+        apply(this.corePulseMesh, this.GOLD_BRIGHT);
+    }
+
     setState(newState) {
         if (this.state === newState) return;
         const oldState = this.state;
         this.state = newState;
+
+        // State tint: error → red pulse, verifying → white scan, everything else → gold.
+        const tint = newState === 'error' ? 0xff2a3a : (newState === 'verifying' ? 0xffffff : null);
+        this._setCoreTint(tint);
 
         switch (newState) {
             case 'idle':
@@ -842,30 +856,6 @@ class Graph3D {
                 this._targetColorShift = 0.05;
                 this._targetParticleDrift = 0.0015;
                 break;
-            case 'planning':
-                this.targetBloom = 3.0;
-                this.targetRotSpeed = 0.0025;
-                this.targetRingSpeedMult = 2.8;
-                this.targetLineOpacity = 0.7;
-                this.targetCorePulseSpeed = 4.0;
-                this.targetMaxPulses = 8;
-                this.targetPulseSpeedMult = 3.5;
-                this._targetColorShift = 0.1;
-                this._targetParticleDrift = 0.001;
-                this._expandNetwork = true;
-                break;
-            case 'delegating':
-                this.targetBloom = 3.8;
-                this.targetRotSpeed = 0.0045;
-                this.targetRingSpeedMult = 4.5;
-                this.targetLineOpacity = 0.9;
-                this.targetCorePulseSpeed = 6.0;
-                this.targetMaxPulses = 15;
-                this.targetPulseSpeedMult = 5.0;
-                this._targetColorShift = 0.15;
-                this._targetParticleDrift = 0.002;
-                this._delegationBurst = true;
-                break;
             case 'working':
                 this.targetBloom = 3.2;
                 this.targetRotSpeed = 0.003;
@@ -876,29 +866,6 @@ class Graph3D {
                 this.targetPulseSpeedMult = 3.5;
                 this._targetColorShift = 0.1;
                 this._targetParticleDrift = 0.0012;
-                break;
-            case 'retrieving':
-                this.targetBloom = 3.0;
-                this.targetRotSpeed = 0.0012;
-                this.targetRingSpeedMult = 2.0;
-                this.targetLineOpacity = 0.7;
-                this.targetCorePulseSpeed = 3.0;
-                this.targetMaxPulses = 6;
-                this.targetPulseSpeedMult = 2.5;
-                this._targetColorShift = 0.35; // cyan-gold
-                this._targetParticleDrift = -0.0015; // inward
-                this._memoryFlash = true;
-                break;
-            case 'reviewing':
-                this.targetBloom = 2.4;
-                this.targetRotSpeed = 0.001;
-                this.targetRingSpeedMult = 1.5;
-                this.targetLineOpacity = 0.5;
-                this.targetCorePulseSpeed = 2.5;
-                this.targetMaxPulses = 4;
-                this.targetPulseSpeedMult = 1.8;
-                this._targetColorShift = 0.05;
-                this._targetParticleDrift = 0.0004;
                 break;
             case 'speaking':
                 this.targetBloom = 2.8;
@@ -911,29 +878,49 @@ class Graph3D {
                 this._targetColorShift = 0;
                 this._targetParticleDrift = 0.0008;
                 break;
-            case 'complete':
-                this.targetBloom = 2.5;
-                this.targetRotSpeed = 0.0005;
-                this.targetRingSpeedMult = 0.8;
-                this.targetLineOpacity = 0.4;
-                this.targetCorePulseSpeed = 1.2;
-                this.targetMaxPulses = 2;
-                this.targetPulseSpeedMult = 1.0;
-                this._targetColorShift = 0;
-                this._targetParticleDrift = 0.0001;
-                this._completionPulse = true;
+            case 'planning':
+                this.targetBloom = 3.0;
+                this.targetRotSpeed = 0.0025;
+                this.targetRingSpeedMult = 2.8;
+                this.targetLineOpacity = 0.7;
+                this.targetCorePulseSpeed = 4.0;
+                this.targetMaxPulses = 8;
+                this.targetPulseSpeedMult = 3.0;
+                this._targetColorShift = 0.12;
+                this._targetParticleDrift = 0.001;
+                break;
+            case 'verifying':
+                this.targetBloom = 3.6;
+                this.targetRotSpeed = 0.0028;
+                this.targetRingSpeedMult = 3.2;
+                this.targetLineOpacity = 0.95;
+                this.targetCorePulseSpeed = 5.5;
+                this.targetMaxPulses = 12;
+                this.targetPulseSpeedMult = 4.5;
+                this._targetColorShift = 0.05;
+                this._targetParticleDrift = 0.0014;
                 break;
             case 'error':
+                this.targetBloom = 3.4;
+                this.targetRotSpeed = 0.0018;
+                this.targetRingSpeedMult = 1.5;
+                this.targetLineOpacity = 0.9;
+                this.targetCorePulseSpeed = 6.0;
+                this.targetMaxPulses = 14;
+                this.targetPulseSpeedMult = 5.0;
+                this._targetColorShift = 0;
+                this._targetParticleDrift = 0.0018;
+                break;
+            default:
                 this.targetBloom = 3.0;
                 this.targetRotSpeed = 0.002;
                 this.targetRingSpeedMult = 2.0;
                 this.targetLineOpacity = 0.6;
-                this.targetCorePulseSpeed = 8.0;
+                this.targetCorePulseSpeed = 4.0;
                 this.targetMaxPulses = 8;
                 this.targetPulseSpeedMult = 3.0;
-                this._targetColorShift = 0;
+                this._targetColorShift = 0.1;
                 this._targetParticleDrift = 0.001;
-                // Flash red handled by color shift
                 break;
         }
 
@@ -1019,24 +1006,6 @@ class Graph3D {
             this.coreGlow.rotation.x += this.dt * 0.04;
             const pulseScale = 1.0 + Math.sin(this.time * this.targetCorePulseSpeed) * 0.08;
             this.coreGlow.scale.setScalar(pulseScale);
-        }
-
-        // ---- Triggered events ----
-        if (this._expandNetwork) {
-            this._triggerNetworkExpansion();
-            this._expandNetwork = false;
-        }
-        if (this._delegationBurst) {
-            this._triggerDelegationBurst();
-            this._delegationBurst = false;
-        }
-        if (this._memoryFlash) {
-            this._triggerMemoryFlash();
-            this._memoryFlash = false;
-        }
-        if (this._completionPulse) {
-            this._triggerCompletionPulse();
-            this._completionPulse = false;
         }
 
         // ---- Ambient breathing ----

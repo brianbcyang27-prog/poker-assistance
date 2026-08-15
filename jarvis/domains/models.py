@@ -118,19 +118,19 @@ DOMAIN_INFO: dict[Domain, DomainInfo] = {
     ),
     Domain.STUDIO: DomainInfo(
         domain=Domain.STUDIO,
-        label="3D Studio",
+        label="3D",
         description=(
             "3D creation and fabrication: modeling, rendering, animation, and "
             "fabrication, powered by the existing CAD/Blender assets."
         ),
-        aliases=("3d studio", "studio", "3d", "cad", "blender", "modeling", "design"),
+        aliases=("3d", "3d studio", "studio", "cad", "blender", "modeling", "design"),
         worker_member_ids=(
             "studio.modeling",
             "studio.rendering",
             "studio.animation",
             "studio.fabrication",
         ),
-        color="#ff6b35",
+        color="#f97316",
     ),
     Domain.FINANCE: DomainInfo(
         domain=Domain.FINANCE,

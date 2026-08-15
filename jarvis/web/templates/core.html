@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/css/tokens.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/core.css">
+    <script src="/static/vendor/three.min.js"></script>
+    <script src="/static/vendor/CopyShader.js"></script>
+    <script src="/static/vendor/LuminosityHighPassShader.js"></script>
+    <script src="/static/vendor/EffectComposer.js"></script>
+    <script src="/static/vendor/RenderPass.js"></script>
+    <script src="/static/vendor/ShaderPass.js"></script>
+    <script src="/static/vendor/UnrealBloomPass.js"></script>
+    <script src="/static/vendor/marked.min.js"></script>
+    <script src="/static/js/graph-3d.js"></script>
+</head>
+<body class="core-body">
+
+    <div id="loading-screen" class="os-boot">
+        <div class="os-emblem">
+            <div class="os-ring"></div>
+            <div class="os-ring os-ring-2"></div>
+            <div class="os-core"></div>
+        </div>
+        <div class="os-title">JARVIS</div>
+        <div class="os-status" id="os-status">INITIALIZING NEURAL CORE</div>
+        <div class="os-bar">
+            <div class="os-bar-fill" id="os-bar-fill"></div>
+        </div>
+        <div class="os-pct" id="os-pct">0%</div>
+    </div>
+
+    <div id="golden-core-container" class="core-canvas"></div>
+
+    <div id="core-hud" class="core-hud hidden">
+        <div class="core-status">
+            <span class="core-status-dot"></span>
+            <span id="core-status-text">READY — LISTENING</span>
+        </div>
+        <div class="core-hint">ESC to exit</div>
+    </div>
+
+    <div id="core-controls" class="core-controls hidden">
+        <button id="core-sound" class="core-control-btn" title="Toggle sound">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+                <path d="M18.5 5.5a9.5 9.5 0 0 1 0 13"/>
+            </svg>
+        </button>
+        <button id="core-open-browser" class="core-control-btn" title="Open in browser">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <circle cx="15.5" cy="8.5" r="1.5"/>
+                <circle cx="8.5" cy="15.5" r="1.5"/>
+                <circle cx="15.5" cy="15.5" r="1.5"/>
+            </svg>
+        </button>
+        <button id="core-quit" class="core-control-btn" title="Quit">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+        </button>
+    </div>
+
+    <div id="edge-hotzone" class="edge-hotzone"></div>
+
+    <nav id="edge-dock" class="edge-dock" aria-label="Core navigation">
+        <div class="dock-label">CORE</div>
+        <button class="dock-tab" data-surface="project" title="Project">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="7" width="18" height="13" rx="2"/>
+                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                <path d="M3 12h18"/>
+            </svg>
+            <span>PROJECT</span>
+        </button>
+        <button class="dock-tab" data-surface="world" title="World map">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M3 12h18"/>
+                <path d="M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/>
+            </svg>
+            <span>WORLD MAP</span>
+        </button>
+        <button class="dock-tab" data-surface="todos" title="Today board">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="4" y="3" width="16" height="18" rx="2"/>
+                <path d="M9 9l2 2 4-4"/>
+                <path d="M9 15l2 2 4-4"/>
+            </svg>
+            <span>TODOS</span>
+        </button>
+        <button class="dock-tab" data-surface="notebook" title="Notebook">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+            <span>NOTEBOOK</span>
+        </button>
+        <button class="dock-tab" data-surface="roadmap" title="Learning roadmap">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 20V9"/>
+                <path d="M9 20V4"/>
+                <path d="M15 20v-7"/>
+                <path d="M21 20V7"/>
+            </svg>
+            <span>ROADMAP</span>
+        </button>
+        <button class="dock-tab" data-surface="settings" title="Settings">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span>SETTINGS</span>
+        </button>
+    </nav>
+
+    <button id="core-talk" class="core-talk hidden">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="9" y="2" width="6" height="12" rx="3"/>
+            <path d="M5 10a7 7 0 0 0 14 0"/>
+            <line x1="12" y1="17" x2="12" y2="22"/>
+        </svg>
+        <span>INTERACT</span>
+    </button>
+
+    <div id="command-bar" class="command-bar hidden">
+        <input id="command-input" type="text" autocomplete="off"
+               placeholder="Ask JARVIS — show my todos, open my reports, anything...">
+        <button id="command-mic" class="command-send" title="Speak">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="9" y="2" width="6" height="12" rx="3"/>
+                <path d="M5 10a7 7 0 0 0 14 0"/>
+                <line x1="12" y1="17" x2="12" y2="22"/>
+            </svg>
+        </button>
+        <button id="command-send" class="command-send" title="Send">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M22 2 11 13"/>
+                <path d="M22 2 15 22l-4-9-9-4 20-7z"/>
+            </svg>
+        </button>
+        <div id="command-bubble" class="command-bubble hidden"></div>
+    </div>
+
+    <div id="surface-backdrop" class="surface-backdrop hidden"></div>
+
+    <aside id="surface-todos" class="surface surface-right hidden">
+        <div class="surface-header">
+            <div class="surface-titles">
+                <div class="surface-title">TODAY BOARD</div>
+                <div class="surface-sub" id="todos-summary"></div>
+            </div>
+            <button class="surface-close" id="todos-close" title="Close">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div id="todos-groups" class="todos-groups"></div>
+        <div class="surface-footer">
+            <input id="todos-feedback" type="text" autocomplete="off"
+                   placeholder="Tell JARVIS what to change...">
+            <button id="todos-feedback-send" class="surface-footer-send">SEND</button>
+        </div>
+    </aside>
+
+    <div id="surface-doc" class="surface surface-full hidden">
+        <div class="doc-topbar">
+            <button id="doc-back" class="surface-close" title="Back">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M19 12H5"/>
+                    <polyline points="12 19 5 12 12 5"/>
+                </svg>
+            </button>
+            <div class="surface-titles">
+                <div class="surface-title" id="doc-title">JARVIS DOCUMENTS</div>
+                <div class="surface-sub" id="doc-sub"></div>
+            </div>
+            <button class="surface-close" id="doc-close" title="Close">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="doc-body">
+            <nav id="doc-toc" class="doc-toc hidden"></nav>
+            <article id="doc-content" class="doc-content"></article>
+        </div>
+        <div class="doc-feedback">
+            <input id="doc-feedback-input" type="text" autocomplete="off"
+                   placeholder="Select text, or tell JARVIS what to change...">
+            <button id="doc-feedback-send" class="surface-footer-send">SEND</button>
+        </div>
+        <div id="selection-toolbar" class="selection-toolbar hidden">
+            <button id="sel-ask" class="selection-toolbar-btn">ASK JARVIS</button>
+            <button id="sel-copy" class="selection-toolbar-btn">COPY</button>
+        </div>
+    </div>
+
+    <aside id="surface-settings" class="surface surface-right hidden">
+        <div class="surface-header">
+            <div class="surface-titles">
+                <div class="surface-title">INTEGRATIONS &amp; TOOLS</div>
+                <div class="surface-sub">Paste a GitHub repo — JARVIS researches it, you decide, JARVIS installs</div>
+            </div>
+            <button class="surface-close" id="settings-close" title="Close">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="settings-body">
+            <div class="settings-research-row">
+                <input id="settings-url" type="text" autocomplete="off"
+                       placeholder="https://github.com/owner/repo">
+                <button id="settings-research" class="surface-footer-send">RESEARCH</button>
+            </div>
+            <div id="settings-report" class="settings-report hidden">
+                <div class="settings-repo-meta">
+                    <span id="settings-repo-name" class="settings-repo-name"></span>
+                    <span id="settings-verdict" class="settings-verdict"></span>
+                    <span id="settings-repo-stats" class="settings-repo-stats"></span>
+                </div>
+                <p id="settings-summary" class="settings-summary"></p>
+                <div class="settings-section-label">BENEFITS</div>
+                <ul id="settings-benefits" class="settings-list settings-benefits"></ul>
+                <div class="settings-section-label">CONS</div>
+                <ul id="settings-cons" class="settings-list settings-cons"></ul>
+                <div class="settings-section-label">INSTALL PLAN</div>
+                <div class="settings-install-row">
+                    <span id="settings-install-hint" class="settings-install-hint"></span>
+                    <button id="settings-install" class="surface-footer-send" disabled>INSTALL</button>
+                </div>
+                <div id="settings-install-status" class="settings-install-status"></div>
+            </div>
+            <div class="settings-section-label settings-history-label">RESEARCH HISTORY</div>
+            <div id="settings-history" class="settings-history"></div>
+        </div>
+    </aside>
+
+    <aside id="surface-world" class="surface surface-right hidden">
+        <div class="surface-header">
+            <div class="surface-titles">
+                <div class="surface-title">WORLD MAP — LIVE VISION</div>
+                <div class="surface-sub">YOLO watch on public webcams — JARVIS flags the interesting stuff</div>
+            </div>
+            <button class="surface-close" id="world-close" title="Close">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="settings-body">
+            <div id="wm-status" class="wm-status"></div>
+            <div class="wm-actions">
+                <button id="wm-scan" class="surface-footer-send">SCAN NOW</button>
+                <button id="wm-test-notify" class="surface-footer-send">TEST NOTIFY</button>
+                <span id="wm-notify-status" class="wm-notify-status"></span>
+            </div>
+            <div class="settings-section-label">LIVE CAMS</div>
+            <div id="wm-grid" class="wm-grid"></div>
+            <div class="settings-section-label">ADD SOURCE</div>
+            <div class="wm-add-row">
+                <input id="wm-name" placeholder="name" autocomplete="off">
+                <select id="wm-kind">
+                    <option value="highway">highway</option>
+                    <option value="landscape">landscape</option>
+                    <option value="live">live</option>
+                </select>
+                <input id="wm-location" placeholder="location" autocomplete="off">
+                <input id="wm-url" placeholder="https://.../image.jpg" autocomplete="off">
+                <button id="wm-add" class="surface-footer-send">ADD</button>
+            </div>
+            <div class="settings-section-label">EVENT LOG</div>
+            <div id="wm-events" class="wm-events"></div>
+        </div>
+    </aside>
+
+    <aside id="surface-notebook" class="surface surface-right hidden">
+        <div class="surface-header">
+            <div class="surface-titles">
+                <div class="surface-title">NOTEBOOK</div>
+                <div class="surface-sub">Your local research brain — import notes, ask anything</div>
+            </div>
+            <button class="surface-close" id="notebook-close" title="Close">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="settings-body">
+            <div class="settings-section-label">IMPORT NOTES</div>
+            <input id="nb-title" placeholder="title" autocomplete="off">
+            <textarea id="nb-body" class="nb-body" placeholder="paste your notes, articles, docs here..."></textarea>
+            <button id="nb-add" class="surface-footer-send">SAVE NOTE</button>
+            <div class="settings-section-label">NOTEBOOK</div>
+            <div id="nb-entries" class="nb-entries"></div>
+            <div class="settings-section-label">ASK YOUR NOTES</div>
+            <div class="wm-add-row">
+                <input id="nb-question" placeholder="question about your notes..." autocomplete="off">
+                <button id="nb-ask" class="surface-footer-send">ASK</button>
+            </div>
+            <div id="nb-answer" class="nb-answer"></div>
+        </div>
+    </aside>
+
+    <aside id="surface-project" class="surface surface-right hidden">
+        <div class="surface-header">
+            <div class="surface-titles">
+                <div class="surface-title">PROJECT — JARVIS</div>
+                <div class="surface-sub">Multi-Agent AI Operating System · v6.4.0</div>
+            </div>
+            <button class="surface-close" id="project-close" title="Close">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="settings-body">
+            <p class="pj-lede">A local-first, multi-agent AI system inspired by Iron Man's JARVIS. Real-time dashboard, persistent memory, voice I/O, world vision, and a full API.</p>
+            <div class="settings-section-label">ARCHITECTURE</div>
+            <ul class="pj-list">
+                <li><b>♥ Personal</b> — Calendar · Email · Tasks · Scheduling</li>
+                <li><b>♠ Engineering</b> — Architect · Frontend · Backend · Testing</li>
+                <li><b>♦ Research</b> — Web Research · Documentation · Fact Check</li>
+                <li><b>♣ System</b> — Files · Terminal · Applications</li>
+            </ul>
+            <div class="settings-section-label">SAY THESE</div>
+            <ul class="pj-list pj-commands">
+                <li>"show my todos"</li>
+                <li>"open settings"</li>
+                <li>"open world map"</li>
+                <li>"open notebook"</li>
+                <li>"open roadmap"</li>
+            </ul>
+            <div class="settings-section-label">TIPS</div>
+            <ul class="pj-list">
+                <li>Mouse to the left edge of the screen for the dock.</li>
+                <li>Tap the mic in the command bar to speak.</li>
+                <li>ESC closes surfaces — hold it to quit.</li>
+            </ul>
+        </div>
+    </aside>
+
+    <aside id="surface-roadmap" class="surface surface-right hidden">
+        <div class="surface-header">
+            <div class="surface-titles">
+                <div class="surface-title">LEARNING ROADMAP</div>
+                <div class="surface-sub">Master JARVIS one track at a time</div>
+            </div>
+            <button class="surface-close" id="roadmap-close" title="Close">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+        </div>
+        <div class="settings-body">
+            <div class="rm-track">
+                <div class="rm-track-title">TRACK 1 — CORE OS</div>
+                <label class="rm-item"><input type="checkbox"> Boot the golden core from a cold start</label>
+                <label class="rm-item"><input type="checkbox"> Navigate with voice and the command bar</label>
+                <label class="rm-item"><input type="checkbox"> Open every surface from the edge dock</label>
+            </div>
+            <div class="rm-track">
+                <div class="rm-track-title">TRACK 2 — VOICE &amp; VISION</div>
+                <label class="rm-item"><input type="checkbox"> Speak a command and watch it run</label>
+                <label class="rm-item"><input type="checkbox"> Ask JARVIS to analyze a screenshot</label>
+                <label class="rm-item"><input type="checkbox"> Tune mic + TTS in settings</label>
+            </div>
+            <div class="rm-track">
+                <div class="rm-track-title">TRACK 3 — WORLD MONITOR</div>
+                <label class="rm-item"><input type="checkbox"> Watch a highway cam and get an alert</label>
+                <label class="rm-item"><input type="checkbox"> Add your own webcam source</label>
+                <label class="rm-item"><input type="checkbox"> Connect Telegram for mobile alerts</label>
+            </div>
+            <div class="rm-track">
+                <div class="rm-track-title">TRACK 4 — NOTEBOOK RAG</div>
+                <label class="rm-item"><input type="checkbox"> Import your first note</label>
+                <label class="rm-item"><input type="checkbox"> Ask a question your notes can answer</label>
+                <label class="rm-item"><input type="checkbox"> Tag and organize a research library</label>
+            </div>
+            <div class="rm-track">
+                <div class="rm-track-title">TRACK 5 — AUTOMATION</div>
+                <label class="rm-item"><input type="checkbox"> Wire Calendar + Mail connectors</label>
+                <label class="rm-item"><input type="checkbox"> Install an open-source tool from a URL</label>
+                <label class="rm-item"><input type="checkbox"> Chain two surfaces into a workflow</label>
+            </div>
+            <div class="rm-track">
+                <div class="rm-track-title">TRACK 6 — MASTERY</div>
+                <label class="rm-item"><input type="checkbox"> Teach JARVIS a new skill</label>
+                <label class="rm-item"><input type="checkbox"> Build a mission and track it in the board</label>
+                <label class="rm-item"><input type="checkbox"> Make JARVIS yours</label>
+            </div>
+        </div>
+    </aside>
+
+    <div id="desktop-toast" class="desktop-toast"></div>
+    <script src="/static/js/core.js"></script>
+</body>
+</html>

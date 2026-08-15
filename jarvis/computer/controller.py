@@ -1,4 +1,10 @@
-"""Unified computer controller — handles browser, screen, mouse, search, AND project memory."""
+"""Unified computer controller — facade over the ComputerManager execution engine.
+
+Every action executes through ComputerManager (risk classification → permission
+check → handler → audit log → DB store → event emission), so no action bypasses
+the permission system or the activity stream. The controller keeps the flat,
+worker-friendly action names and alias normalization on top of the manager.
+"""
 
 import asyncio
 import tempfile
@@ -6,10 +12,56 @@ import tempfile
 from jarvis.core.reliability import CircuitBreakerOpenError, circuit_breaker
 from jarvis.core.reliability import config as reliability_config
 
+from .actions import ActionStatus, RiskLevel
 from .browser import browser
 from .mouse import mouse
 from .screen import screen
 from .search import web_search
+
+# Risk classification per flat controller action. Browser/mouse/keyboard actions
+# are LOW (classify_risk also inspects the command string), screen/file-reads
+# are SAFE, file writes are MEDIUM.
+_ACTION_RISKS = {
+    "register_project": RiskLevel.LOW,
+    "list_projects": RiskLevel.SAFE,
+    "get_active_project": RiskLevel.SAFE,
+    "record_activity": RiskLevel.SAFE,
+    "resume_project": RiskLevel.LOW,
+    "open_terminal": RiskLevel.LOW,
+    "browser_navigate": RiskLevel.LOW,
+    "browser_click": RiskLevel.LOW,
+    "browser_type": RiskLevel.LOW,
+    "browser_screenshot": RiskLevel.SAFE,
+    "browser_get_text": RiskLevel.SAFE,
+    "browser_scroll": RiskLevel.LOW,
+    "browser_press_key": RiskLevel.LOW,
+    "browser_evaluate": RiskLevel.LOW,
+    "screen_capture": RiskLevel.SAFE,
+    "screen_capture_region": RiskLevel.SAFE,
+    "screen_get_active_window": RiskLevel.SAFE,
+    "screen_list_windows": RiskLevel.SAFE,
+    "mouse_click": RiskLevel.LOW,
+    "mouse_move": RiskLevel.LOW,
+    "mouse_double_click": RiskLevel.LOW,
+    "type_text": RiskLevel.LOW,
+    "hotkey": RiskLevel.LOW,
+    "press_key": RiskLevel.LOW,
+    "scroll": RiskLevel.LOW,
+    "get_mouse_position": RiskLevel.SAFE,
+    "get_screen_size": RiskLevel.SAFE,
+    "open_app": RiskLevel.LOW,
+    "open_url": RiskLevel.LOW,
+    "list_files": RiskLevel.SAFE,
+    "read_file": RiskLevel.SAFE,
+    "write_file": RiskLevel.MEDIUM,
+    "create_file": RiskLevel.MEDIUM,
+    "file_exists": RiskLevel.SAFE,
+    "shell_execute": RiskLevel.LOW,
+    "run_python": RiskLevel.LOW,
+    "web_search": RiskLevel.SAFE,
+    "web_fetch": RiskLevel.SAFE,
+    "task_complete": RiskLevel.SAFE,
+}
 
 
 class ComputerController:
@@ -23,58 +75,30 @@ class ComputerController:
         self._initialized = False
         self._snapshot_history: list[dict] = []
         self._snapshot_max = 200
+        self._manager = None
+        self._register_with_manager()
+
+    @property
+    def _engine(self):
+        if self._manager is None:
+            from .manager import computer_manager
+
+            self._manager = computer_manager
+        return self._manager
+
+    def _register_with_manager(self):
+        """Register every flat action handler on the shared manager engine."""
+        for name, handler in self._action_handlers().items():
+            self._engine.register(
+                name,
+                handler,
+                risk_level=_ACTION_RISKS.get(name, RiskLevel.LOW),
+                description=handler.__doc__ or name,
+            )
 
     def list_actions(self) -> list[str]:
         """Return list of available action names."""
-        return [
-            "register_project",
-            "list_projects",
-            "get_active_project",
-            "record_activity",
-            "resume_project",
-            "open_terminal",
-            "browser_navigate",
-            "browser_click",
-            "browser_type",
-            "browser_screenshot",
-            "browser_get_text",
-            "browser_text",
-            "browser_fill",
-            "browser_scroll",
-            "browser_press_key",
-            "browser_evaluate",
-            "screen_capture",
-            "screen_capture_region",
-            "screen_get_active_window",
-            "screen_active_window",
-            "screen_open_app",
-            "screen_open_url",
-            "screen_list_windows",
-            "mouse_move",
-            "mouse_click",
-            "mouse_drag",
-            "mouse_scroll",
-            "keyboard_type",
-            "keyboard_press",
-            "keyboard_hotkey",
-            "type_text",
-            "hotkey",
-            "press_key",
-            "list_files",
-            "read_file",
-            "write_file",
-            "create_file",
-            "file_exists",
-            "file_list",
-            "file_read",
-            "file_write",
-            "file_create",
-            "shell_execute",
-            "web_search",
-            "web_fetch",
-            "arduino_send",
-            "arduino_list",
-        ]
+        return list(self._action_handlers().keys())
 
     async def initialize(self):
         if not self._initialized:
@@ -82,23 +106,9 @@ class ComputerController:
             self._initialized = True
         return True
 
-    async def execute(self, action: str, **params) -> dict:
-        """Execute an action."""
-        action = self._normalize_action(action)
-        if not self._initialized and action not in (
-            "search",
-            "open_url",
-            "open_app",
-            "register_project",
-            "list_projects",
-            "get_active_project",
-            "record_activity",
-            "resume_project",
-            "open_terminal",
-        ):
-            await self.initialize()
-
-        actions = {
+    def _action_handlers(self) -> dict:
+        """Return the flat action name → handler map."""
+        return {
             # Project Memory
             "register_project": self._register_project,
             "list_projects": self._list_projects,
@@ -141,6 +151,7 @@ class ComputerController:
             "file_exists": self._file_exists,
             # Shell
             "shell_execute": self._shell_execute,
+            "run_python": self._run_python,
             # Search
             "web_search": self._web_search,
             "web_fetch": self._web_fetch,
@@ -148,8 +159,16 @@ class ComputerController:
             "task_complete": self._task_complete,
         }
 
-        handler = actions.get(action)
-        if not handler:
+    async def execute(self, action: str, agent: str = "", **params) -> dict:
+        """Execute an action through the manager's permission-gated pipeline."""
+        action = self._normalize_action(action)
+        if not self._initialized and action.startswith("browser_"):
+            try:
+                await self.initialize()
+            except Exception as e:
+                return {"ok": False, "error": f"Browser unavailable: {e}"}
+
+        if action not in self._action_handlers():
             return {"ok": False, "error": f"Unknown action: {action}"}
 
         try:
@@ -158,7 +177,9 @@ class ComputerController:
             async with circuit_breaker(
                 f"tool:{action}", failure_threshold=3, recovery_timeout=30.0
             ):
-                return await handler(**params)
+                result = await self._engine.execute(
+                    action=action, agent=agent, **params
+                )
         except CircuitBreakerOpenError:
             return {
                 "ok": False,
@@ -167,6 +188,25 @@ class ComputerController:
             }
         except Exception as e:
             return {"ok": False, "error": str(e), "action": action}
+
+        return self._result_to_dict(result)
+
+    def _result_to_dict(self, result) -> dict:
+        """Convert an ActionResult to the flat dict contract callers expect.
+
+        The handler's raw dict is preserved in metadata["result"] so workers
+        keep receiving the same fields (stdout, files, project, ...).
+        """
+        raw = dict((result.metadata or {}).get("result", {}) or {})
+        out = {"ok": result.status == ActionStatus.SUCCESS}
+        out.update(raw)
+        out["action_id"] = result.action_id
+        out["status"] = result.status
+        out["risk_level"] = result.risk_level
+        out["duration_ms"] = round(result.duration_ms, 2)
+        if not out["ok"]:
+            out["error"] = result.error or raw.get("error") or f"Action failed: {result.action_type}"
+        return out
 
     def _normalize_action(self, action: str) -> str:
         """Map common worker/tool aliases to controller actions."""
@@ -396,6 +436,8 @@ class ComputerController:
         """List files in a directory."""
         from pathlib import Path
 
+        if not self._engine.permissions.is_path_allowed(path):
+            return {"ok": False, "error": f"Path not allowed: {path}"}
         try:
             p = Path(path).expanduser()
             if not p.exists():
@@ -420,6 +462,8 @@ class ComputerController:
         """Read a file's contents."""
         from pathlib import Path
 
+        if not self._engine.permissions.is_path_allowed(path):
+            return {"ok": False, "error": f"Path not allowed: {path}"}
         try:
             p = Path(path).expanduser()
             if not p.exists():
@@ -435,6 +479,8 @@ class ComputerController:
         """Write content to a file."""
         from pathlib import Path
 
+        if not self._engine.permissions.is_path_allowed(path):
+            return {"ok": False, "error": f"Path not allowed: {path}"}
         try:
             p = Path(path).expanduser()
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -451,6 +497,8 @@ class ComputerController:
         """Check if a file exists."""
         from pathlib import Path
 
+        if not self._engine.permissions.is_path_allowed(path):
+            return {"ok": False, "error": f"Path not allowed: {path}"}
         try:
             p = Path(path).expanduser()
             return {"ok": True, "exists": p.exists(), "path": str(p)}
@@ -481,6 +529,36 @@ class ComputerController:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
+    async def _run_python(self, code: str = "", timeout: int = 30, **kw):
+        """Execute Python code in a temp file and return output."""
+        import os
+
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+                f.write(code)
+                script_path = f.name
+            try:
+                proc = await asyncio.create_subprocess_shell(
+                    f"python3 {script_path}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(), timeout=timeout
+                )
+                return {
+                    "ok": proc.returncode == 0,
+                    "stdout": stdout.decode("utf-8", errors="replace")[:4000],
+                    "stderr": stderr.decode("utf-8", errors="replace")[:2000],
+                    "returncode": proc.returncode,
+                }
+            finally:
+                os.unlink(script_path)
+        except TimeoutError:
+            return {"ok": False, "error": f"Python execution timed out ({timeout}s)"}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
     # ── Search ─────────────────────────────────────────────────────
 
     async def _web_search(self, query: str = "", engine: str = "duckduckgo", **kw):
@@ -495,21 +573,21 @@ class ComputerController:
         return {"ok": True, "task_complete": True, "summary": summary}
 
     async def _capture_snapshot(self, action: str, params: dict) -> None:
-        """Capture pre-action state snapshot (best-effort — failures are silently caught)."""
+        """Capture pre-action state snapshot (best-effort — failures and timeouts are silently caught)."""
         snapshot: dict = {
             "timestamp": __import__("time").time(),
             "action": action,
             "params": {k: v for k, v in params.items() if k != "password"},
         }
         try:
-            window = await self.screen.get_active_window()
+            window = await asyncio.wait_for(self.screen.get_active_window(), timeout=2)
             if isinstance(window, dict):
                 snapshot["active_window"] = window.get("title", "") or window.get("app", "")
         except Exception:
             pass
         if self._initialized:
             try:
-                ss = await self.screen.capture(name=f"pre_{action}")
+                ss = await asyncio.wait_for(self.screen.capture(name=f"pre_{action}"), timeout=2)
                 if isinstance(ss, dict) and ss.get("path"):
                     snapshot["screenshot"] = ss["path"]
             except Exception:

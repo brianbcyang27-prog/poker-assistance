@@ -1,4 +1,4 @@
-# JARVIS v6.4.0
+# JARVIS v10.0.0
 
 Multi-Agent AI Operating System inspired by Iron Man's JARVIS.
 
@@ -64,7 +64,7 @@ You'll see startup diagnostics:
   ✓ agents: 4 kings, 23 workers
   ✓ disk: 57.1 GB free
   ✓ api_key: NVIDIA API key configured
-  ✓ JARVIS v6.4.0 ready (4.5s)
+  ✓ JARVIS v10.0.0 ready (4.5s)
 ```
 
 ### 4. Open the Dashboard
@@ -250,6 +250,31 @@ Known test issues (Python 3.9 compatibility):
 - `test_computer.py` — macOS accessibility APIs hang
 - `test_brain_core.py` — Module-level `asyncio.get_event_loop()` deprecated
 - `test_plugins.py` — `asyncio.get_event_loop()` in threaded code
+
+---
+
+## v10.0.0 Changelog
+
+### Highlights
+- **New Dashboard UI/UX** — Living gold particle core, unified design tokens, redesigned workspaces (Core, Chat, Agents, Research, Memory), command palette, digital twin view, mission timeline, and 3D knowledge graph
+- **Project Intelligence (M2)** — First-class Project models, missions, artifacts, decisions, and complexity estimation with `/api/projects`
+- **Tool Layer** — Unified tool registry with 20 browser automation tools, web search, fetch page, and structured `ToolResult`/`ToolError` contracts
+- **Integrations** — GitHub, Google, Notion, Telegram, LINE, and Apple connectors plus `/api/integrations`
+- **Notebook & Repo Research** — Interactive notebook service and repository research engine
+- **World Monitor** — `/api/world` with camera feeds and world views
+- **Domains Foundation** — Domain enum, DomainMember/Worker/Master, Education/3D Studio/Finance domains, `/api/domains` router
+- **Desktop App** — Native desktop launcher and `/desktop` router
+- **Auto API Switch** — LiteLLM adoption analysis and automatic API router evaluation
+
+### Critical Fixes
+- **Doctor hang fixed** — DB connections now closed after health checks so aiosqlite worker threads don't block exit
+- **Lint clean** — ruff passing across the codebase
+- **617 tests green** — Baseline stabilization before feature work
+
+### Infrastructure
+- `Makefile` — Common dev commands
+- `jarvis/tasks/` — Task models
+- Updated `pyproject.toml` to v10.0.0
 
 ---
 

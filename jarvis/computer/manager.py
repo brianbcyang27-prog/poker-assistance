@@ -313,7 +313,7 @@ class ComputerManager:
                 output=str(result.get("stdout", result.get("output", "")))[:4000],
                 error=str(result.get("stderr", result.get("error", "")))[:2000],
                 duration_ms=duration,
-                metadata={"agent": agent, "task_id": task_id},
+                metadata={"agent": agent, "task_id": task_id, "result": result},
             )
 
         except Exception as e:
@@ -326,6 +326,7 @@ class ComputerManager:
                 risk_level=decision.risk_level,
                 error=str(e),
                 duration_ms=duration,
+                metadata={"agent": agent, "task_id": task_id, "result": {}},
             )
 
         # Log action
@@ -362,10 +363,12 @@ class ComputerManager:
         try:
             from ..core.events import Event, event_bus
 
-            event_type = (
-                f"computer.action."
-                f"{'completed' if result.status == ActionStatus.SUCCESS else 'failed'}"
-            )
+            if result.status == ActionStatus.SUCCESS:
+                event_type = "computer.action.completed"
+            elif result.status in (ActionStatus.BLOCKED, ActionStatus.DENIED):
+                event_type = "computer.action.denied"
+            else:
+                event_type = "computer.action.failed"
             await event_bus.emit(
                 Event(
                     type=event_type,
@@ -375,6 +378,7 @@ class ComputerManager:
                         "risk_level": result.risk_level,
                         "duration_ms": result.duration_ms,
                         "agent": agent,
+                        "error": result.error[:500],
                     },
                     source=agent or "computer",
                 )
@@ -421,21 +425,29 @@ class ComputerManager:
             action.startswith("file.read")
             or action.startswith("file.list")
             or action.startswith("file.search")
+            or action.startswith("read_file")
+            or action.startswith("list_files")
+            or action.startswith("file_exists")
         ):
             return ActionType.FILE_READ
-        if action.startswith("file.write"):
+        if action.startswith("file.write") or action.startswith("write_file") or action.startswith("create_file"):
             return ActionType.FILE_WRITE
         if action.startswith("file.delete"):
             return ActionType.FILE_DELETE
         if action.startswith("file.move"):
             return ActionType.FILE_MOVE
-        if action.startswith("screen"):
+        if action.startswith("screen") or action.startswith("browser_screenshot"):
             return ActionType.SCREENSHOT
         if action.startswith("mouse"):
             return ActionType.MOUSE
-        if action.startswith("keyboard"):
+        if (
+            action.startswith("keyboard")
+            or action in ("type_text", "hotkey", "press_key", "scroll", "get_mouse_position", "get_screen_size")
+        ):
             return ActionType.KEYBOARD
-        if action.startswith("app"):
+        if action.startswith("browser"):
+            return ActionType.BROWSER
+        if action.startswith("app") or action in ("open_app", "open_url", "open_terminal"):
             return ActionType.APP_LAUNCH
         if action.startswith("vision"):
             return ActionType.VISION
@@ -443,6 +455,10 @@ class ComputerManager:
             return ActionType.ACCESSIBILITY
         if action.startswith("os"):
             return ActionType.OS
+        if action.startswith("shell_execute") or action.startswith("run_python"):
+            return ActionType.TERMINAL
+        if action.startswith("web_"):
+            return ActionType.SYSTEM
         return ActionType.TERMINAL
 
     # ── Action Handlers ──────────────────────────────────────

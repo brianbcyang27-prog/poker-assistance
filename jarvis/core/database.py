@@ -92,6 +92,55 @@ class Database:
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
 
+            -- Project Missions (v9.0.0 M2 - Project Intelligence)
+            CREATE TABLE IF NOT EXISTS project_missions (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                goal TEXT NOT NULL,
+                complexity TEXT DEFAULT 'small',
+                domain TEXT DEFAULT 'engineering',
+                status TEXT DEFAULT 'planned',
+                workspace_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                started_at TIMESTAMP,
+                completed_at TIMESTAMP
+            );
+
+            -- Project Artifacts (v9.0.0 M2)
+            CREATE TABLE IF NOT EXISTS project_artifacts (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                artifact_type TEXT DEFAULT 'note',
+                content TEXT DEFAULT '',
+                metadata TEXT DEFAULT '{}',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- Project Decisions (v9.0.0 M2)
+            CREATE TABLE IF NOT EXISTS project_decisions (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                topic TEXT NOT NULL,
+                decision TEXT NOT NULL,
+                reason TEXT DEFAULT '',
+                context TEXT DEFAULT '',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            -- Project Knowledge Graph (v9.0.0 M2)
+            CREATE TABLE IF NOT EXISTS project_knowledge (
+                id TEXT PRIMARY KEY,
+                project_id TEXT NOT NULL,
+                label TEXT NOT NULL,
+                node_type TEXT DEFAULT 'concept',
+                content TEXT DEFAULT '',
+                metadata TEXT DEFAULT '{}',
+                links_json TEXT DEFAULT '[]',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
             -- Conversations
             CREATE TABLE IF NOT EXISTS conversations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -417,6 +466,8 @@ class Database:
             ("ai_tool_name", "''"),
             ("context", "'{}'"),
             ("status", "'active'"),
+            ("domain", "'engineering'"),
+            ("progress", "0.0"),
         ]:
             try:
                 await self._db.execute(f"ALTER TABLE projects ADD COLUMN {col} DEFAULT {default}")

@@ -41,6 +41,9 @@ class DigitalTwin {
         const stateConfig = {
             idle: { color: 'var(--text-muted)', label: 'Idle', pulse: false },
             thinking: { color: 'var(--info)', label: 'Thinking', pulse: true },
+            planning: { color: '#7aa2ff', label: 'Planning', pulse: true },
+            working: { color: 'var(--info)', label: 'Working', pulse: true },
+            verifying: { color: '#e8f6ff', label: 'Verifying', pulse: true },
             speaking: { color: 'var(--accent)', label: 'Speaking', pulse: true },
             listening: { color: 'var(--success)', label: 'Listening', pulse: true },
             error: { color: 'var(--danger)', label: 'Error', pulse: false },
@@ -69,6 +72,8 @@ class DigitalTwin {
 
     _startEnergyDrain() {
         this._interval = setInterval(() => {
+            if (document.hidden) return;
+            if (this.container && this.container.offsetParent === null) return;
             if (this.state === 'thinking' || this.state === 'speaking') {
                 this.setEnergy(this.energy - 0.5);
             } else if (this.state === 'idle') {

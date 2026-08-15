@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jarvis"
-version = "8.0.0"
+version = "10.0.0"
 description = "JARVIS - Multi-Agent AI Operating System"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -36,6 +36,9 @@ dependencies = [
 voice = [
     "openai-whisper>=20230918",
     "kokoro>=0.8.0",
+]
+world = [
+    "ultralytics>=8.0.0",
 ]
 dev = [
     "pytest>=7.0",

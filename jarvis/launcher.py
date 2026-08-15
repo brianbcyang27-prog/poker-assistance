@@ -361,7 +361,7 @@ def main():
         "command",
         nargs="?",
         default="launch",
-        choices=["launch", "doctor", "status", "server", "stop"],
+        choices=["launch", "doctor", "status", "server", "stop", "desktop"],
         help="Command to run (default: launch)",
     )
     parser.add_argument("--port", type=int, default=8000, help="Server port")
@@ -372,6 +372,10 @@ def main():
 
     if args.command == "launch":
         launch(port=args.port, open_browser=not args.no_browser)
+    elif args.command == "desktop":
+        from jarvis.desktop import launch_desktop
+
+        launch_desktop(port=args.port)
     elif args.command == "doctor":
         doctor()
     elif args.command == "status":

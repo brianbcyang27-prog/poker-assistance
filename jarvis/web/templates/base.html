@@ -4,15 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JARVIS</title>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=8.0.0">
-    <link rel="stylesheet" href="/static/css/style.css?v=8.0.0">
-    <script src="/static/vendor/three.min.js?v=8.0.0"></script>
-    <script src="/static/vendor/CopyShader.js?v=8.0.0"></script>
-    <script src="/static/vendor/LuminosityHighPassShader.js?v=8.0.0"></script>
-    <script src="/static/vendor/EffectComposer.js?v=8.0.0"></script>
-    <script src="/static/vendor/RenderPass.js?v=8.0.0"></script>
-    <script src="/static/vendor/ShaderPass.js?v=8.0.0"></script>
-    <script src="/static/vendor/UnrealBloomPass.js?v=8.0.0"></script>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=9.2.0">
+    <link rel="stylesheet" href="/static/css/tokens.css?v=9.2.0">
+    <link rel="stylesheet" href="/static/css/style.css?v=9.2.0">
+    <link rel="stylesheet" href="/static/css/mission-views.css?v=9.2.0">
+    <script src="/static/vendor/three.min.js?v=9.2.0"></script>
+    <script src="/static/vendor/CopyShader.js?v=9.2.0"></script>
+    <script src="/static/vendor/LuminosityHighPassShader.js?v=9.2.0"></script>
+    <script src="/static/vendor/EffectComposer.js?v=9.2.0"></script>
+    <script src="/static/vendor/RenderPass.js?v=9.2.0"></script>
+    <script src="/static/vendor/ShaderPass.js?v=9.2.0"></script>
+    <script src="/static/vendor/UnrealBloomPass.js?v=9.2.0"></script>
 </head>
 <body>
     <!-- PREMIUM LOADING SCREEN — Apple-style boot sequence -->
@@ -93,6 +95,31 @@
                         </svg>
                         <span>Chat</span>
                     </button>
+                    <button class="nav-btn" data-workspace="projects" title="Projects">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                        </svg>
+                        <span>Projects</span>
+                    </button>
+                    <button class="nav-btn" data-workspace="execution" title="Execution">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                        </svg>
+                        <span>Execution</span>
+                    </button>
+                    <button class="nav-btn" data-workspace="knowledge" title="Knowledge">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <circle cx="5" cy="12" r="2.5"/>
+                            <circle cx="19" cy="5" r="2.5"/>
+                            <circle cx="19" cy="19" r="2.5"/>
+                            <line x1="7" y1="10.5" x2="16.5" y2="6"/>
+                            <line x1="7" y1="13.5" x2="16.5" y2="18"/>
+                        </svg>
+                        <span>Knowledge</span>
+                    </button>
                 </div>
 
                 <div class="nav-footer">
@@ -113,7 +140,7 @@
                     </button>
                     <div class="version-badge" title="System Status">
                         <span class="version-dot"></span>
-                        <span class="version-text">v8.0.0</span>
+                        <span class="version-text">v9.0.0</span>
                     </div>
                 </div>
             </nav>
@@ -181,6 +208,75 @@
                         </div>
                     </div>
 
+                    <!-- WORKSPACE: Projects (Project Intelligence — v9.0.0 M2) -->
+                    <div id="projects-container" class="workspace-view">
+                        <div class="mv-workspace-head">
+                            <div class="mv-workspace-title">
+                                <h2>Projects</h2>
+                                <p>First-class project model, missions, and lifecycle</p>
+                            </div>
+                            <button class="mv-btn mv-btn-primary" id="mv-new-project-btn" title="New Project (⌘⇧N)">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                New Project
+                            </button>
+                        </div>
+                        <div id="mv-projects-grid" class="mv-projects-grid"></div>
+                        <div id="mv-project-detail" class="mv-detail-panel hidden"></div>
+                    </div>
+
+                    <!-- WORKSPACE: Execution (Live mission console — v9.0.0 M2) -->
+                    <div id="execution-container" class="workspace-view">
+                        <div class="mv-workspace-head">
+                            <div class="mv-workspace-title">
+                                <h2>Execution</h2>
+                                <p>Live mission console — timeline, DAG, and member activity</p>
+                            </div>
+                            <select id="mv-execution-project" class="mv-select" title="Select project">
+                                <option value="">Select project…</option>
+                            </select>
+                        </div>
+                        <div id="mv-execution-empty" class="mv-empty-state">
+                            <p>Choose a project to watch its missions execute</p>
+                        </div>
+                        <div id="mv-execution-body" class="mv-execution-body hidden">
+                            <div id="mv-execution-status" class="mv-status-header"></div>
+                            <div class="mv-execution-grid">
+                                <div class="mv-panel">
+                                    <div class="mv-panel-title">Mission Timeline</div>
+                                    <div id="mv-execution-timeline"></div>
+                                </div>
+                                <div class="mv-panel">
+                                    <div class="mv-panel-title">Mission DAG</div>
+                                    <div id="mv-execution-dag" class="mv-dag-canvas"></div>
+                                </div>
+                                <div class="mv-panel mv-panel-wide">
+                                    <div class="mv-panel-title">Member Activity</div>
+                                    <div id="mv-execution-activity" class="mv-activity-stream"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- WORKSPACE: Knowledge (Project knowledge graph — v9.0.0 M2) -->
+                    <div id="knowledge-container" class="workspace-view">
+                        <div class="mv-workspace-head">
+                            <div class="mv-workspace-title">
+                                <h2>Knowledge</h2>
+                                <p>Project knowledge graph — concepts, domains, and links</p>
+                            </div>
+                            <select id="mv-knowledge-project" class="mv-select" title="Select project">
+                                <option value="">Select project…</option>
+                            </select>
+                        </div>
+                        <div id="mv-knowledge-empty" class="mv-empty-state">
+                            <p>Select a project to explore its knowledge graph</p>
+                        </div>
+                        <div id="mv-knowledge-body" class="mv-knowledge-body hidden">
+                            <div id="mv-knowledge-graph" class="mv-graph-canvas"></div>
+                            <div id="mv-knowledge-detail" class="mv-graph-detail hidden"></div>
+                        </div>
+                    </div>
+
                     <!-- Overlays (always present) -->
                     <div id="core-label">
                         <div id="core-state">READY</div>
@@ -231,6 +327,62 @@
                                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                                 New Chat
                             </button>
+                        </div>
+                    </div>
+                    <div class="right-divider"></div>
+                    <div class="right-section">
+                        <div class="right-header">
+                            <span class="right-title">KNOWS YOU</span>
+                        </div>
+                        <div id="knows-you-panel">
+                            <div class="knows-you-loading">
+                                <span class="spinner"></span>
+                                <span>Loading…</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="right-divider"></div>
+                    <div class="right-section">
+                        <div class="right-header">
+                            <span class="right-title">SYSTEM HEALTH</span>
+                        </div>
+                        <div class="health-row">
+                            <span class="health-label">Status</span>
+                            <span class="health-value" id="health-status">Checking...</span>
+                        </div>
+                        <div class="health-row">
+                            <span class="health-label">Active Agents</span>
+                            <span class="health-value" id="health-agents">-</span>
+                        </div>
+                        <div class="health-row">
+                            <span class="health-label">Domains</span>
+                            <span class="health-value" id="health-domains">-</span>
+                        </div>
+                        <div class="health-row">
+                            <span class="health-label">Events</span>
+                            <span class="health-value" id="health-events">0</span>
+                        </div>
+                        <div class="health-row">
+                            <span class="health-label">Uptime</span>
+                            <span class="health-value" id="health-uptime">0s</span>
+                        </div>
+                    </div>
+                    <div class="right-divider"></div>
+                    <div class="right-section">
+                        <div class="right-header">
+                            <span class="right-title">AGENT ACTIVITY</span>
+                        </div>
+                        <div id="agent-conversation-stream" style="max-height:200px;overflow-y:auto;">
+                            <span class="right-empty-text">Agent messages will appear here</span>
+                        </div>
+                    </div>
+                    <div class="right-divider"></div>
+                    <div class="right-section">
+                        <div class="right-header">
+                            <span class="right-title">TERMINAL</span>
+                        </div>
+                        <div style="max-height:160px;overflow-y:auto;">
+                            <div id="terminal-entries"></div>
                         </div>
                     </div>
                 </div>
@@ -288,6 +440,52 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Projects: Project summary -->
+                <div class="right-context" id="right-projects" style="display:none;">
+                    <div class="right-section">
+                        <div class="right-header">
+                            <span class="right-title">PROJECTS</span>
+                            <button class="right-action-btn" onclick="window.ProjectDashboard && ProjectDashboard.refresh()" title="Refresh">↻</button>
+                        </div>
+                        <div id="projects-summary" class="right-content-empty">
+                            <span class="right-empty-text">No project selected</span>
+                        </div>
+                    </div>
+                    <div class="right-divider"></div>
+                    <div class="right-section">
+                        <div class="right-header">
+                            <span class="right-title">STATUS</span>
+                        </div>
+                        <div id="projects-status" class="right-content-empty">
+                            <span class="right-empty-text">Loading…</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Execution: Active mission context -->
+                <div class="right-context" id="right-execution" style="display:none;">
+                    <div class="right-section">
+                        <div class="right-header">
+                            <span class="right-title">ACTIVE MISSION</span>
+                        </div>
+                        <div id="execution-summary" class="right-content-empty">
+                            <span class="right-empty-text">No mission running</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Knowledge: Knowledge graph context -->
+                <div class="right-context" id="right-knowledge" style="display:none;">
+                    <div class="right-section">
+                        <div class="right-header">
+                            <span class="right-title">KNOWLEDGE</span>
+                        </div>
+                        <div id="knowledge-summary" class="right-content-empty">
+                            <span class="right-empty-text">No knowledge loaded</span>
+                        </div>
+                    </div>
+                </div>
             </aside>
         </div>
 
@@ -324,6 +522,14 @@
                         <button class="settings-nav-item" data-section="permissions" onclick="switchSettingsSection('permissions')">
                             <span class="settings-nav-icon">🔐</span>
                             <span class="settings-nav-label">Permissions</span>
+                        </button>
+                        <button class="settings-nav-item" data-section="integrations" onclick="switchSettingsSection('integrations')">
+                            <span class="settings-nav-icon">🔌</span>
+                            <span class="settings-nav-label">Integrations</span>
+                        </button>
+                        <button class="settings-nav-item" data-section="profile" onclick="switchSettingsSection('profile')">
+                            <span class="settings-nav-icon">🧠</span>
+                            <span class="settings-nav-label">Profile</span>
                         </button>
                         <button class="settings-nav-item" data-section="server" onclick="switchSettingsSection('server')">
                             <span class="settings-nav-icon">🌐</span>
@@ -565,6 +771,23 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <!-- Voice Cloning -->
+                            <div class="settings-card">
+                                <div class="settings-card-header" onclick="this.parentElement.classList.toggle('open')">
+                                    <span>Voice Cloning</span>
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                                </div>
+                                <div class="settings-card-body">
+                                    <div class="setting-row">
+                                        <div class="setting-info">
+                                            <div class="setting-name">Cloning Status</div>
+                                            <div class="setting-desc" id="clone-status-text">Loading...</div>
+                                        </div>
+                                    </div>
+                                    <div id="clone-profiles-list" style="max-height:220px;overflow-y:auto;"></div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Interface -->
@@ -625,6 +848,34 @@
                             </div>
                             <div class="settings-card">
                                 <div id="permissions-list"></div>
+                            </div>
+                        </div>
+
+                        <!-- Integrations -->
+                        <div class="settings-panel" id="panel-integrations">
+                            <div class="settings-panel-header">
+                                <h3>Integrations</h3>
+                                <p>Connect JARVIS to your world — Apple, Google, messaging, code, and social</p>
+                            </div>
+                            <div id="integrations-root">
+                                <div class="integrations-loading">
+                                    <span class="spinner"></span>
+                                    <span>Loading connectors…</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Profile (Know Me) -->
+                        <div class="settings-panel" id="panel-profile">
+                            <div class="settings-panel-header">
+                                <h3>Profile</h3>
+                                <p>Everything JARVIS knows about you — edit freely, delete anytime</p>
+                            </div>
+                            <div id="profile-root">
+                                <div class="integrations-loading">
+                                    <span class="spinner"></span>
+                                    <span>Loading profile…</span>
+                                </div>
                             </div>
                         </div>
 
@@ -741,6 +992,89 @@
                 <span class="onboarding-hint">Press ⌘K for commands anytime</span>
             </div>
         </div>
+
+        <!-- Know-Me onboarding (personal memory, shown once) -->
+        <div id="knowme-overlay" class="onboarding-overlay hidden">
+            <div class="onboarding-card knowme-card">
+                <div class="knowme-progress"><div class="knowme-progress-bar" id="knowme-progress-bar"></div></div>
+                <div class="knowme-step" data-step="0">
+                    <div class="onboarding-core">
+                        <div class="onboarding-ring"></div>
+                        <span class="onboarding-logo">🧠</span>
+                    </div>
+                    <h1>Let JARVIS know you</h1>
+                    <p class="onboarding-subtitle">A quick profile so I can help the way you actually work</p>
+                    <div class="onboarding-features">
+                        <div class="onboarding-feature">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+                            <div>
+                                <strong>Preferences</strong>
+                                <span>Time zone, language, communication style</span>
+                            </div>
+                        </div>
+                        <div class="onboarding-feature">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                            <div>
+                                <strong>Goals</strong>
+                                <span>What you're building and why it matters</span>
+                            </div>
+                        </div>
+                        <div class="onboarding-feature">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                            <div>
+                                <strong>Workflows</strong>
+                                <span>How you like tasks run and decisions made</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="knowme-step hidden" data-step="1">
+                    <h1>Tell me about you</h1>
+                    <p class="onboarding-subtitle">All optional — skip what you don't want to share</p>
+                    <div class="knowme-form">
+                        <div class="knowme-field">
+                            <label>Name</label>
+                            <input type="text" id="knowme-name" placeholder="How should I call you?" autocomplete="off">
+                        </div>
+                        <div class="knowme-field">
+                            <label>Timezone</label>
+                            <select id="knowme-timezone">
+                                <option value="">Auto-detect</option>
+                                <option value="Asia/Taipei">Asia/Taipei (UTC+8)</option>
+                                <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
+                                <option value="America/Los_Angeles">America/Los_Angeles (PT)</option>
+                                <option value="America/New_York">America/New_York (ET)</option>
+                                <option value="Europe/London">Europe/London (GMT/BST)</option>
+                                <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                                <option value="Australia/Sydney">Australia/Sydney (AEST)</option>
+                            </select>
+                        </div>
+                        <div class="knowme-field">
+                            <label>What are you building right now?</label>
+                            <input type="text" id="knowme-goal" placeholder="e.g. A poker assistant that learns my habits" autocomplete="off">
+                        </div>
+                        <div class="knowme-field">
+                            <label>Anything I should always remember?</label>
+                            <textarea id="knowme-notes" rows="3" placeholder="e.g. I prefer short answers, mornings are for deep work, I use USD…"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="knowme-step hidden" data-step="2">
+                    <div class="onboarding-core">
+                        <div class="onboarding-ring"></div>
+                        <span class="onboarding-logo">✨</span>
+                    </div>
+                    <h1>You're all set</h1>
+                    <p class="onboarding-subtitle">JARVIS will remember these details and use them in every conversation</p>
+                    <button class="onboarding-start" id="knowme-done" onclick="submitKnowMeOnboarding()">Start using JARVIS</button>
+                </div>
+                <div class="knowme-nav">
+                    <button class="btn-reset" id="knowme-back" onclick="knowMePrevStep()">Back</button>
+                    <span class="knowme-dots" id="knowme-dots"></span>
+                    <button class="btn-save" id="knowme-next" onclick="knowMeNextStep()">Continue</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Core JS (needed on every page) -->
@@ -752,18 +1086,23 @@
             const s = document.createElement('script');
             s.src = src;
             s.onload = resolve;
-            s.onerror = reject;
+            s.onerror = () => {
+                delete window._lazyScripts[src];
+                reject(new Error(`Failed to load ${src}`));
+            };
             document.body.appendChild(s);
         });
         return window._lazyScripts[src];
     };
     </script>
-    <script src="/static/js/state-machine.js?v=8.0.0"></script>
-    <script src="/static/js/ws-manager.js?v=8.0.0"></script>
-    <script src="/static/js/living-interface.js?v=8.0.0"></script>
-    <script src="/static/js/audio-analyzer.js?v=8.0.0"></script>
-    <script src="/static/js/workspace-manager.js?v=8.0.0"></script>
-    <script src="/static/js/command-palette.js?v=8.0.0"></script>
-    <script src="/static/js/app.js?v=8.0.0"></script>
+    <script src="/static/js/state-machine.js?v=9.2.0"></script>
+    <script src="/static/js/ws-manager.js?v=9.2.0"></script>
+    <script src="/static/js/living-interface.js?v=9.2.0"></script>
+    <script src="/static/js/audio-analyzer.js?v=9.2.0"></script>
+<script src="/static/js/voice.js?v=9.2.0"></script>
+    <script src="/static/js/workspace-manager.js?v=9.2.0"></script>
+    <script src="/static/js/command-palette.js?v=9.2.0"></script>
+    <script src="/static/js/app.js?v=9.2.0"></script>
+    <script src="/static/js/integrations.js?v=10.0.0"></script>
 </body>
 </html>

@@ -18,10 +18,14 @@ class CommandPalette {
         return [
             { id: 'home', label: 'Go to Home', category: 'Navigate', icon: '🏠', action: () => switchWorkspace('home') },
             { id: 'chat', label: 'Go to Chat', category: 'Navigate', icon: '💬', action: () => switchWorkspace('chat') },
+            { id: 'projects', label: 'Go to Projects', category: 'Navigate', icon: '🗂', action: () => switchWorkspace('projects') },
+            { id: 'execution', label: 'Go to Execution', category: 'Navigate', icon: '⚡', action: () => switchWorkspace('execution') },
+            { id: 'knowledge', label: 'Go to Knowledge', category: 'Navigate', icon: '🕸', action: () => switchWorkspace('knowledge') },
             { id: 'settings', label: 'Open Settings', category: 'Navigate', icon: '⚙️', action: () => toggleSettings() },
+            { id: 'new-project', label: 'New Project', category: 'Projects', icon: '✨', action: () => { switchWorkspace('projects'); setTimeout(() => window.ProjectDashboard && window.ProjectDashboard.openNewProject(), 300); } },
             { id: 'new-chat', label: 'New Conversation', category: 'Chat', icon: '✨', action: () => { switchWorkspace('chat'); startNewChat(); } },
             { id: 'clear-chat', label: 'Clear Chat', category: 'Chat', icon: '🗑', action: () => { const el = document.getElementById('chat-messages'); if (el) el.innerHTML = ''; } },
-            { id: 'voice-toggle', label: 'Toggle Voice', category: 'Tools', icon: '🎙', action: () => { const el = document.getElementById('voice-btn'); if (el) el.click(); } },
+            { id: 'voice-toggle', label: 'Toggle Voice', category: 'Tools', icon: '🎙', action: () => { const el = document.getElementById('mic-btn'); if (el) el.click(); } },
             { id: 'system-status', label: 'System Status', category: 'Info', icon: '💓', action: () => fetch('/api/health').then(r => r.json()).then(d => console.log('Health:', d)) },
             { id: 'keyboard', label: 'Keyboard Shortcuts', category: 'Info', icon: '⌨️', action: () => alert('⌘K: Command Palette\n⌘,: Settings\nEsc: Close overlay') },
         ];

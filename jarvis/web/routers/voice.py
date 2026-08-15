@@ -315,6 +315,99 @@ async def serve_audio(filename: str):
     return {"error": "Audio file not found"}
 
 
+@router.post("/generate")
+async def generate_voice(
+    text: str = Form(...), voice: str = Form(default=""), provider: str = Form(default="")
+):
+    """Generate speech audio with a TTS provider (built-in voices)."""
+    if not text.strip():
+        raise HTTPException(status_code=400, detail="Text is required")
+
+    output_dir = Path("audio_cache")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = str(output_dir / f"tts_{uuid.uuid4().hex[:8]}.wav")
+
+    result = await voice_engine.agenerate(text, output_path, voice, provider)
+    if not result:
+        raise HTTPException(
+            status_code=503,
+            detail="Speech generation failed — no TTS provider available",
+        )
+
+    ext = Path(result).suffix.lower()
+    media_types = {
+        ".wav": "audio/wav",
+        ".mp3": "audio/mpeg",
+        ".aiff": "audio/aiff",
+        ".ogg": "audio/ogg",
+    }
+    return FileResponse(
+        result,
+        media_type=media_types.get(ext, "application/octet-stream"),
+        filename=f"speech{ext}",
+    )
+
+
+# === Voice Cloning Endpoints ===
+
+
+@router.get("/stt/status")
+async def stt_status():
+    """Report macOS speech-recognition availability and authorization state."""
+    from jarvis.voice import stt
+
+    if not stt.sfspeech_available():
+        return {"available": False, "reason": "pyobjc-framework-Speech not installed"}
+    return {
+        "available": True,
+        "status": stt.sfspeech_authorization_status(),
+        "authorized": stt.sfspeech_authorization_status() == "authorized",
+    }
+
+
+@router.post("/transcribe")
+async def transcribe_audio(audio: UploadFile = File(...)):
+    """Transcribe uploaded speech audio using macOS SFSpeechRecognizer."""
+    from jarvis.voice import stt
+
+    if not stt.sfspeech_available():
+        raise HTTPException(status_code=503, detail="Speech recognition unavailable")
+
+    suffix = Path(audio.filename or "").suffix.lower()
+    if not suffix:
+        suffix = ".m4a"
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+        tmp.write(await audio.read())
+        tmp_path = tmp.name
+
+    try:
+        status = stt.sfspeech_authorization_status()
+        if status != "authorized":
+            status = stt.request_sfspeech_authorization()
+        if status != "authorized":
+            detail = {
+                "notDetermined": "Speech recognition permission not granted",
+                "denied": (
+                    "Speech recognition was denied — enable it in System Settings > "
+                    "Privacy & Security > Speech Recognition"
+                ),
+                "restricted": "Speech recognition is restricted on this device",
+            }.get(status, "Speech recognition unavailable")
+            return {"error": detail, "status": status}
+
+        text = stt.transcribe_with_sfspeech(tmp_path)
+        if text is None:
+            return {
+                "error": "Could not transcribe audio — try speaking more clearly or "
+                "check the microphone",
+                "status": status,
+            }
+        return {"text": text, "status": status}
+    finally:
+        os.unlink(tmp_path)
+
+
 # === Voice Cloning Endpoints ===
 
 

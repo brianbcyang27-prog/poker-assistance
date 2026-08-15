@@ -40,7 +40,7 @@ async def get_system():
     return data["system"]
 
 
-@router.post("/scan")
+@router.post("/scan-env")
 async def force_scan():
     """Force a rescan of the environment."""
     from jarvis.brain.world_model import world_model

@@ -61,7 +61,7 @@ class StudioMaster(DomainMaster):
 
     @property
     def name(self) -> str:
-        return "3D Studio Master"
+        return "3D Master"
 
     @property
     def title(self) -> str:

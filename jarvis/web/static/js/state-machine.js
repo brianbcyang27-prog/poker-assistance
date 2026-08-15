@@ -8,24 +8,37 @@ class JarvisState {
         this.history = [];
         this.maxHistory = 50;
         this.transitionTime = Date.now();
+        this.lastRaw = 'idle';
     }
 
-    set(state) {
-        const validStates = [
-            'idle', 'listening', 'thinking', 'speaking', 'working',
-            'retrieving', 'planning', 'delegating', 'reviewing',
-            'complete', 'error', 'mission_active',
-            'researching', 'coding', 'success', 'warning'
-        ];
-        if (!validStates.includes(state)) return;
+    // Golden-rule canonical states: every requested state collapses to one of these.
+    static CANONICAL = ['idle', 'listening', 'thinking', 'planning', 'working', 'verifying', 'speaking', 'error'];
 
+    // Aliases so existing callers keep working while the visual surface stays canonical.
+    static ALIASES = {
+        retrieving: 'working',
+        delegating: 'working',
+        mission_active: 'working',
+        researching: 'working',
+        coding: 'working',
+        reviewing: 'verifying',
+        complete: 'idle',
+        success: 'idle',
+        warning: 'error'
+    };
+
+    set(state) {
+        const canonical = JarvisState.ALIASES[state] || state;
+        if (!JarvisState.CANONICAL.includes(canonical)) return;
+        this.lastRaw = state;
         this.previous = this.current;
-        this.current = state;
+        this.current = canonical;
         this.transitionTime = Date.now();
 
         this.history.push({
             from: this.previous,
-            to: state,
+            to: canonical,
+            raw: state,
             timestamp: Date.now()
         });
         if (this.history.length > this.maxHistory) {
@@ -33,7 +46,7 @@ class JarvisState {
         }
 
         this.listeners.forEach(fn => {
-            try { fn(state, this.previous); }
+            try { fn(canonical, this.previous); }
             catch (e) { console.error('State listener error:', e); }
         });
     }
@@ -57,6 +70,7 @@ class JarvisState {
     startPlanning() { this.set('planning'); }
     startDelegating() { this.set('delegating'); }
     startReviewing() { this.set('reviewing'); }
+    startVerifying() { this.set('verifying'); }
     complete() { this.set('complete'); }
     setError() { this.set('error'); }
     missionActive() { this.set('mission_active'); }

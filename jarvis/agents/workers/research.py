@@ -193,3 +193,48 @@ You have access to the browser:
 
 Always check at least 2-3 sources for any claim.
 Note when sources conflict or information is uncertain."""
+
+    async def verify(self, title: str, content: str) -> dict:
+        """Verify a mission result without touching the browser.
+
+        Returns ``{"verified": bool, "issues": list[str], "summary": str}``.
+        Used as the fact-check gate in the canonical mission path
+        (:func:`jarvis.projects.task_flow.route_task`).
+        """
+        import json
+
+        prompt = (
+            "You are the Fact Checker. Verify the factual accuracy, internal "
+            "consistency, and evidence quality of the mission result below. "
+            "Do not invent claims; if you cannot verify a claim, list it as an "
+            'issue. Respond with ONLY JSON: '
+            '{"verified": true/false, "issues": ["issue 1"], '
+            '"summary": "one-line verdict"}'
+        )
+        try:
+            raw = await self._llm_chat(
+                f"Mission: {title}\n\nResult to verify:\n{content[:4000]}",
+                system_prompt=prompt,
+            )
+        except Exception as e:  # pragma: no cover - depends on LLM availability
+            log.warning("Fact check gate failed: %s", e)
+            return {
+                "verified": False,
+                "issues": [f"fact check error: {e}"],
+                "summary": "unverified",
+            }
+        try:
+            data = json.loads(raw)
+            if isinstance(data, dict):
+                return {
+                    "verified": bool(data.get("verified", False)),
+                    "issues": [str(i) for i in (data.get("issues") or [])][:5],
+                    "summary": str(data.get("summary", ""))[:300],
+                }
+        except Exception:
+            pass
+        return {
+            "verified": False,
+            "issues": ["fact-check response was not valid JSON"],
+            "summary": raw[:200],
+        }

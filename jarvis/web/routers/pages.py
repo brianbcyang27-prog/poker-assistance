@@ -35,3 +35,9 @@ async def history_page(request: Request):
 async def developer_dashboard(request: Request):
     """Developer Dashboard — live system health."""
     return templates.TemplateResponse(request, "developer_dashboard.html")
+
+
+@router.get("/core")
+async def core_page(request: Request):
+    """Fullscreen golden core — desktop app surface."""
+    return templates.TemplateResponse(request, "core.html")

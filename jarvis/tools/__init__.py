@@ -11,6 +11,12 @@ Usage:
     result = await tool.run_terminal("ls -la")
 """
 
+# Import V10 tool modules so their module-level register_tool() calls fire;
+# tool_registry stays populated whenever the package is imported.
+from . import (
+    browser_tools,  # noqa: F401 — side effect: registers browser_* tools
+    web_search,  # noqa: F401 — side effect: registers web_search/fetch_page
+)
 from .result import ToolResult
 from .unified import Tool
 

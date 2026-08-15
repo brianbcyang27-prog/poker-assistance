@@ -1,10 +1,20 @@
-"""Tool registry — manages JARVIS tool knowledge and recommendations."""
+"""Tool registry — manages JARVIS tool knowledge and recommendations.
+
+V10: also registers *executable* tools (:class:`~jarvis.tools.base.Tool`) and
+dispatches calls through :meth:`ToolRegistry.execute`. Knowledge methods from
+v6.3.0 remain unchanged; execution is an additive layer so the two views
+(knowledge metadata vs. runnable implementations) stay in sync via
+:meth:`ToolRegistry.register_tool`.
+"""
 
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
+from .base import Tool, ToolError
 from .models import ToolCapability, ToolInfo
+from .result import ToolResult
 
 _DEFAULT_TOOLS: list[dict] = [
     {
@@ -612,6 +622,8 @@ class ToolRegistry:
         self._tools: dict[str, ToolInfo] = {}
         self._category_index: dict[str, list[str]] = {}
         self._loaded = False
+        self._executables: dict[str, Tool] = {}
+        self._executable_info: dict[str, ToolInfo] = {}
 
     async def _ensure_loaded(self) -> None:
         if not self._loaded:
@@ -640,6 +652,11 @@ class ToolRegistry:
                         self._category_index.setdefault(cat, []).append(name)
             except Exception:
                 pass
+
+        for name, ti in self._executable_info.items():
+            self._tools[name] = ti
+            if name not in self._category_index.get(ti.category, []):
+                self._category_index.setdefault(ti.category, []).append(name)
 
     async def save(self) -> None:
         await self._ensure_loaded()
@@ -791,3 +808,93 @@ class ToolRegistry:
         self._tools[tool_info.name] = tool_info
         self._category_index.setdefault(tool_info.category, []).append(tool_info.name)
         return tool_info
+
+    # ─── V10 EXECUTABLE TOOLS ─────────────────────────────
+
+    def register_tool(self, tool: Tool) -> Tool:
+        """Register an executable V10 tool. Knowledge metadata is auto-synced."""
+        self._executables[tool.name] = tool
+        ti = ToolInfo(
+            name=tool.name,
+            category=tool.spec.category,
+            description=tool.spec.description,
+            capabilities=[
+                ToolCapability(
+                    name=tool.name,
+                    description=tool.spec.description,
+                    input_types=[p.name for p in tool.spec.parameters],
+                    output_types=["ToolResult"],
+                )
+            ],
+            examples=list(tool.spec.examples),
+        )
+        self._executable_info[tool.name] = ti
+        self._tools[tool.name] = ti
+        self._category_index.setdefault(ti.category, []).append(tool.name)
+        return tool
+
+    def get_executable(self, tool_name: str) -> Tool | None:
+        return self._executables.get(tool_name)
+
+    def list_executables(self) -> list[Tool]:
+        return list(self._executables.values())
+
+    async def execute(self, tool_name: str, params: dict[str, Any] | None = None) -> ToolResult:
+        """Execute a registered tool by name. Never raises for tool failures.
+
+        Unexpected exceptions are converted into a failed ``ToolResult`` so the
+        executor (PHASE E) sees a uniform result surface. ``asyncio.CancelledError``
+        is re-raised so callers can honour cancellation (kill switch).
+        """
+        tool = self._executables.get(tool_name)
+        if tool is None:
+            return ToolResult(
+                ok=False,
+                error=f"Unknown tool: {tool_name}",
+                tool=tool_name,
+                errors=[f"Unknown tool: {tool_name}"],
+                artifacts=[
+                    {
+                        "type": "error",
+                        "code": ToolError.NOT_FOUND,
+                        "message": f"Unknown tool: {tool_name}",
+                        "recoverable": True,
+                    }
+                ],
+            )
+        try:
+            result = await tool.execute(params or {})
+            if not result.tool:
+                result.tool = tool_name
+            return result
+        except asyncio.CancelledError:
+            raise
+        except ToolError as e:
+            return ToolResult(
+                ok=False,
+                error=str(e),
+                tool=tool_name,
+                errors=[str(e)],
+                artifacts=[{"type": "error", **e.to_dict()}],
+                recovery=f"Tool '{tool_name}' failed: {e.code}",
+            )
+        except Exception as e:
+            return ToolResult(
+                ok=False,
+                error=str(e),
+                tool=tool_name,
+                errors=[str(e)],
+                artifacts=[
+                    {
+                        "type": "error",
+                        "code": ToolError.EXECUTION_ERROR,
+                        "message": str(e),
+                        "tool": tool_name,
+                        "recoverable": False,
+                    }
+                ],
+            )
+
+
+#: Module-level singleton for shared use (mirrors ``jarvis.core.events.event_bus``).
+tool_registry = ToolRegistry()

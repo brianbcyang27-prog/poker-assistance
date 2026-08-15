@@ -13,6 +13,7 @@ class LivingInterface {
         this._ws = null;
         this._reconnectTimer = null;
         this._fallbackInterval = null;
+        this._wsBound = false;
         this._agentConversations = [];
         this._maxConversations = 20;
 
@@ -23,7 +24,7 @@ class LivingInterface {
                 { icon: '◇', text: 'Memory consolidation active' },
                 { icon: '○', text: 'Waiting for your next mission' },
                 { icon: '◈', text: 'Watching system health' },
-                { icon: '◇', text: 'Remembering previous work' },
+                { icon: '✓', text: 'Mission complete' },
             ],
             listening: [
                 { icon: '◉', text: 'Listening...' },
@@ -38,47 +39,34 @@ class LivingInterface {
                 { icon: '◆', text: 'Processing...' },
             ],
             planning: [
-                { icon: '◉', text: 'Planning the approach...' },
-                { icon: '◎', text: 'Creating a mission plan...' },
-                { icon: '◇', text: 'Assigning the right agents...' },
-                { icon: '◈', text: 'Building the execution path...' },
-            ],
-            delegating: [
-                { icon: '◉', text: 'Dispatching to specialists...' },
-                { icon: '◎', text: 'Forming the right team...' },
-                { icon: '◇', text: 'Activating workers...' },
+                { icon: '◉', text: 'Designing a mission plan...' },
+                { icon: '◎', text: 'Selecting the right domain...' },
+                { icon: '◇', text: 'Defining success criteria...' },
+                { icon: '◈', text: 'Sequencing subtasks...' },
+                { icon: '◆', text: 'Estimating effort...' },
             ],
             working: [
-                { icon: '◉', text: 'Executing tasks...' },
-                { icon: '◎', text: 'Workers collaborating...' },
-                { icon: '◇', text: 'Processing data...' },
-                { icon: '◈', text: 'Building your solution...' },
+                { icon: '◉', text: 'Dispatching to specialists...' },
+                { icon: '◎', text: 'Executing tasks...' },
+                { icon: '◇', text: 'Workers collaborating...' },
+                { icon: '◈', text: 'Querying knowledge graph...' },
+                { icon: '◆', text: 'Building artifacts...' },
             ],
-            reviewing: [
-                { icon: '◉', text: 'Quality check...' },
-                { icon: '◎', text: 'Verifying results...' },
-                { icon: '◇', text: 'Validating output...' },
-            ],
-            retrieving: [
-                { icon: '◉', text: 'Querying knowledge graph...' },
-                { icon: '◎', text: 'Searching documents...' },
-                { icon: '◇', text: 'Retrieving memories...' },
+            verifying: [
+                { icon: '◉', text: 'Reviewing results...' },
+                { icon: '◎', text: 'Running fact checks...' },
+                { icon: '◇', text: 'Validating output quality...' },
+                { icon: '◈', text: 'Cross-checking evidence...' },
+                { icon: '◆', text: 'Confirming completion...' },
             ],
             speaking: [
                 { icon: '◉', text: 'Generating response...' },
                 { icon: '◎', text: 'Synthesizing answer...' },
             ],
-            complete: [
-                { icon: '✓', text: 'Mission complete' },
-                { icon: '◉', text: 'Results delivered' },
-            ],
             error: [
-                { icon: '✗', text: 'Something went wrong' },
-                { icon: '⚠', text: 'Attempting recovery...' },
-            ],
-            mission_active: [
-                { icon: '◉', text: 'Mission in progress...' },
-                { icon: '◎', text: 'Workers are active...' },
+                { icon: '◉', text: 'Something went wrong...' },
+                { icon: '◎', text: 'Assessing the failure...' },
+                { icon: '◇', text: 'Preparing recovery...' },
             ],
         };
     }
@@ -86,6 +74,7 @@ class LivingInterface {
     setState(state) {
         if (this.coreState) {
             this.coreState.textContent = state.toUpperCase().replace('_', ' ');
+            this.coreState.dataset.state = state;
         }
         if (this.coreLabel) {
             this.coreLabel.classList.toggle('active', state !== 'idle');
@@ -102,11 +91,15 @@ class LivingInterface {
     }
 
     connectEvents(wsUrl) {
-        if (window.JarvisWS && window.JarvisWS.connected) return;
+        if (!window.JarvisWS) return;
 
-        if (window.JarvisWS) {
-            window.JarvisWS.connect(wsUrl);
+        if (!this._wsBound) {
             window.JarvisWS.on('message', (data) => this._handleWSMessage(data));
+            this._wsBound = true;
+        }
+
+        if (!window.JarvisWS.connected) {
+            window.JarvisWS.connect(wsUrl);
         }
     }
 
@@ -146,11 +139,11 @@ class LivingInterface {
 
         const stateMap = {
             'jarvis.thinking': 'thinking',
-            'jarvis.delegated': 'delegating',
+            'jarvis.delegated': 'working',
             'jarvis.responded': 'speaking',
             'king.planning': 'planning',
-            'king.delegated': 'delegating',
-            'king.completed': 'reviewing',
+            'king.delegated': 'working',
+            'king.completed': 'verifying',
             'worker.started': 'working',
             'worker.completed': 'working',
             'worker.error': 'error',

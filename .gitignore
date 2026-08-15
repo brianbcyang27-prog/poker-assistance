@@ -57,3 +57,13 @@ jarvis_missions.json
 .coverage
 coverage_html/
 .sisyphus/
+
+# QA / local dev artifacts
+.omo/
+yolov8n.pt
+projects-view.yml
+dashboard-snapshot.md
+/ui-assessment-*.png
+/v92-*.png
+/before-*.png
+/after-*.png

@@ -54,6 +54,13 @@ async def run_doctor() -> list[CheckResult]:
     results.append(check_permissions())
     results.append(check_models())
 
+    # Close DB connections so non-daemon aiosqlite worker threads don't hang the process.
+    for closer in (_close_graph, _close_db):
+        try:
+            await closer()
+        except Exception:
+            pass
+
     return results
 
 
@@ -535,6 +542,19 @@ async def main():
     results = await run_doctor()
     print_results(results)
     return 0 if all(r.status != "fail" for r in results) else 1
+
+
+async def _close_graph() -> None:
+    from jarvis.brain.memory.graph import graph
+
+    await graph.close()
+
+
+async def _close_db() -> None:
+    from jarvis.core.database import get_db
+
+    db = await get_db()
+    await db.close()
 
 
 if __name__ == "__main__":

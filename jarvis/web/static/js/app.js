@@ -388,6 +388,7 @@ function showToast(msg) {
 /* ---- Chat ---- */
 
 function sendMessage() {
+    if (window.jarvisStopSpeaking) window.jarvisStopSpeaking();
     sendMessageStreaming();
 }
 
@@ -474,8 +475,11 @@ async function _sendMessageAsync(message) {
                                 if (toolCalls.length > 0 && window.MissionTimeline) {
                                     const panel = document.getElementById('timeline-panel');
                                     if (panel) panel.style.display = '';
-                                    const timeline = new MissionTimeline('mission-timeline');
-                                    timeline.setTimeline(toolCalls.map(tc => ({
+                                    if (!window._missionTimeline) {
+                                        window._missionTimeline = new MissionTimeline('mission-timeline');
+                                        window._missionTimeline.subscribe();
+                                    }
+                                    window._missionTimeline.setTimeline(toolCalls.map(tc => ({
                                         event_type: tc.ok ? 'tool.complete' : 'tool.fail',
                                         label: tc.name || 'Tool call',
                                         status: tc.ok ? 'success' : 'failed',
@@ -531,6 +535,11 @@ async function _sendMessageAsync(message) {
                                 if (window.jarvisState) window.jarvisState.set('idle');
                                 if (window.livingUI) window.livingUI.setState('idle');
                                 if (goldenCore) goldenCore.setState('idle');
+                                // Close the voice loop: speak the final result aloud
+                                if (window.jarvisLastInputViaVoice && window.jarvisSpeak && fullText) {
+                                    window.jarvisLastInputViaVoice = false;
+                                    window.jarvisSpeak(fullText);
+                                }
                                 // Refresh sidebar to show updated conversation
                                 loadSessionList();
                             }
@@ -697,6 +706,14 @@ function setErrorState(isError) {
 /* ---- Workspace Switching ---- */
 
 async function switchWorkspace(workspace) {
+    // Settings is a modal overlay, not a workspace view: open it without
+    // hiding the current view (otherwise the workspace stays blank after
+    // the overlay closes).
+    if (workspace === 'settings') {
+        toggleSettings();
+        return;
+    }
+
     const prev = currentWorkspace;
     currentWorkspace = workspace;
 
@@ -730,14 +747,56 @@ async function switchWorkspace(workspace) {
     if (workspace === 'chat') {
         try {
             await Promise.all([
-                window._loadScript('/static/js/chat-background.js?v=8.0.0'),
-                window._loadScript('/static/js/voice-experience.js?v=8.0.0'),
-                window._loadScript('/static/js/voice.js?v=8.0.0'),
-                window._loadScript('/static/js/vision-experience.js?v=8.0.0'),
-                window._loadScript('/static/js/computer-control.js?v=8.0.0'),
+                window._loadScript('/static/js/chat-background.js?v=9.2.0'),
+                window._loadScript('/static/js/voice-experience.js?v=9.2.0'),
+                window._loadScript('/static/js/vision-experience.js?v=9.2.0'),
+                window._loadScript('/static/js/computer-control.js?v=9.2.0'),
             ]);
         } catch (e) {
             console.warn('Failed to load chat workspace scripts:', e);
+        }
+    }
+
+    if (workspace === 'projects') {
+        try {
+            await window._loadScript('/static/js/project-dashboard.js?v=9.2.0');
+            if (window.ProjectDashboard && !window.ProjectDashboard.initialized) {
+                window.ProjectDashboard.init(document.getElementById('projects-container'));
+            }
+            window.ProjectDashboard.refresh();
+        } catch (e) {
+            console.warn('Failed to load project dashboard scripts:', e);
+        }
+    }
+
+    if (workspace === 'execution') {
+        try {
+            const loads = [window._loadScript('/static/js/execution-view.js?v=9.2.0')];
+            if (typeof MissionDAG === 'undefined') {
+                loads.push(window._loadScript('/static/js/mission-dag.js?v=9.2.0'));
+            }
+            if (typeof MissionTimeline === 'undefined') {
+                loads.push(window._loadScript('/static/js/mission-timeline.js?v=9.2.0'));
+            }
+            await Promise.all(loads);
+            if (window.ExecutionView && !window.ExecutionView.initialized) {
+                window.ExecutionView.init(document.getElementById('execution-container'));
+            }
+            window.ExecutionView.refreshProjects();
+        } catch (e) {
+            console.warn('Failed to load execution view scripts:', e);
+        }
+    }
+
+    if (workspace === 'knowledge') {
+        try {
+            await window._loadScript('/static/js/knowledge-graph.js?v=9.2.0');
+            if (window.KnowledgeGraph && !window.KnowledgeGraph.initialized) {
+                window.KnowledgeGraph.init(document.getElementById('knowledge-container'));
+            }
+            window.KnowledgeGraph.refreshProjects();
+        } catch (e) {
+            console.warn('Failed to load knowledge graph scripts:', e);
         }
     }
 
@@ -748,6 +807,7 @@ async function switchWorkspace(workspace) {
                 homeContainer.classList.add('active');
             }
             if (chatBg) { chatBg.stop(); chatBg = null; }
+            if (window.goldenCore && !window.goldenCore.running) window.goldenCore.start();
             break;
 
         case 'chat':
@@ -763,9 +823,35 @@ async function switchWorkspace(workspace) {
             await loadChatHistory();
             break;
 
-        case 'settings':
-            toggleSettings();
-            return;
+        case 'projects':
+            if (homeContainer) homeContainer.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            const projectsContainer = document.getElementById('projects-container');
+            if (projectsContainer) {
+                projectsContainer.style.display = 'flex';
+                projectsContainer.classList.add('active');
+            }
+            break;
+
+        case 'execution':
+            if (homeContainer) homeContainer.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            const executionContainer = document.getElementById('execution-container');
+            if (executionContainer) {
+                executionContainer.style.display = 'flex';
+                executionContainer.classList.add('active');
+            }
+            break;
+
+        case 'knowledge':
+            if (homeContainer) homeContainer.style.display = 'none';
+            if (chatContainer) chatContainer.style.display = 'none';
+            const knowledgeContainer = document.getElementById('knowledge-container');
+            if (knowledgeContainer) {
+                knowledgeContainer.style.display = 'flex';
+                knowledgeContainer.classList.add('active');
+            }
+            break;
     }
 
     // Performance: stop chat background when not on chat
@@ -794,11 +880,13 @@ async function loadChatHistory() {
     if (!currentSessionId) {
         try {
             const res = await fetch('/api/chat/sessions?limit=1');
+            if (!res.ok) return;
             const data = await res.json();
             if (data.sessions && data.sessions.length > 0) {
                 currentSessionId = data.sessions[0].session_id;
                 // Load history for this session
                 const historyRes = await fetch(`/api/chat/history/${currentSessionId}`);
+                if (!historyRes.ok) return;
                 const messages = await historyRes.json();
                 const container = document.getElementById('chat-messages');
                 if (container) {
@@ -819,6 +907,7 @@ async function loadChatHistory() {
 
     try {
         const res = await fetch(`/api/chat/history/${currentSessionId}`);
+        if (!res.ok) return;
         const messages = await res.json();
         const container = document.getElementById('chat-messages');
         if (!container) return;
@@ -866,7 +955,6 @@ function _refreshHealth() {
         .then(data => {
             const kings = data.kings || {};
             let totalWorkers = 0, activeWorkers = 0;
-            let totalKings = Object.keys(kings).length;
             for (const king of Object.values(kings)) {
                 const workers = king.workers || {};
                 totalWorkers += Object.keys(workers).length;
@@ -877,8 +965,6 @@ function _refreshHealth() {
 
             const el = document.getElementById('health-agents');
             if (el) el.textContent = `${activeWorkers}/${totalWorkers}`;
-            const kel = document.getElementById('health-kings');
-            if (kel) kel.textContent = `${totalKings}/4`;
             const eel = document.getElementById('health-events');
             if (eel) eel.textContent = _eventCount;
             const uel = document.getElementById('health-uptime');
@@ -897,6 +983,19 @@ function _refreshHealth() {
                 statusEl.className = 'right-status';
                 statusEl.style.color = '#ff3366';
             }
+        });
+
+    fetch('/api/domains')
+        .then(r => r.json())
+        .then(data => {
+            const domains = data.domains || [];
+            const userDomains = domains.filter(d => d.domain !== 'system');
+            const del = document.getElementById('health-domains');
+            if (del) del.textContent = `${userDomains.length}/6`;
+        })
+        .catch(() => {
+            const del = document.getElementById('health-domains');
+            if (del) del.textContent = '-';
         });
 }
 
@@ -924,51 +1023,6 @@ function _updateSidebarContext(workspace) {
         // Fallback to home context
         const home = document.getElementById('right-home');
         if (home) home.style.display = 'flex';
-    }
-}
-
-/* ---- Agent Conversation Stream ---- */
-
-function _addAgentConversation(data) {
-    const stream = document.getElementById('agent-conversation-stream');
-    if (!stream) return;
-
-    const el = document.createElement('div');
-    el.className = 'agent-msg';
-
-    const header = document.createElement('div');
-    header.className = 'agent-msg-header';
-    const cardSpan = document.createElement('span');
-    cardSpan.className = 'agent-card';
-    cardSpan.textContent = data.card_id || '?';
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'agent-name';
-    nameSpan.textContent = data.title || data.sender || '?';
-    header.appendChild(cardSpan);
-    header.appendChild(nameSpan);
-    if (data.receiver) {
-        const arrow = document.createTextNode(' → ');
-        const recvSpan = document.createElement('span');
-        recvSpan.className = 'agent-recv';
-        recvSpan.textContent = data.receiver;
-        header.appendChild(arrow);
-        header.appendChild(recvSpan);
-    }
-
-    const body = document.createElement('div');
-    body.className = 'agent-msg-body';
-    body.textContent = data.content || '';
-
-    el.appendChild(header);
-    el.appendChild(body);
-    stream.appendChild(el);
-
-    stream.scrollTop = stream.scrollHeight;
-
-    requestAnimationFrame(() => el.classList.add('visible'));
-
-    while (stream.children.length > 30) {
-        stream.removeChild(stream.firstChild);
     }
 }
 
@@ -1063,6 +1117,7 @@ function _hideChatEmptyState() {
 async function loadSessionList() {
     try {
         const res = await fetch('/api/chat/sessions?limit=20');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const list = document.getElementById('session-list');
         if (!list || !data.sessions) return;
@@ -1203,6 +1258,7 @@ async function _loadHomeContext() {
     if (!el) return;
     try {
         const res = await fetch('/api/workspace');
+        if (!res.ok) return;
         const data = await res.json();
         const projects = Array.isArray(data) ? data : (data.workspaces || []);
         if (projects.length > 0) {
@@ -1218,6 +1274,7 @@ async function _loadHomeRecent() {
     if (!list || !section) return;
     try {
         const res = await fetch('/api/chat/sessions');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const sessions = data.sessions || data || [];
         if (sessions.length === 0) {
@@ -1256,20 +1313,33 @@ function sendHomeMessage(text) {
     const message = text || (input ? input.value.trim() : '');
     if (!message) return;
     if (input) input.value = '';
-    
-    // Switch to chat workspace and send message
+
     switchWorkspace('chat').then(() => {
-        // Wait for chat workspace to be fully loaded
-        setTimeout(() => {
-            const chatInput = document.getElementById('message-input');
-            if (chatInput) {
-                chatInput.value = message;
-                chatInput.dispatchEvent(new Event('input'));
-                // Call the internal send function that uses the input value
+        _sendMessageAfterWorkspaceReady(message);
+    });
+}
+
+function _sendMessageAfterWorkspaceReady(message) {
+    const chatInput = document.getElementById('message-input');
+    if (chatInput && chatInput.offsetParent !== null) {
+        chatInput.value = message;
+        chatInput.dispatchEvent(new Event('input'));
+        sendMessage();
+        return;
+    }
+    // Chat workspace loads asynchronously — retry until it's visible
+    let attempts = 0;
+    const timer = setInterval(() => {
+        const el = document.getElementById('message-input');
+        if ((el && el.offsetParent !== null) || ++attempts >= 20) {
+            clearInterval(timer);
+            if (el && el.offsetParent !== null) {
+                el.value = message;
+                el.dispatchEvent(new Event('input'));
                 sendMessage();
             }
-        }, 100);
-    });
+        }
+    }, 50);
 }
 
 /* ---- Init ---- */
@@ -1306,29 +1376,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (e) { console.warn('LivingInterface:', e); }
 
     // Lazy-load explainability + mission DAG (not needed on initial load)
-    window._loadScript('/static/js/explainability.js?v=8.0.0').then(() => {
+    window._loadScript('/static/js/explainability.js?v=9.2.0').then(() => {
         try { window.explainability = new ExplainabilityOverlay(); } catch (e) { console.warn('Explainability init failed:', e); }
     }).catch(() => {});
-    window._loadScript('/static/js/mission-dag.js?v=8.0.0').then(() => {
+    window._loadScript('/static/js/mission-dag.js?v=9.2.0').then(() => {
         try {
             window.missionDAG = new MissionDAG(document.getElementById('mission-dag-container'));
             window.missionDAG.init();
         } catch (e) { console.warn('MissionDAG init failed:', e); }
     }).catch(() => {});
-    window._loadScript('/static/js/mission-timeline.js?v=8.0.0').catch(() => {});
-    window._loadScript('/static/js/graph-3d.js?v=8.0.0').then(() => {
+    window._loadScript('/static/js/mission-timeline.js?v=9.2.0').catch(() => {});
+    window._loadScript('/static/js/graph-3d.js?v=9.2.0').then(() => {
         if (window.Graph3D) {
             try {
-                goldenCore = new Graph3D(document.getElementById('golden-core-container'));
-                goldenCore.init();
-                goldenCore.loadData();
-                goldenCore.start();
+                window.goldenCore = new Graph3D(document.getElementById('golden-core-container'));
+                window.goldenCore.init();
+                window.goldenCore.loadData();
+                window.goldenCore.start();
             } catch (e) {
                 console.warn('Golden core visualization unavailable:', e);
             }
         }
     }).catch(() => {});
-    window._loadScript('/static/js/digital-twin.js?v=8.0.0').then(() => {
+    window._loadScript('/static/js/digital-twin.js?v=9.2.0').then(() => {
         if (window.DigitalTwin) {
             window._digitalTwin = new DigitalTwin('digital-twin-container');
             window._digitalTwin.init();
@@ -1365,10 +1435,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Wire up workspace navigation
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+            if (btn.id === 'dev-mode-toggle' || btn.dataset.workspace === 'developer') {
+                window.location.href = '/dashboard';
+                return;
+            }
             if (btn.dataset.workspace) {
-                if (btn.id === 'dev-mode-toggle') {
-                    toggleDeveloperMode();
-                } else if (btn.dataset.workspace === 'chat' && currentWorkspace === 'chat') {
+                if (btn.dataset.workspace === 'chat' && currentWorkspace === 'chat') {
                     startNewChat();
                 } else {
                     switchWorkspace(btn.dataset.workspace);
@@ -1433,13 +1505,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                     _addTerminalLine(`${ev.icon || '•'} ${ev.label || ev.event_type}`, '');
                 }
             }
-            if (data.type === 'agent_conversation') {
-                _addAgentConversation(data.data);
-            }
             if (data.type === 'status' && data.data) {
                 _updateHealthFromStatus(data.data);
             }
         };
+    }
+
+    // v9.2.0 D4: unified live activity stream on the right-home panel
+    if (window.ActivityStream && !window.activityStream) {
+        window.activityStream = new ActivityStream('agent-conversation-stream');
+        window.activityStream.subscribe();
     }
 
     // Keyboard shortcuts
@@ -1517,27 +1592,6 @@ function _updateHealthFromStatus(status) {
     if (el) el.textContent = `${activeWorkers}/${totalWorkers}`;
 }
 
-/* ---- Computer Actions ---- */
-
-async function computerAction(action, params = {}) {
-    const output = document.getElementById('computer-output');
-    if (output) output.textContent = 'Executing...';
-    
-    try {
-        const res = await fetch('/api/computer/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action, params })
-        });
-        const data = await res.json();
-        if (output) output.textContent = JSON.stringify(data, null, 2);
-        return data;
-    } catch (e) {
-        if (output) output.textContent = 'Error: ' + e.message;
-        return null;
-    }
-}
-
 /* ---- Projects ---- */
 
 
@@ -1553,6 +1607,7 @@ async function loadVoiceCloneStatus() {
     
     try {
         const res = await fetch('/api/voice/clone/status');
+        if (!res.ok) return;
         const data = await res.json();
         
         if (statusEl) {
@@ -1567,6 +1622,7 @@ async function loadVoiceCloneStatus() {
         
         // Load profiles
         const profilesRes = await fetch('/api/voice/clone/profiles');
+        if (!profilesRes.ok) return;
         const profilesData = await profilesRes.json();
         
         if (profilesListEl && profilesData.profiles) {
@@ -1591,6 +1647,47 @@ async function loadVoiceCloneStatus() {
     }
 }
 
+async function loadSession(sessionId) {
+    if (!sessionId) return;
+    if (_chatStreaming && _chatAbortController) {
+        _chatAbortController.abort();
+        _chatStreaming = false;
+        _chatAbortController = null;
+    }
+    currentSessionId = sessionId;
+    localStorage.setItem('jarvis_session_id', sessionId);
+    await switchWorkspace('chat');
+    await loadChatHistory();
+    loadSessionList();
+}
+
+async function testCloneVoice(profileId) {
+    if (!profileId) return;
+    try {
+        const res = await fetch(`/api/voice/clone/profiles/${profileId}/audio`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio.onended = () => URL.revokeObjectURL(url);
+        await audio.play();
+    } catch (e) {
+        alert('Could not play reference audio: ' + e.message);
+    }
+}
+
+async function deleteCloneProfile(profileId) {
+    if (!profileId) return;
+    if (!confirm('Delete this voice profile?')) return;
+    try {
+        const res = await fetch(`/api/voice/clone/profiles/${profileId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        await loadVoiceCloneStatus();
+    } catch (e) {
+        alert('Could not delete voice profile: ' + e.message);
+    }
+}
+
 /* ============================================================
    VOICE WORKSPACE
    ============================================================ */
@@ -1606,7 +1703,9 @@ let voiceState = {
     recordingSeconds: 0,
     liveSTT: null,
     isListening: false,
-    selectedProfile: null
+    selectedProfile: null,
+    audioContext: null,
+    waveformAnimation: null
 };
 
 // Load voice workspace status
@@ -1884,6 +1983,16 @@ function stopRecording() {
         document.getElementById('voice-record-timer').classList.add('hidden');
         document.getElementById('voice-waveform').classList.add('hidden');
     }
+    
+    // Release audio resources — cancel render loop and close context
+    if (voiceState.waveformAnimation) {
+        cancelAnimationFrame(voiceState.waveformAnimation);
+        voiceState.waveformAnimation = null;
+    }
+    if (voiceState.audioContext) {
+        voiceState.audioContext.close().catch(() => {});
+        voiceState.audioContext = null;
+    }
 }
 
 // Start waveform visualization
@@ -1892,7 +2001,10 @@ function startWaveform(stream) {
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
-    const audioContext = new AudioContext();
+    if (!voiceState.audioContext) {
+        voiceState.audioContext = new AudioContext();
+    }
+    const audioContext = voiceState.audioContext;
     const source = audioContext.createMediaStreamSource(stream);
     const analyser = audioContext.createAnalyser();
     
@@ -2187,35 +2299,3 @@ document.addEventListener('DOMContentLoaded', () => {
         nameInput.addEventListener('input', updateCreateButton);
     }
 });
-
-/* ---- Vision Experience helpers ---- */
-
-let _visionExperience = null;
-
-function startVision(mode) {
-    if (!_visionExperience) {
-        _visionExperience = new VisionExperience();
-    }
-
-    const video = document.getElementById('vision-video');
-    const overlay = document.getElementById('vision-overlay');
-    const captureBtn = document.getElementById('btn-capture-frame');
-
-    if (mode === 'screen') {
-        _visionExperience.startScreenCapture().then(ok => {
-            if (ok) {
-                overlay.style.display = 'none';
-                overlay.classList.remove('empty');
-                captureBtn.style.display = '';
-            }
-        });
-    } else if (mode === 'camera') {
-        _visionExperience.startCamera().then(ok => {
-            if (ok) {
-                overlay.style.display = 'none';
-                overlay.classList.remove('empty');
-                captureBtn.style.display = '';
-            }
-        });
-    }
-}

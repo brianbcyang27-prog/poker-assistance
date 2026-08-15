@@ -27,6 +27,7 @@ async def execute_action(request: Request, req: ActionRequest):
         "screen_get_active_window": ["screen"],
         "screen_list_windows": ["screen"],
         "shell_execute": ["terminal"],
+        "run_python": ["terminal"],
         "browser_navigate": ["browser"],
         "browser_screenshot": ["browser"],
         "browser_click": ["browser"],
@@ -105,12 +106,21 @@ async def list_actions():
                 "params": ["command"],
                 "description": "Execute shell command",
             },
+            {
+                "name": "run_python",
+                "params": ["code"],
+                "description": "Execute Python code",
+            },
         ]
     }
 
 
 @router.post("/shutdown")
-async def shutdown():
+async def shutdown(request: Request):
+    """Shut down the computer controller (local connections only)."""
+    host = request.client.host if request.client else ""
+    if host not in ("127.0.0.1", "::1", "localhost"):
+        raise HTTPException(status_code=403, detail="Local access only")
     from jarvis.computer.controller import controller
 
     await controller.shutdown()

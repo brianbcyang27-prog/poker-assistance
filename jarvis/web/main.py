@@ -33,6 +33,7 @@ workspace_manager: WorkspaceManager = None
 architecture_registry: ArchitectureRegistry = None
 current_architecture = None
 domain_registry = None
+project_manager = None
 
 
 def initialize_agents() -> JarvisAgent:
@@ -59,6 +60,12 @@ def initialize_agents() -> JarvisAgent:
 
     domain_registry = DomainRegistry()
     domain_registry.attach_kings(jarvis.get_all_kings())
+
+    # v9.0.0 M2: Project Intelligence manager (first-class projects)
+    from jarvis.projects.manager import project_manager as _project_manager
+
+    global project_manager
+    project_manager = _project_manager
 
     return jarvis
 
@@ -205,6 +212,11 @@ async def lifespan(app: FastAPI):
 
     await health_monitor.start()
 
+    # === START WORLD MONITOR (webcam YOLO alerts) ===
+    from jarvis.world.monitor import world_monitor
+
+    await world_monitor.start()
+
     # === BACKGROUND STARTUP DIAGNOSTICS (non-blocking — prints as it completes) ===
     diag_task = asyncio.create_task(_run_startup_diagnostics())
 
@@ -217,6 +229,24 @@ async def lifespan(app: FastAPI):
 
     # === DATABASE ===
     db = await get_db()
+
+    # === INTEGRATIONS (background — load connector configs, don't block serve) ===
+    from jarvis.integrations import get_registry
+    from jarvis.integrations.connectors import register_connectors
+
+    integration_registry = get_registry(db)
+    register_connectors(integration_registry)
+
+    async def _init_integrations():
+        try:
+            await integration_registry.init()
+            print(
+                f"  ✓ Integrations: {len(integration_registry.all())} connectors registered"
+            )
+        except Exception as exc:  # noqa: BLE001 — never block startup
+            print(f"  ⚠ Integration init failed: {exc}")
+
+    asyncio.create_task(_init_integrations())
 
     # === AGENTS ===
     initialize_agents()
@@ -360,6 +390,11 @@ async def lifespan(app: FastAPI):
     # Stop health monitor
     await health_monitor.stop()
 
+    # Stop world monitor
+    from jarvis.world.monitor import world_monitor
+
+    await world_monitor.stop()
+
     # Cancel WebSocket bridge tasks
     try:
         from .routers.websocket import _bridge_tasks
@@ -418,11 +453,16 @@ def create_app() -> FastAPI:
         chat,
         checkpoints,
         computer,
+        desktop,
         domains,
         engineering,
+        integrations,
         iot,
         memory,
+        notebook,
         pages,
+        profile,
+        projects,
         security,
         settings,
         system,
@@ -430,13 +470,16 @@ def create_app() -> FastAPI:
         websocket,
         workspace,
         world,
+        world_cams,
     )
 
     app.include_router(auth.router)
     app.include_router(checkpoints.router)
     app.include_router(chat.router)
+    app.include_router(desktop.router)
     app.include_router(agents.router)
     app.include_router(domains.router)
+    app.include_router(projects.router)
     app.include_router(workspace.router)
     app.include_router(memory.router)
     app.include_router(voice.router)
@@ -447,8 +490,12 @@ def create_app() -> FastAPI:
     app.include_router(iot.router)
     app.include_router(system.router)
     app.include_router(engineering.router)
+    app.include_router(integrations.router)
+    app.include_router(profile.router)
     app.include_router(mission_replay.router)
     app.include_router(world.router)
+    app.include_router(world_cams.router)
+    app.include_router(notebook.router)
     app.include_router(security.router)
 
     return app
@@ -457,8 +504,12 @@ def create_app() -> FastAPI:
 def run():
     """Run the JARVIS web server."""
     config = get_config()
-    app = create_app()
-    uvicorn.run(app, host=config.host, port=config.port)
+    # Serve the module-level app by import string so uvicorn imports this module
+    # as "jarvis.web.main" (not "__main__"). Routers import `jarvis.web.main as
+    # web_main` and read module globals (jarvis, workspace_manager, domain_registry);
+    # running under `python -m jarvis.web.main` would otherwise create a second
+    # module object whose globals the routers can't see, leaving endpoints broken.
+    uvicorn.run("jarvis.web.main:app", host=config.host, port=config.port)
 
 
 if __name__ == "__main__":
