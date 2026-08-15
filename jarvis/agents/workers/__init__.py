@@ -2,18 +2,37 @@
 
 from .base import BaseWorker
 from .engineering import (
-    ArchitectWorker, BackendWorker, FrontendWorker,
-    ReactWorker, PythonWorker, TestingWorker, DocsWorker, A11yWorker
+    A11yWorker,
+    ArchitectWorker,
+    BackendWorker,
+    DocsWorker,
+    FrontendWorker,
+    PythonWorker,
+    ReactWorker,
+    TestingWorker,
 )
-from .personal import CalendarWorker, EmailWorker, TasksWorker, SchedulingWorker
-from .research import WebResearchWorker, DocumentationWorker, FactCheckWorker
-from .system import FilesWorker, TerminalWorker, ApplicationsWorker
+from .personal import CalendarWorker, EmailWorker, SchedulingWorker, TasksWorker
+from .research import DocumentationWorker, FactCheckWorker, WebResearchWorker
+from .system import ApplicationsWorker, FilesWorker, TerminalWorker
 
 __all__ = [
     "BaseWorker",
-    "ArchitectWorker", "BackendWorker", "FrontendWorker",
-    "ReactWorker", "PythonWorker", "TestingWorker", "DocsWorker", "A11yWorker",
-    "CalendarWorker", "EmailWorker", "TasksWorker", "SchedulingWorker",
-    "WebResearchWorker", "DocumentationWorker", "FactCheckWorker",
-    "FilesWorker", "TerminalWorker", "ApplicationsWorker",
+    "ArchitectWorker",
+    "BackendWorker",
+    "FrontendWorker",
+    "ReactWorker",
+    "PythonWorker",
+    "TestingWorker",
+    "DocsWorker",
+    "A11yWorker",
+    "CalendarWorker",
+    "EmailWorker",
+    "TasksWorker",
+    "SchedulingWorker",
+    "WebResearchWorker",
+    "DocumentationWorker",
+    "FactCheckWorker",
+    "FilesWorker",
+    "TerminalWorker",
+    "ApplicationsWorker",
 ]

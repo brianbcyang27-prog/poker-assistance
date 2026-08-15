@@ -11,9 +11,7 @@ Wraps Playwright for browser automation:
 All methods are async and return structured results.
 """
 
-import asyncio
 import logging
-from typing import Optional
 from dataclasses import dataclass
 
 log = logging.getLogger("jarvis.browser.playwright")
@@ -22,6 +20,7 @@ log = logging.getLogger("jarvis.browser.playwright")
 @dataclass
 class BrowserResult:
     """Result of a Playwright operation."""
+
     ok: bool = True
     data: dict = None
     error: str = ""
@@ -58,7 +57,7 @@ class PlaywrightProvider:
     async def start(
         self,
         headless: bool = True,
-        profile_dir: Optional[str] = None,
+        profile_dir: str | None = None,
     ) -> BrowserResult:
         """Start the browser."""
         if self._initialized:
@@ -66,6 +65,7 @@ class PlaywrightProvider:
 
         try:
             from playwright.async_api import async_playwright
+
             self._playwright = await async_playwright().start()
 
             launch_args = {
@@ -131,6 +131,7 @@ class PlaywrightProvider:
 
         try:
             import time
+
             start = time.time()
             response = await self._page.goto(url, wait_until=wait_until, timeout=30000)
             duration = (time.time() - start) * 1000
@@ -139,12 +140,15 @@ class PlaywrightProvider:
             title = await self._page.title()
             current_url = self._page.url
 
-            return BrowserResult(ok=status < 400, data={
-                "url": current_url,
-                "title": title,
-                "status": status,
-                "duration_ms": round(duration, 2),
-            })
+            return BrowserResult(
+                ok=status < 400,
+                data={
+                    "url": current_url,
+                    "title": title,
+                    "status": status,
+                    "duration_ms": round(duration, 2),
+                },
+            )
 
         except Exception as e:
             return BrowserResult(ok=False, error=str(e))
@@ -158,11 +162,14 @@ class PlaywrightProvider:
             html = await self._page.content()
             title = await self._page.title()
             url = self._page.url
-            return BrowserResult(ok=True, data={
-                "html": html[:500_000],
-                "title": title,
-                "url": url,
-            })
+            return BrowserResult(
+                ok=True,
+                data={
+                    "html": html[:500_000],
+                    "title": title,
+                    "url": url,
+                },
+            )
         except Exception as e:
             return BrowserResult(ok=False, error=str(e))
 
@@ -222,13 +229,14 @@ class PlaywrightProvider:
         except Exception as e:
             return BrowserResult(ok=False, error=str(e))
 
-    async def screenshot(self, path: Optional[str] = None) -> BrowserResult:
+    async def screenshot(self, path: str | None = None) -> BrowserResult:
         """Take a screenshot of the current page."""
         if not self._page:
             return BrowserResult(ok=False, error="Browser not started")
 
         try:
             import time
+
             if not path:
                 path = f"/tmp/jarvis_browser_{int(time.time())}.png"
             await self._page.screenshot(path=path, full_page=False)
@@ -298,10 +306,13 @@ class PlaywrightProvider:
         try:
             title = await self._page.title()
             url = self._page.url
-            return BrowserResult(ok=True, data={
-                "url": url,
-                "title": title,
-            })
+            return BrowserResult(
+                ok=True,
+                data={
+                    "url": url,
+                    "title": title,
+                },
+            )
         except Exception as e:
             return BrowserResult(ok=False, error=str(e))
 

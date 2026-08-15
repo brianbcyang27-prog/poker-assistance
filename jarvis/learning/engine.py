@@ -2,9 +2,8 @@
 
 import hashlib
 import json
-import time
 from collections import Counter, defaultdict
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .models import LearningRecord, SkillUpdate
 
@@ -13,14 +12,14 @@ class LearningEngine:
     """Analyses completed missions and distills actionable learnings."""
 
     def __init__(self) -> None:
-        self._knowledge_base: List[LearningRecord] = []
-        self._skill_registry: Dict[str, SkillUpdate] = {}
+        self._knowledge_base: list[LearningRecord] = []
+        self._skill_registry: dict[str, SkillUpdate] = {}
 
     # ------------------------------------------------------------------
     # Core public API
     # ------------------------------------------------------------------
 
-    async def analyze_mission(self, mission_data: Dict[str, Any]) -> LearningRecord:
+    async def analyze_mission(self, mission_data: dict[str, Any]) -> LearningRecord:
         """Analyse a completed mission and produce a LearningRecord."""
         mission_id = str(mission_data.get("mission_id", self._hash(mission_data)))
         libraries = self._extract_libraries(mission_data)
@@ -42,10 +41,10 @@ class LearningEngine:
         await self.update_knowledge_base(record)
         return record
 
-    async def extract_patterns(self, missions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    async def extract_patterns(self, missions: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Find recurring patterns across multiple missions."""
         pattern_counter: Counter = Counter()
-        pattern_details: Dict[str, List[str]] = defaultdict(list)
+        pattern_details: dict[str, list[str]] = defaultdict(list)
 
         for mission in missions:
             patterns = self._extract_patterns_from_single(mission)
@@ -54,19 +53,19 @@ class LearningEngine:
                 pattern_counter[p] += 1
                 pattern_details[p].append(mission_id)
 
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         for pattern, count in pattern_counter.most_common():
             if count >= 2:
-                results.append({
-                    "pattern": pattern,
-                    "occurrence_count": count,
-                    "mission_ids": pattern_details[pattern],
-                })
+                results.append(
+                    {
+                        "pattern": pattern,
+                        "occurrence_count": count,
+                        "mission_ids": pattern_details[pattern],
+                    }
+                )
         return results
 
-    async def suggest_skill(
-        self, mission_data: Dict[str, Any]
-    ) -> Optional[SkillUpdate]:
+    async def suggest_skill(self, mission_data: dict[str, Any]) -> SkillUpdate | None:
         """Suggest a brand-new skill based on a mission's data."""
         suggestions = self._extract_skill_suggestions(mission_data)
         if not suggestions:
@@ -82,9 +81,7 @@ class LearningEngine:
             confidence=0.5,
         )
 
-    async def improve_skill(
-        self, skill_name: str, mission_data: Dict[str, Any]
-    ) -> SkillUpdate:
+    async def improve_skill(self, skill_name: str, mission_data: dict[str, Any]) -> SkillUpdate:
         """Produce a SkillUpdate that improves an existing skill."""
         existing = self._skill_registry.get(skill_name)
         before_desc = existing.after if existing else None
@@ -105,38 +102,42 @@ class LearningEngine:
 
     async def update_knowledge_base(self, record: LearningRecord) -> None:
         """Persist a learning record in the in-memory knowledge base."""
-        if not any(
-            r.mission_id == record.mission_id for r in self._knowledge_base
-        ):
+        if not any(r.mission_id == record.mission_id for r in self._knowledge_base):
             self._knowledge_base.append(record)
 
-    async def get_recommendations(self, task: str) -> List[Dict[str, Any]]:
+    async def get_recommendations(self, task: str) -> list[dict[str, Any]]:
         """Return recommendations for a new task based on past learnings."""
         task_lower = task.lower()
-        recommendations: List[Dict[str, Any]] = []
+        recommendations: list[dict[str, Any]] = []
 
         for record in self._knowledge_base:
             for pattern in record.patterns_learned:
                 if self._text_overlap(task_lower, pattern.lower()):
-                    recommendations.append({
-                        "type": "pattern",
-                        "content": pattern,
-                        "source_mission": record.mission_id,
-                    })
+                    recommendations.append(
+                        {
+                            "type": "pattern",
+                            "content": pattern,
+                            "source_mission": record.mission_id,
+                        }
+                    )
             for lib in record.libraries_discovered:
                 if self._text_overlap(task_lower, lib.lower()):
-                    recommendations.append({
-                        "type": "library",
-                        "content": lib,
-                        "source_mission": record.mission_id,
-                    })
+                    recommendations.append(
+                        {
+                            "type": "library",
+                            "content": lib,
+                            "source_mission": record.mission_id,
+                        }
+                    )
             for mistake in record.mistakes:
                 if self._text_overlap(task_lower, mistake.lower()):
-                    recommendations.append({
-                        "type": "warning",
-                        "content": mistake,
-                        "source_mission": record.mission_id,
-                    })
+                    recommendations.append(
+                        {
+                            "type": "warning",
+                            "content": mistake,
+                            "source_mission": record.mission_id,
+                        }
+                    )
 
         recommendations.sort(key=lambda r: r.get("type", ""), reverse=True)
         return recommendations
@@ -145,11 +146,11 @@ class LearningEngine:
     # Internal extraction helpers
     # ------------------------------------------------------------------
 
-    def _extract_libraries(self, mission_data: Dict[str, Any]) -> List[str]:
+    def _extract_libraries(self, mission_data: dict[str, Any]) -> list[str]:
         return list(mission_data.get("libraries_used", []))
 
-    def _extract_patterns_from_single(self, mission_data: Dict[str, Any]) -> List[str]:
-        patterns: List[str] = []
+    def _extract_patterns_from_single(self, mission_data: dict[str, Any]) -> list[str]:
+        patterns: list[str] = []
         for action in mission_data.get("actions", []):
             action_type = action.get("type", "")
             tool = action.get("tool", "")
@@ -160,8 +161,8 @@ class LearningEngine:
                 patterns.append(step)
         return list(dict.fromkeys(patterns))
 
-    def _extract_mistakes(self, mission_data: Dict[str, Any]) -> List[str]:
-        mistakes: List[str] = []
+    def _extract_mistakes(self, mission_data: dict[str, Any]) -> list[str]:
+        mistakes: list[str] = []
         for action in mission_data.get("actions", []):
             if action.get("failed") or action.get("error"):
                 desc = action.get("error", action.get("description", "unknown error"))
@@ -170,15 +171,15 @@ class LearningEngine:
             mistakes.append(str(retry.get("reason", "retry")))
         return mistakes
 
-    def _extract_speed_improvements(self, mission_data: Dict[str, Any]) -> List[str]:
-        improvements: List[str] = []
+    def _extract_speed_improvements(self, mission_data: dict[str, Any]) -> list[str]:
+        improvements: list[str] = []
         for action in mission_data.get("actions", []):
             if action.get("optimization"):
                 improvements.append(str(action["optimization"]))
         return improvements
 
-    def _extract_skill_suggestions(self, mission_data: Dict[str, Any]) -> List[str]:
-        suggestions: List[str] = []
+    def _extract_skill_suggestions(self, mission_data: dict[str, Any]) -> list[str]:
+        suggestions: list[str] = []
         for action in mission_data.get("actions", []):
             if action.get("reusable"):
                 skill_name = action.get("skill_name", "")
@@ -188,8 +189,8 @@ class LearningEngine:
             suggestions.append(str(s))
         return list(dict.fromkeys(suggestions))
 
-    def _extract_knowledge_updates(self, mission_data: Dict[str, Any]) -> List[str]:
-        updates: List[str] = []
+    def _extract_knowledge_updates(self, mission_data: dict[str, Any]) -> list[str]:
+        updates: list[str] = []
         for finding in mission_data.get("findings", []):
             updates.append(str(finding))
         return updates
@@ -199,7 +200,7 @@ class LearningEngine:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _hash(data: Dict[str, Any]) -> str:
+    def _hash(data: dict[str, Any]) -> str:
         raw = json.dumps(data, sort_keys=True, default=str)
         return hashlib.sha256(raw.encode()).hexdigest()[:12]
 

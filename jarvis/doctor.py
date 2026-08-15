@@ -4,9 +4,10 @@ Run with: python -m jarvis doctor
 """
 
 import asyncio
-import sys
-import shutil
 import importlib
+import os
+import shutil
+import sys
 from pathlib import Path
 from typing import NamedTuple
 
@@ -58,18 +59,21 @@ async def run_doctor() -> list[CheckResult]:
 
 # ── Core System Checks ──────────────────────────────────────────────────────
 
+
 def check_python() -> CheckResult:
     """Check Python version."""
     v = sys.version_info
     if v >= (3, 11):
         return CheckResult("Python", "ok", f"v{v.major}.{v.minor}.{v.micro}")
     elif v >= (3, 9):
-        return CheckResult("Python", "warn",
+        return CheckResult(
+            "Python",
+            "warn",
             f"v{v.major}.{v.minor}.{v.micro} — 3.11+ recommended",
-            repairable=False)
+            repairable=False,
+        )
     else:
-        return CheckResult("Python", "fail",
-            f"v{v.major}.{v.minor}.{v.micro} — 3.11+ required")
+        return CheckResult("Python", "fail", f"v{v.major}.{v.minor}.{v.micro} — 3.11+ required")
 
 
 def check_dependencies() -> CheckResult:
@@ -97,10 +101,13 @@ def check_dependencies() -> CheckResult:
 
     if not missing:
         return CheckResult("Dependencies", "ok", f"{len(installed)} packages installed")
-    return CheckResult("Dependencies", "fail",
+    return CheckResult(
+        "Dependencies",
+        "fail",
         f"Missing: {', '.join(missing)}",
         repairable=True,
-        repair_hint=f"pip install {' '.join(missing)}")
+        repair_hint=f"pip install {' '.join(missing)}",
+    )
 
 
 def check_database() -> CheckResult:
@@ -111,28 +118,40 @@ def check_database() -> CheckResult:
             size_mb = db_path.stat().st_size / (1024 * 1024)
             # Test basic operations
             import sqlite3
+
             conn = sqlite3.connect(str(db_path))
             conn.execute("SELECT count(*) FROM sqlite_master")
             conn.close()
             return CheckResult("Database", "ok", f"SQLite — {size_mb:.1f} MB")
         else:
-            return CheckResult("Database", "warn",
+            return CheckResult(
+                "Database",
+                "warn",
                 "Database not found (will be created on first run)",
                 repairable=True,
-                repair_hint="Start JARVIS to auto-create database")
+                repair_hint="Start JARVIS to auto-create database",
+            )
     except Exception as e:
-        return CheckResult("Database", "fail", str(e)[:100],
+        return CheckResult(
+            "Database",
+            "fail",
+            str(e)[:100],
             repairable=True,
-            repair_hint="Delete jarvis.db and restart")
+            repair_hint="Delete jarvis.db and restart",
+        )
 
 
 def check_config() -> CheckResult:
     """Check .env configuration."""
     env_path = Path(__file__).parent.parent / ".env"
     if not env_path.exists():
-        return CheckResult("Config", "fail", ".env file not found",
+        return CheckResult(
+            "Config",
+            "fail",
+            ".env file not found",
             repairable=True,
-            repair_hint="cp .env.example .env")
+            repair_hint="cp .env.example .env",
+        )
 
     keys_found = 0
     api_key_set = False
@@ -146,14 +165,19 @@ def check_config() -> CheckResult:
 
     if api_key_set:
         return CheckResult("Config", "ok", f"{keys_found} variables configured")
-    return CheckResult("Config", "warn", "No API key configured",
+    return CheckResult(
+        "Config",
+        "warn",
+        "No API key configured",
         repairable=True,
-        repair_hint="Set NVIDIA_API_KEY in .env")
+        repair_hint="Set NVIDIA_API_KEY in .env",
+    )
 
 
 def check_port() -> CheckResult:
     """Check if server port is available."""
     import socket
+
     port = int(os.environ.get("PORT", "8000")) if "PORT" in os.environ else 8000
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -164,41 +188,47 @@ def check_port() -> CheckResult:
         # Check if JARVIS is running
         try:
             import urllib.request
+
             req = urllib.request.Request(f"http://127.0.0.1:{port}/api/health")
             with urllib.request.urlopen(req, timeout=2) as resp:
                 if resp.status == 200:
                     return CheckResult("Port", "ok", f"Port {port} — JARVIS running")
         except Exception:
             pass
-        return CheckResult("Port", "warn", f"Port {port} in use",
+        return CheckResult(
+            "Port",
+            "warn",
+            f"Port {port} in use",
             repairable=True,
-            repair_hint=f"lsof -ti:{port} | xargs kill")
+            repair_hint=f"lsof -ti:{port} | xargs kill",
+        )
     finally:
         sock.close()
 
 
 # ── AI Subsystem Checks ─────────────────────────────────────────────────────
 
+
 async def check_llm() -> CheckResult:
     """Check LLM API connectivity."""
     try:
         from jarvis.core.config import get_config
+
         config = get_config()
         api_key = config.nvidia_api_key
         if not api_key:
             return CheckResult("LLM", "warn", "No API key configured")
 
         import httpx
+
         async with httpx.AsyncClient(timeout=10.0) as client:
             r = await client.get(
                 "https://integrate.api.nvidia.com/v1/models",
-                headers={"Authorization": f"Bearer {api_key}"}
+                headers={"Authorization": f"Bearer {api_key}"},
             )
             if r.status_code == 200:
                 models = r.json().get("data", [])
-                model_name = getattr(config, "nvidia_model", "unknown")
-                return CheckResult("LLM", "ok",
-                    f"NVIDIA API — {len(models)} models available")
+                return CheckResult("LLM", "ok", f"NVIDIA API — {len(models)} models available")
             else:
                 return CheckResult("LLM", "warn", f"API returned {r.status_code}")
     except httpx.ConnectError:
@@ -211,6 +241,7 @@ async def check_memory() -> CheckResult:
     """Check memory systems."""
     try:
         from jarvis.core.memory_validation import memory_validator
+
         health = await memory_validator.validate_memory_health()
         if health["healthy"]:
             return CheckResult("Memory", "ok", "All memory systems healthy")
@@ -225,10 +256,14 @@ async def check_knowledge_graph() -> CheckResult:
     """Check knowledge graph."""
     try:
         from jarvis.brain.memory.graph import graph
-        if hasattr(graph, 'get_stats'):
-            stats = await graph.get_stats()
-            return CheckResult("Knowledge Graph", "ok",
-                f"{stats.get('nodes', 0)} nodes, {stats.get('edges', 0)} edges")
+
+        if hasattr(graph, "get_node_stats"):
+            stats = await graph.get_node_stats()
+            return CheckResult(
+                "Knowledge Graph",
+                "ok",
+                f"{stats.get('nodes', 0)} nodes, {stats.get('edges', 0)} edges",
+            )
         return CheckResult("Knowledge Graph", "ok", "Initialized")
     except Exception as e:
         return CheckResult("Knowledge Graph", "warn", str(e)[:100])
@@ -238,10 +273,10 @@ async def check_capabilities() -> CheckResult:
     """Check capability registry."""
     try:
         from jarvis.core.capabilities import registry
-        if hasattr(registry, 'get_stats'):
+
+        if hasattr(registry, "get_stats"):
             stats = await registry.get_stats()
-            return CheckResult("Capabilities", "ok",
-                f"{stats.get('total', 0)} registered")
+            return CheckResult("Capabilities", "ok", f"{stats.get('total', 0)} registered")
         return CheckResult("Capabilities", "ok", "Initialized")
     except Exception as e:
         return CheckResult("Capabilities", "warn", str(e)[:100])
@@ -249,32 +284,41 @@ async def check_capabilities() -> CheckResult:
 
 # ── Automation Checks ───────────────────────────────────────────────────────
 
+
 def check_browser() -> CheckResult:
     """Check browser control."""
     try:
         import importlib
+
         importlib.import_module("jarvis.browser")
         return CheckResult("Browser", "ok", "Browser module available")
     except ImportError:
-        return CheckResult("Browser", "warn", "Browser module not found",
+        return CheckResult(
+            "Browser",
+            "warn",
+            "Browser module not found",
             repairable=True,
-            repair_hint="pip install playwright && playwright install")
+            repair_hint="pip install playwright && playwright install",
+        )
 
 
 def check_playwright() -> CheckResult:
     """Check Playwright installation."""
     try:
-        import playwright
+        import playwright  # noqa: F401  (availability probe)
+
         # Check if browsers are installed
         browsers_path = Path.home() / ".cache" / "ms-playwright"
         if browsers_path.exists():
             browsers = list(browsers_path.iterdir())
-            return CheckResult("Playwright", "ok",
-                f"{len(browsers)} browser(s) installed")
-        return CheckResult("Playwright", "warn",
+            return CheckResult("Playwright", "ok", f"{len(browsers)} browser(s) installed")
+        return CheckResult(
+            "Playwright",
+            "warn",
             "Playwright installed but no browsers",
             repairable=True,
-            repair_hint="playwright install")
+            repair_hint="playwright install",
+        )
     except ImportError:
         return CheckResult("Playwright", "warn", "Not installed (optional)")
 
@@ -283,7 +327,8 @@ def check_computer() -> CheckResult:
     """Check computer control."""
     try:
         import importlib
-        mod = importlib.import_module("jarvis.computer.controller")
+
+        importlib.import_module("jarvis.computer.controller")
         return CheckResult("Computer", "ok", "Computer control available")
     except ImportError:
         return CheckResult("Computer", "warn", "Computer control not available")
@@ -294,16 +339,25 @@ def check_accessibility() -> CheckResult:
     if sys.platform == "darwin":
         try:
             import subprocess
+
             result = subprocess.run(
-                ["osascript", "-e", 'tell application "System Events" to get name of first process'],
-                capture_output=True, timeout=5
+                [
+                    "osascript",
+                    "-e",
+                    'tell application "System Events" to get name of first process',
+                ],
+                capture_output=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 return CheckResult("Accessibility", "ok", "macOS accessibility available")
-            return CheckResult("Accessibility", "warn",
+            return CheckResult(
+                "Accessibility",
+                "warn",
                 "Accessibility permissions may be needed",
                 repairable=True,
-                repair_hint="Enable in System Settings > Privacy & Security > Accessibility")
+                repair_hint="Enable in System Settings > Privacy & Security > Accessibility",
+            )
         except Exception:
             return CheckResult("Accessibility", "warn", "Could not test")
     return CheckResult("Accessibility", "ok", "Platform not macOS — limited")
@@ -311,21 +365,29 @@ def check_accessibility() -> CheckResult:
 
 # ── Voice & Vision ──────────────────────────────────────────────────────────
 
+
 def check_voice() -> CheckResult:
     """Check voice services."""
     try:
         import importlib
-        tts_mod = importlib.import_module("jarvis.voice.tts")
+
+        importlib.import_module("jarvis.voice.tts")
         return CheckResult("Voice", "ok", "TTS available")
     except ImportError:
-        return CheckResult("Voice", "warn", "Voice services not installed",
+        return CheckResult(
+            "Voice",
+            "warn",
+            "Voice services not installed",
             repairable=True,
-            repair_hint="pip install -e '.[voice]'")
+            repair_hint="pip install -e '.[voice]'",
+        )
+
 
 def check_vision() -> CheckResult:
     """Check vision capabilities."""
     try:
         import importlib
+
         importlib.import_module("jarvis.vision")
         return CheckResult("Vision", "ok", "Vision module available")
     except ImportError:
@@ -333,6 +395,7 @@ def check_vision() -> CheckResult:
 
 
 # ── Infrastructure ──────────────────────────────────────────────────────────
+
 
 def check_filesystem() -> CheckResult:
     """Check filesystem permissions."""
@@ -347,10 +410,8 @@ def check_filesystem() -> CheckResult:
         usage = shutil.disk_usage(str(jarvis_dir))
         free_gb = usage.free / (1024**3)
         if free_gb < 1:
-            return CheckResult("Filesystem", "warn",
-                f"Low disk space: {free_gb:.1f} GB free")
-        return CheckResult("Filesystem", "ok",
-            f"{free_gb:.1f} GB free, write access OK")
+            return CheckResult("Filesystem", "warn", f"Low disk space: {free_gb:.1f} GB free")
+        return CheckResult("Filesystem", "ok", f"{free_gb:.1f} GB free, write access OK")
     except PermissionError:
         return CheckResult("Filesystem", "fail", "No write access to project directory")
     except Exception as e:
@@ -360,11 +421,12 @@ def check_filesystem() -> CheckResult:
 def check_network() -> CheckResult:
     """Check network connectivity."""
     import socket
+
     try:
         sock = socket.create_connection(("integrate.api.nvidia.com", 443), timeout=5)
         sock.close()
         return CheckResult("Network", "ok", "NVIDIA API reachable")
-    except socket.timeout:
+    except TimeoutError:
         return CheckResult("Network", "warn", "Network timeout")
     except OSError as e:
         return CheckResult("Network", "fail", f"Network error: {e}")
@@ -374,9 +436,9 @@ def check_gpu() -> CheckResult:
     """Check GPU availability."""
     try:
         import subprocess
+
         result = subprocess.run(
-            ["system_profiler", "SPDisplaysDataType"],
-            capture_output=True, timeout=5, text=True
+            ["system_profiler", "SPDisplaysDataType"], capture_output=True, timeout=5, text=True
         )
         if "Apple" in result.stdout:
             return CheckResult("GPU", "ok", "Apple Silicon GPU available")
@@ -395,21 +457,25 @@ def check_permissions() -> CheckResult:
     perm_file = Path.home() / ".jarvis" / "permissions.json"
     if perm_file.exists():
         import json
+
         perms = json.loads(perm_file.read_text())
         granted = sum(1 for v in perms.values() if v)
         total = len(perms)
-        return CheckResult("Permissions", "ok",
-            f"{granted}/{total} permissions granted")
-    return CheckResult("Permissions", "warn",
+        return CheckResult("Permissions", "ok", f"{granted}/{total} permissions granted")
+    return CheckResult(
+        "Permissions",
+        "warn",
         "No permissions file found",
         repairable=True,
-        repair_hint="Configure in Settings > Permissions")
+        repair_hint="Configure in Settings > Permissions",
+    )
 
 
 def check_models() -> CheckResult:
     """Check available AI models."""
     try:
         from jarvis.core.config import get_config
+
         config = get_config()
         model = getattr(config, "nvidia_model", None) or "meta/llama-3.1-8b-instruct"
         return CheckResult("Models", "ok", f"Primary: {model}")
@@ -418,6 +484,7 @@ def check_models() -> CheckResult:
 
 
 # ── Print Results ───────────────────────────────────────────────────────────
+
 
 def print_results(results: list[CheckResult]):
     """Print results in human-readable format."""
@@ -451,7 +518,7 @@ def print_results(results: list[CheckResult]):
     repairable = sum(1 for r in results if r.repairable and r.status != "ok")
 
     if failed == 0:
-        print(f"  \033[92mAll systems operational!\033[0m")
+        print("  \033[92mAll systems operational!\033[0m")
     else:
         print(f"  \033[91m{failed} critical issue(s) detected\033[0m")
 

@@ -8,7 +8,6 @@ import asyncio
 import os
 import sys
 import tempfile
-import time
 
 # Ensure jarvis is importable from project root
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -17,6 +16,7 @@ if _project_root not in sys.path:
 
 
 # ── Risk Classification Tests ────────────────────────────────
+
 
 async def test_risk_classification():
     from jarvis.computer.permissions import PermissionSystem
@@ -58,6 +58,7 @@ async def test_risk_classification():
 
 
 # ── Permission Check Tests ───────────────────────────────────
+
 
 async def test_permission_checks():
     from jarvis.computer.permissions import PermissionSystem
@@ -167,6 +168,7 @@ async def test_path_permissions():
 
 # ── Sandbox Tests ────────────────────────────────────────────
 
+
 async def test_sandbox_execution():
     from jarvis.computer.sandbox import Sandbox
 
@@ -209,6 +211,7 @@ async def test_sandbox_execution():
 
 # ── ComputerManager Tests ────────────────────────────────────
 
+
 async def test_computer_manager_actions():
     from jarvis.computer.manager import ComputerManager
 
@@ -245,13 +248,17 @@ async def test_computer_manager_actions():
 
     # Blocked dangerous command
     result = await cm.execute(
-        "terminal.run", command="rm -rf /", agent="test",
+        "terminal.run",
+        command="rm -rf /",
+        agent="test",
     )
     assert result.status == "blocked"
 
     # Denied high-risk without confirmation
     result = await cm.execute(
-        "terminal.run", command="git push --force origin main", agent="test",
+        "terminal.run",
+        command="git push --force origin main",
+        agent="test",
     )
     assert result.status == "denied"
 
@@ -282,7 +289,10 @@ async def test_computer_manager_file_write():
 
         # Write
         result = await cm.execute(
-            "file.write", path=test_file, content="test content", agent="test",
+            "file.write",
+            path=test_file,
+            content="test content",
+            agent="test",
         )
         assert result.status == "success"
 
@@ -314,10 +324,14 @@ async def test_computer_manager_python():
 
 # ── Action Model Tests ───────────────────────────────────────
 
+
 async def test_action_models():
     from jarvis.computer.actions import (
-        RiskLevel, ActionStatus, ActionType,
-        ActionResult, ActionRecord,
+        ActionRecord,
+        ActionResult,
+        ActionStatus,
+        ActionType,
+        RiskLevel,
     )
 
     # Enums
@@ -358,8 +372,9 @@ async def test_action_models():
 
 # ── Observer Tests (non-destructive) ─────────────────────────
 
+
 async def test_observer_import():
-    from jarvis.computer.observer import ScreenObserver, ScreenState, WindowInfo
+    from jarvis.computer.observer import ScreenState, WindowInfo
 
     # WindowInfo
     w = WindowInfo(app="Finder", title="Desktop", is_focused=True)
@@ -378,6 +393,7 @@ async def test_observer_import():
 
 
 # ── Run Tests ────────────────────────────────────────────────
+
 
 async def main():
     print("\n🧪 Computer Control Tests (v4.2.0)\n")
@@ -401,12 +417,13 @@ async def main():
         try:
             ok = await asyncio.wait_for(test_fn(), timeout=10)
             results.append((name, ok))
-        except asyncio.TimeoutError:
+        except TimeoutError:
             print(f"  ✗ {name}: TIMEOUT")
             results.append((name, False))
         except Exception as e:
             print(f"  ✗ {name}: {e}")
             import traceback
+
             traceback.print_exc()
             results.append((name, False))
 

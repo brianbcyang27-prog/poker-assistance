@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "jarvis"
@@ -28,6 +28,8 @@ dependencies = [
     "websockets>=12.0",
     "beautifulsoup4>=4.12.0",
     "soundfile>=0.12.0",
+    "aiofiles>=23.0.0",
+    "loguru>=0.7.0",
 ]
 
 [project.optional-dependencies]
@@ -38,8 +40,23 @@ voice = [
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
     "ruff>=0.1.0",
 ]
+
+[tool.coverage.run]
+source = ["jarvis"]
+omit = [
+    "jarvis/agents/workers/*",   # worker tests not yet established
+    "jarvis/voice/*",           # voice requires extra deps
+    "jarvis/web/static/*",      # frontend assets
+    "tests/*",                  # test code itself
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 0
 
 [project.scripts]
 jarvis = "jarvis.cli:main"
@@ -56,6 +73,11 @@ target-version = "py311"
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# Tests intentionally use local fixture aliases with CamelCase (e.g. `Cat = IntentCategory`)
+"tests/*" = ["N806"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--cov=jarvis --cov-report=term-missing --cov-report=html:coverage_html"

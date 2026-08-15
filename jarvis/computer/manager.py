@@ -20,15 +20,17 @@ Usage:
 """
 
 import asyncio
-import time
 import logging
-from typing import Optional, Callable, Any
-from dataclasses import dataclass, field
+import os
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
 
-from .actions import RiskLevel, ActionStatus, ActionType, ActionResult, ActionRecord
-from .permissions import PermissionSystem, PermissionDecision
-from .sandbox import Sandbox, SandboxResult
+from ..core.models import AgentState
+from .actions import ActionRecord, ActionResult, ActionStatus, ActionType, RiskLevel
 from .observer import ScreenObserver
+from .permissions import PermissionSystem
+from .sandbox import Sandbox
 
 log = logging.getLogger("jarvis.computer.manager")
 
@@ -36,6 +38,7 @@ log = logging.getLogger("jarvis.computer.manager")
 @dataclass
 class ActionHandler:
     """Registered handler for an action type."""
+
     name: str
     handler: Callable
     risk_level: str = RiskLevel.LOW
@@ -74,8 +77,12 @@ class ComputerManager:
         """Register default action handlers."""
         # Terminal actions
         self.register("terminal.run", self._terminal_run, RiskLevel.LOW, "Execute shell command")
-        self.register("terminal.run_safe", self._terminal_run_safe, RiskLevel.SAFE, "Execute in sandbox")
-        self.register("terminal.run_python", self._terminal_run_python, RiskLevel.LOW, "Execute Python code")
+        self.register(
+            "terminal.run_safe", self._terminal_run_safe, RiskLevel.SAFE, "Execute in sandbox"
+        )
+        self.register(
+            "terminal.run_python", self._terminal_run_python, RiskLevel.LOW, "Execute Python code"
+        )
 
         # File actions
         self.register("file.read", self._file_read, RiskLevel.SAFE, "Read a file")
@@ -86,9 +93,13 @@ class ComputerManager:
         self.register("file.search", self._file_search, RiskLevel.SAFE, "Search for files")
 
         # Screen actions
-        self.register("screen.screenshot", self._screen_screenshot, RiskLevel.SAFE, "Take screenshot")
+        self.register(
+            "screen.screenshot", self._screen_screenshot, RiskLevel.SAFE, "Take screenshot"
+        )
         self.register("screen.state", self._screen_state, RiskLevel.SAFE, "Get screen state")
-        self.register("screen.active_window", self._screen_active_window, RiskLevel.SAFE, "Get active window")
+        self.register(
+            "screen.active_window", self._screen_active_window, RiskLevel.SAFE, "Get active window"
+        )
         self.register("screen.windows", self._screen_windows, RiskLevel.SAFE, "List windows")
 
         # Mouse/keyboard actions
@@ -103,44 +114,121 @@ class ComputerManager:
         self.register("app.close", self._app_close, RiskLevel.MEDIUM, "Close an application")
 
         # Accessibility actions (v4.4.0 — semantic UI control)
-        self.register("accessibility.tree", self._accessibility_tree, RiskLevel.SAFE, "Get UI element tree")
-        self.register("accessibility.find", self._accessibility_find, RiskLevel.SAFE, "Find UI element by name")
-        self.register("accessibility.click", self._accessibility_click, RiskLevel.LOW, "Click UI element by name")
-        self.register("accessibility.type_into", self._accessibility_type_into, RiskLevel.LOW, "Type into UI element")
-        self.register("accessibility.activate", self._accessibility_activate, RiskLevel.LOW, "Activate/bring app to front")
-        self.register("accessibility.apps", self._accessibility_apps, RiskLevel.SAFE, "List running applications")
-        self.register("accessibility.summary", self._accessibility_summary, RiskLevel.SAFE, "Get LLM-ready UI summary")
+        self.register(
+            "accessibility.tree", self._accessibility_tree, RiskLevel.SAFE, "Get UI element tree"
+        )
+        self.register(
+            "accessibility.find",
+            self._accessibility_find,
+            RiskLevel.SAFE,
+            "Find UI element by name",
+        )
+        self.register(
+            "accessibility.click",
+            self._accessibility_click,
+            RiskLevel.LOW,
+            "Click UI element by name",
+        )
+        self.register(
+            "accessibility.type_into",
+            self._accessibility_type_into,
+            RiskLevel.LOW,
+            "Type into UI element",
+        )
+        self.register(
+            "accessibility.activate",
+            self._accessibility_activate,
+            RiskLevel.LOW,
+            "Activate/bring app to front",
+        )
+        self.register(
+            "accessibility.apps",
+            self._accessibility_apps,
+            RiskLevel.SAFE,
+            "List running applications",
+        )
+        self.register(
+            "accessibility.summary",
+            self._accessibility_summary,
+            RiskLevel.SAFE,
+            "Get LLM-ready UI summary",
+        )
 
         # Vision actions (v4.5.0 — multimodal perception)
         self.register("vision.capture", self._vision_capture, RiskLevel.SAFE, "Capture screenshot")
-        self.register("vision.analyze", self._vision_analyze, RiskLevel.SAFE, "Analyze screen with vision model")
+        self.register(
+            "vision.analyze",
+            self._vision_analyze,
+            RiskLevel.SAFE,
+            "Analyze screen with vision model",
+        )
         self.register("vision.find", self._vision_find, RiskLevel.SAFE, "Find object in screenshot")
-        self.register("vision.describe", self._vision_describe, RiskLevel.SAFE, "Describe screen contents")
-        self.register("vision.locate", self._vision_locate, RiskLevel.LOW, "Locate element for action")
-        self.register("vision.click", self._vision_click, RiskLevel.LOW, "Click via vision grounding")
-        self.register("vision.health", self._vision_health, RiskLevel.SAFE, "Check vision provider health")
+        self.register(
+            "vision.describe", self._vision_describe, RiskLevel.SAFE, "Describe screen contents"
+        )
+        self.register(
+            "vision.locate", self._vision_locate, RiskLevel.LOW, "Locate element for action"
+        )
+        self.register(
+            "vision.click", self._vision_click, RiskLevel.LOW, "Click via vision grounding"
+        )
+        self.register(
+            "vision.health", self._vision_health, RiskLevel.SAFE, "Check vision provider health"
+        )
 
         # Multi-perception smart actions (v4.5.0)
-        self.register("smart.click", self._smart_click, RiskLevel.LOW, "Click using best perception method")
-        self.register("smart.type", self._smart_type, RiskLevel.LOW, "Type using best perception method")
+        self.register(
+            "smart.click", self._smart_click, RiskLevel.LOW, "Click using best perception method"
+        )
+        self.register(
+            "smart.type", self._smart_type, RiskLevel.LOW, "Type using best perception method"
+        )
 
         # OS integration actions (v5.0.0)
         self.register("os.notify", self._os_notify, RiskLevel.SAFE, "Send system notification")
         self.register("os.alert", self._os_alert, RiskLevel.LOW, "Show alert dialog")
         self.register("os.confirm", self._os_confirm, RiskLevel.LOW, "Show confirmation dialog")
-        self.register("os.clipboard_read", self._os_clipboard_read, RiskLevel.SAFE, "Read clipboard")
-        self.register("os.clipboard_write", self._os_clipboard_write, RiskLevel.LOW, "Write to clipboard")
-        self.register("os.clipboard_clear", self._os_clipboard_clear, RiskLevel.LOW, "Clear clipboard")
-        self.register("os.hotkey_register", self._os_hotkey_register, RiskLevel.MEDIUM, "Register global hotkey")
-        self.register("os.hotkey_simulate", self._os_hotkey_simulate, RiskLevel.LOW, "Simulate keyboard shortcut")
-        self.register("os.watch_directory", self._os_watch_directory, RiskLevel.LOW, "Watch directory for changes")
-        self.register("os.system_info", self._os_system_info, RiskLevel.SAFE, "Get system information")
+        self.register(
+            "os.clipboard_read", self._os_clipboard_read, RiskLevel.SAFE, "Read clipboard"
+        )
+        self.register(
+            "os.clipboard_write", self._os_clipboard_write, RiskLevel.LOW, "Write to clipboard"
+        )
+        self.register(
+            "os.clipboard_clear", self._os_clipboard_clear, RiskLevel.LOW, "Clear clipboard"
+        )
+        self.register(
+            "os.hotkey_register",
+            self._os_hotkey_register,
+            RiskLevel.MEDIUM,
+            "Register global hotkey",
+        )
+        self.register(
+            "os.hotkey_simulate",
+            self._os_hotkey_simulate,
+            RiskLevel.LOW,
+            "Simulate keyboard shortcut",
+        )
+        self.register(
+            "os.watch_directory",
+            self._os_watch_directory,
+            RiskLevel.LOW,
+            "Watch directory for changes",
+        )
+        self.register(
+            "os.system_info", self._os_system_info, RiskLevel.SAFE, "Get system information"
+        )
         self.register("os.status", self._os_status, RiskLevel.SAFE, "Get OS integration status")
 
-    def register(self, name: str, handler: Callable, risk_level: str = RiskLevel.LOW, description: str = ""):
+    def register(
+        self, name: str, handler: Callable, risk_level: str = RiskLevel.LOW, description: str = ""
+    ):
         """Register an action handler."""
         self._handlers[name] = ActionHandler(
-            name=name, handler=handler, risk_level=risk_level, description=description,
+            name=name,
+            handler=handler,
+            risk_level=risk_level,
+            description=description,
         )
 
     async def execute(
@@ -210,7 +298,7 @@ class ComputerManager:
             )
 
         # Execute
-        self.set_state(AgentState.WORKING) if hasattr(self, 'set_state') else None
+        self.set_state(AgentState.WORKING) if hasattr(self, "set_state") else None
 
         try:
             result = await handler_info.handler(**params)
@@ -252,7 +340,7 @@ class ComputerManager:
             output=action_result.output[:2000],
             error=action_result.error[:1000],
             duration_ms=action_result.duration_ms,
-            approved_by=decision.approved_by if hasattr(decision, 'approved_by') else "auto",
+            approved_by=decision.approved_by if hasattr(decision, "approved_by") else "auto",
         )
         self._action_log.append(record)
 
@@ -272,19 +360,25 @@ class ComputerManager:
     async def _emit_event(self, action: str, result: ActionResult, agent: str):
         """Emit a computer action event."""
         try:
-            from ..core.events import event_bus, Event
-            event_type = f"computer.action.{'completed' if result.status == ActionStatus.SUCCESS else 'failed'}"
-            await event_bus.emit(Event(
-                type=event_type,
-                data={
-                    "action": action,
-                    "status": result.status,
-                    "risk_level": result.risk_level,
-                    "duration_ms": result.duration_ms,
-                    "agent": agent,
-                },
-                source=agent or "computer",
-            ))
+            from ..core.events import Event, event_bus
+
+            event_type = (
+                f"computer.action."
+                f"{'completed' if result.status == ActionStatus.SUCCESS else 'failed'}"
+            )
+            await event_bus.emit(
+                Event(
+                    type=event_type,
+                    data={
+                        "action": action,
+                        "status": result.status,
+                        "risk_level": result.risk_level,
+                        "duration_ms": result.duration_ms,
+                        "agent": agent,
+                    },
+                    source=agent or "computer",
+                )
+            )
         except Exception:
             pass
 
@@ -292,6 +386,7 @@ class ComputerManager:
         """Store action record in database."""
         try:
             from ..core.database import get_db
+
             db = await get_db()
             conn = db._db  # raw aiosqlite connection
             await conn.execute(
@@ -300,10 +395,18 @@ class ComputerManager:
                     status, output, error, duration_ms, approved_by, timestamp)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    record.id, record.agent, record.task_id,
-                    record.action_type, record.command, record.risk_level,
-                    record.status, record.output, record.error,
-                    record.duration_ms, record.approved_by, record.timestamp,
+                    record.id,
+                    record.agent,
+                    record.task_id,
+                    record.action_type,
+                    record.command,
+                    record.risk_level,
+                    record.status,
+                    record.output,
+                    record.error,
+                    record.duration_ms,
+                    record.approved_by,
+                    record.timestamp,
                 ),
             )
             await conn.commit()
@@ -314,7 +417,11 @@ class ComputerManager:
         """Map action name to ActionType."""
         if action.startswith("terminal"):
             return ActionType.TERMINAL
-        if action.startswith("file.read") or action.startswith("file.list") or action.startswith("file.search"):
+        if (
+            action.startswith("file.read")
+            or action.startswith("file.list")
+            or action.startswith("file.search")
+        ):
             return ActionType.FILE_READ
         if action.startswith("file.write"):
             return ActionType.FILE_WRITE
@@ -374,10 +481,11 @@ class ComputerManager:
     async def _file_read(self, path: str = "", **kw) -> dict:
         """Read a file."""
         import os
+
         if not self.permissions.is_path_allowed(path):
             return {"ok": False, "error": f"Path not allowed: {path}"}
         try:
-            with open(os.path.expanduser(path), "r", errors="replace") as f:
+            with open(os.path.expanduser(path), errors="replace") as f:
                 content = f.read(100_000)
             return {"ok": True, "output": content, "path": path}
         except Exception as e:
@@ -386,6 +494,7 @@ class ComputerManager:
     async def _file_write(self, path: str = "", content: str = "", **kw) -> dict:
         """Write to a file."""
         import os
+
         if not self.permissions.is_path_allowed(path):
             return {"ok": False, "error": f"Path not allowed: {path}"}
         try:
@@ -399,6 +508,7 @@ class ComputerManager:
     async def _file_delete(self, path: str = "", **kw) -> dict:
         """Delete a file."""
         import os
+
         if not self.permissions.is_path_allowed(path):
             return {"ok": False, "error": f"Path not allowed: {path}"}
         try:
@@ -410,7 +520,10 @@ class ComputerManager:
     async def _file_move(self, source: str = "", destination: str = "", **kw) -> dict:
         """Move/rename a file."""
         import shutil
-        if not self.permissions.is_path_allowed(source) or not self.permissions.is_path_allowed(destination):
+
+        if not self.permissions.is_path_allowed(source) or not self.permissions.is_path_allowed(
+            destination
+        ):
             return {"ok": False, "error": "Path not allowed"}
         try:
             shutil.move(os.path.expanduser(source), os.path.expanduser(destination))
@@ -421,16 +534,21 @@ class ComputerManager:
     async def _file_list(self, path: str = ".", **kw) -> dict:
         """List directory contents."""
         import os
+
         try:
             entries = []
             for entry in os.scandir(os.path.expanduser(path)):
-                entries.append({
-                    "name": entry.name,
-                    "type": "dir" if entry.is_dir() else "file",
-                    "size": entry.stat().st_size if entry.is_file() else 0,
-                })
+                entries.append(
+                    {
+                        "name": entry.name,
+                        "type": "dir" if entry.is_dir() else "file",
+                        "size": entry.stat().st_size if entry.is_file() else 0,
+                    }
+                )
             sorted_entries = sorted(entries, key=lambda e: (e["type"], e["name"]))
-            listing = "\n".join(f"{'d' if e['type']=='dir' else 'f'} {e['name']}" for e in sorted_entries)
+            listing = "\n".join(
+                f"{'d' if e['type'] == 'dir' else 'f'} {e['name']}" for e in sorted_entries
+            )
             return {"ok": True, "output": listing, "entries": sorted_entries, "path": path}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -439,6 +557,7 @@ class ComputerManager:
         """Search for files matching a pattern."""
         import glob
         import os
+
         try:
             search_path = os.path.join(os.path.expanduser(path), "**", pattern)
             matches = glob.glob(search_path, recursive=True)[:50]
@@ -448,7 +567,10 @@ class ComputerManager:
 
     async def _screen_screenshot(self, path: str = None, **kw) -> dict:
         """Take a screenshot."""
-        return await self.observer.take_screenshot(path) or {"ok": False, "error": "Screenshot failed"}
+        return await self.observer.take_screenshot(path) or {
+            "ok": False,
+            "error": "Screenshot failed",
+        }
 
     async def _screen_state(self, capture: bool = False, **kw) -> dict:
         """Get screen state."""
@@ -522,6 +644,7 @@ class ComputerManager:
             return self._provider
         try:
             from .providers import platform_provider
+
             self._provider = platform_provider
             return self._provider
         except Exception:
@@ -529,8 +652,9 @@ class ComputerManager:
 
     def _get_accessibility(self):
         """Get the accessibility manager, initializing if needed."""
-        if not hasattr(self, '_accessibility'):
+        if not hasattr(self, "_accessibility"):
             from .accessibility import accessibility_manager
+
             self._accessibility = accessibility_manager
         return self._accessibility
 
@@ -590,8 +714,9 @@ class ComputerManager:
 
     def _get_vision(self):
         """Get the vision manager, initializing if needed."""
-        if not hasattr(self, '_vision'):
+        if not hasattr(self, "_vision"):
             from ..vision import vision_manager
+
             self._vision = vision_manager
         return self._vision
 
@@ -730,12 +855,15 @@ class ComputerManager:
 
     def _get_os(self):
         """Get the OS manager, initializing if needed."""
-        if not hasattr(self, '_os'):
+        if not hasattr(self, "_os"):
             from ..os import get_os_manager
+
             self._os = get_os_manager()
         return self._os
 
-    async def _os_notify(self, title: str = "", message: str = "", subtitle: str = None, sound: bool = True, **kw) -> dict:
+    async def _os_notify(
+        self, title: str = "", message: str = "", subtitle: str = None, sound: bool = True, **kw
+    ) -> dict:
         """Send a system notification."""
         os_mgr = self._get_os()
         await os_mgr.initialize()
@@ -761,7 +889,11 @@ class ComputerManager:
         os_mgr = self._get_os()
         await os_mgr.initialize()
         content = await os_mgr.clipboard_read()
-        return {"ok": True, "content": content, "has_content": content is not None and len(content) > 0}
+        return {
+            "ok": True,
+            "content": content,
+            "has_content": content is not None and len(content) > 0,
+        }
 
     async def _os_clipboard_write(self, text: str = "", **kw) -> dict:
         """Write text to the clipboard."""
@@ -777,7 +909,9 @@ class ComputerManager:
         ok = await os_mgr.clipboard_clear()
         return {"ok": ok}
 
-    async def _os_hotkey_register(self, shortcut: str = "", action: str = "", description: str = "", **kw) -> dict:
+    async def _os_hotkey_register(
+        self, shortcut: str = "", action: str = "", description: str = "", **kw
+    ) -> dict:
         """Register a global hotkey."""
         os_mgr = self._get_os()
         await os_mgr.initialize()
@@ -791,7 +925,9 @@ class ComputerManager:
         ok = os_mgr.hotkey_simulate(shortcut)
         return {"ok": ok, "shortcut": shortcut}
 
-    async def _os_watch_directory(self, path: str = "", key: str = None, recursive: bool = True, **kw) -> dict:
+    async def _os_watch_directory(
+        self, path: str = "", key: str = None, recursive: bool = True, **kw
+    ) -> dict:
         """Watch a directory for changes."""
         os_mgr = self._get_os()
         await os_mgr.initialize()

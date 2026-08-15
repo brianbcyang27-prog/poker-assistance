@@ -12,10 +12,8 @@ Extracts:
 Returns clean, structured data ready for LLM consumption.
 """
 
-import re
 import logging
-from typing import Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
 
 log = logging.getLogger("jarvis.browser.extractor")
@@ -24,6 +22,7 @@ log = logging.getLogger("jarvis.browser.extractor")
 @dataclass
 class ExtractedLink:
     """A link found on a page."""
+
     text: str = ""
     url: str = ""
     is_external: bool = False
@@ -35,6 +34,7 @@ class ExtractedLink:
 @dataclass
 class ExtractedButton:
     """A button or clickable element."""
+
     text: str = ""
     selector: str = ""
     element_type: str = ""  # button, link, input[type=submit]
@@ -46,6 +46,7 @@ class ExtractedButton:
 @dataclass
 class ExtractedForm:
     """A form found on a page."""
+
     action: str = ""
     method: str = "GET"
     fields: list[dict] = None
@@ -61,6 +62,7 @@ class ExtractedForm:
 @dataclass
 class ExtractedTable:
     """A table found on a page."""
+
     headers: list[str] = None
     rows: list[list[str]] = None
 
@@ -77,6 +79,7 @@ class ExtractedTable:
 @dataclass
 class PageData:
     """Complete structured data extracted from a webpage."""
+
     url: str = ""
     title: str = ""
     description: str = ""
@@ -110,7 +113,7 @@ class PageData:
             "word_count": self.word_count,
             "language": self.language,
             "link_count": len(self.links),
-            "links": [l.to_dict() for l in self.links[:30]],
+            "links": [link.to_dict() for link in self.links[:30]],
             "button_count": len(self.buttons),
             "buttons": [b.to_dict() for b in self.buttons[:20]],
             "form_count": len(self.forms),
@@ -144,7 +147,7 @@ class PageData:
                     parts.append("  " + " | ".join(str(c)[:30] for c in row[:6]))
 
         if self.links:
-            external = [l for l in self.links if l.is_external][:10]
+            external = [link for link in self.links if link.is_external][:10]
             if external:
                 parts.append(f"\n--- Key Links ({len(external)}) ---")
                 for link in external:
@@ -217,11 +220,13 @@ class PageExtractor:
             full_url = urljoin(url, href)
             is_external = bool(base_domain) and urlparse(full_url).netloc != base_domain
 
-            data.links.append(ExtractedLink(
-                text=text[:200],
-                url=full_url,
-                is_external=is_external,
-            ))
+            data.links.append(
+                ExtractedLink(
+                    text=text[:200],
+                    url=full_url,
+                    is_external=is_external,
+                )
+            )
 
         # Buttons
         for btn in soup.find_all(["button", "input"]):
@@ -232,9 +237,13 @@ class PageExtractor:
             elem_type = btn.name
             if btn.get("type"):
                 elem_type = f"{btn.name}[type={btn['type']}]"
-            data.buttons.append(ExtractedButton(
-                text=text[:100], selector=selector, element_type=elem_type,
-            ))
+            data.buttons.append(
+                ExtractedButton(
+                    text=text[:100],
+                    selector=selector,
+                    element_type=elem_type,
+                )
+            )
 
         # Forms
         for form in soup.find_all("form"):
@@ -243,12 +252,14 @@ class PageExtractor:
                 method=form.get("method", "GET").upper(),
             )
             for field in form.find_all(["input", "select", "textarea"]):
-                form_data.fields.append({
-                    "type": field.get("type", field.name),
-                    "name": field.get("name", ""),
-                    "placeholder": field.get("placeholder", ""),
-                    "required": field.get("required") is not None,
-                })
+                form_data.fields.append(
+                    {
+                        "type": field.get("type", field.name),
+                        "name": field.get("name", ""),
+                        "placeholder": field.get("placeholder", ""),
+                        "required": field.get("required") is not None,
+                    }
+                )
             data.forms.append(form_data)
 
         # Tables
@@ -259,7 +270,7 @@ class PageExtractor:
                 headers.append(th.get_text(strip=True)[:100])
             table_data.headers = headers
 
-            for tr in table.find_all("tr")[len(headers) and 1 or 0:]:
+            for tr in table.find_all("tr")[len(headers) and 1 or 0 :]:
                 row = []
                 for td in tr.find_all(["td", "th"]):
                     row.append(td.get_text(strip=True)[:100])
@@ -285,17 +296,21 @@ class PageExtractor:
             text = node.get("text", "")
 
             if node_type == "link" and text:
-                data.links.append(ExtractedLink(
-                    text=text[:200],
-                    url=node.get("url", ""),
-                    is_external=True,
-                ))
+                data.links.append(
+                    ExtractedLink(
+                        text=text[:200],
+                        url=node.get("url", ""),
+                        is_external=True,
+                    )
+                )
             elif node_type in ("button", "submit") and text:
-                data.buttons.append(ExtractedButton(
-                    text=text[:100],
-                    selector=node.get("selector", ""),
-                    element_type=node_type,
-                ))
+                data.buttons.append(
+                    ExtractedButton(
+                        text=text[:100],
+                        selector=node.get("selector", ""),
+                        element_type=node_type,
+                    )
+                )
 
         return data
 

@@ -1,22 +1,21 @@
 """Unified async SQLite database for JARVIS."""
 
 import asyncio
-import aiosqlite
-from typing import Optional
-from pathlib import Path
-from datetime import datetime
 import json
+from datetime import datetime
+
+import aiosqlite
 
 from .config import get_config
 
 
 class Database:
     """Async SQLite database with WAL mode."""
-    
+
     def __init__(self):
-        self._db: Optional[aiosqlite.Connection] = None
+        self._db: aiosqlite.Connection | None = None
         self._config = get_config()
-    
+
     async def connect(self):
         """Connect to the database."""
         self._db = await aiosqlite.connect(str(self._config.db_path))
@@ -25,7 +24,7 @@ class Database:
         await self._db.execute("PRAGMA foreign_keys=ON")
         await self._db.execute("PRAGMA busy_timeout=5000")
         await self._init_schema()
-    
+
     async def execute(self, sql: str, params=None):
         """Execute SQL and return cursor. Proxy to underlying aiosqlite connection."""
         if self._db is None:
@@ -71,7 +70,7 @@ class Database:
                 pass
             finally:
                 self._db = None
-    
+
     async def _init_schema(self):
         """Initialize database schema."""
         await self._db.executescript("""
@@ -81,7 +80,7 @@ class Database:
                 value TEXT NOT NULL,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            
+
             -- Projects
             CREATE TABLE IF NOT EXISTS projects (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,7 +91,7 @@ class Database:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            
+
             -- Conversations
             CREATE TABLE IF NOT EXISTS conversations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,7 +107,7 @@ class Database:
                 title TEXT DEFAULT '',
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            
+
             -- Agent Messages
             CREATE TABLE IF NOT EXISTS agent_messages (
                 id TEXT PRIMARY KEY,
@@ -122,7 +121,7 @@ class Database:
                 result TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            
+
             -- Workspaces (unified mission workspace)
             CREATE TABLE IF NOT EXISTS workspaces (
                 id TEXT PRIMARY KEY,
@@ -149,7 +148,7 @@ class Database:
                 stage_history TEXT DEFAULT '[]',
                 errors TEXT DEFAULT '[]'
             );
-            
+
             -- Tasks
             CREATE TABLE IF NOT EXISTS tasks (
                 id TEXT PRIMARY KEY,
@@ -167,7 +166,7 @@ class Database:
                 completed_at TIMESTAMP,
                 FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
             );
-            
+
             -- Task History
             CREATE TABLE IF NOT EXISTS task_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -192,7 +191,7 @@ class Database:
                 summary TEXT DEFAULT '',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            
+
             -- Voice Samples
             CREATE TABLE IF NOT EXISTS voice_samples (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -200,7 +199,7 @@ class Database:
                 file_path TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            
+
             -- Important Decisions
             CREATE TABLE IF NOT EXISTS decisions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -210,14 +209,14 @@ class Database:
                 context TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            
+
             -- Agent States (for persistence across restarts)
             CREATE TABLE IF NOT EXISTS agent_states (
                 card_id TEXT PRIMARY KEY,
                 state TEXT NOT NULL DEFAULT 'idle',
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            
+
             -- LLM Conversation Context (for multi-turn persistence)
             CREATE TABLE IF NOT EXISTS llm_context (
                 session_id TEXT PRIMARY KEY,
@@ -364,19 +363,21 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_action_log_agent ON action_log(agent)",
             "CREATE INDEX IF NOT EXISTS idx_action_log_timestamp ON action_log(timestamp)",
             "CREATE INDEX IF NOT EXISTS idx_action_log_status ON action_log(status)",
-            "CREATE INDEX IF NOT EXISTS idx_browser_sessions_last_used ON browser_sessions(last_used)",
+            "CREATE INDEX IF NOT EXISTS idx_browser_sessions_last_used "
+            "ON browser_sessions(last_used)",
             "CREATE INDEX IF NOT EXISTS idx_event_log_type ON event_log(event_type)",
             "CREATE INDEX IF NOT EXISTS idx_event_log_timestamp ON event_log(timestamp)",
             "CREATE INDEX IF NOT EXISTS idx_task_history_plan_id ON task_history(plan_id)",
             "CREATE INDEX IF NOT EXISTS idx_task_history_created ON task_history(created_at)",
-            "CREATE INDEX IF NOT EXISTS idx_conversations_session_ts ON conversations(session_id, timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_conversations_session_ts "
+            "ON conversations(session_id, timestamp)",
             "CREATE INDEX IF NOT EXISTS idx_memory_access_type ON memory_access_log(memory_type)",
             "CREATE INDEX IF NOT EXISTS idx_memory_access_id ON memory_access_log(memory_id)",
             "CREATE INDEX IF NOT EXISTS idx_memory_access_at ON memory_access_log(accessed_at)",
         ]:
             await self._db.execute(idx_sql)
         await self._db.commit()
-        
+
         # FTS5 full-text search tables
         await self._init_fts_tables()
 
@@ -400,13 +401,11 @@ class Database:
             ("errors", "'[]'"),
         ]:
             try:
-                await self._db.execute(
-                    f"ALTER TABLE workspaces ADD COLUMN {col} DEFAULT {default}"
-                )
+                await self._db.execute(f"ALTER TABLE workspaces ADD COLUMN {col} DEFAULT {default}")
             except Exception:
                 pass
         await self._db.commit()
-        
+
         # Upgrade projects table — add columns if missing (idempotent)
         for col, default in [
             ("active", "1"),
@@ -420,13 +419,11 @@ class Database:
             ("status", "'active'"),
         ]:
             try:
-                await self._db.execute(
-                    f"ALTER TABLE projects ADD COLUMN {col} DEFAULT {default}"
-                )
+                await self._db.execute(f"ALTER TABLE projects ADD COLUMN {col} DEFAULT {default}")
             except Exception:
                 pass  # Column already exists
         await self._db.commit()
-    
+
     async def _init_fts_tables(self):
         """Create FTS5 virtual tables for full-text search."""
         await self._db.execute("""
@@ -456,11 +453,11 @@ class Database:
             )
         """)
         await self._db.commit()
-    
+
     async def ensure_fts_tables(self):
         """Ensure FTS5 tables exist. Safe to call multiple times."""
         await self._init_fts_tables()
-    
+
     async def search_conversations(self, query: str, limit: int = 10) -> list[dict]:
         """Search conversations using FTS5 with snippet highlighting."""
         try:
@@ -473,23 +470,23 @@ class Database:
                    WHERE conversations_fts MATCH ?
                    ORDER BY rank
                    LIMIT ?""",
-                (query, limit)
+                (query, limit),
             )
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
         except Exception:
             return []
-    
+
     async def index_conversation(self, session_id: str, role: str, content: str):
         """Insert into both conversations table and conversations_fts."""
         cursor = await self._db.execute(
             "INSERT INTO conversations (session_id, role, content) VALUES (?, ?, ?)",
-            (session_id, role, content)
+            (session_id, role, content),
         )
         rowid = cursor.lastrowid
         await self._db.execute(
             "INSERT INTO conversations_fts (rowid, session_id, role, content) VALUES (?, ?, ?, ?)",
-            (rowid, session_id, role, content)
+            (rowid, session_id, role, content),
         )
         await self._db.commit()
 
@@ -508,19 +505,17 @@ class Database:
     async def delete_session(self, session_id: str):
         """Delete a conversation session and its indexed rows."""
         cursor = await self._db.execute(
-            "SELECT id FROM conversations WHERE session_id = ?",
-            (session_id,)
+            "SELECT id FROM conversations WHERE session_id = ?", (session_id,)
         )
         rows = await cursor.fetchall()
         for row in rows:
-            await self._db.execute(
-                "DELETE FROM conversations_fts WHERE rowid = ?",
-                (row["id"],)
-            )
+            await self._db.execute("DELETE FROM conversations_fts WHERE rowid = ?", (row["id"],))
         await self._db.execute("DELETE FROM conversations WHERE session_id = ?", (session_id,))
-        await self._db.execute("DELETE FROM conversation_sessions WHERE session_id = ?", (session_id,))
+        await self._db.execute(
+            "DELETE FROM conversation_sessions WHERE session_id = ?", (session_id,)
+        )
         await self._db.commit()
-    
+
     async def search_task_history(self, query: str, limit: int = 10) -> list[dict]:
         """Search past task history using FTS5."""
         cursor = await self._db.execute(
@@ -533,7 +528,7 @@ class Database:
                WHERE task_history_fts MATCH ?
                ORDER BY rank
                LIMIT ?""",
-            (query, limit)
+            (query, limit),
         )
         rows = await cursor.fetchall()
         result = []
@@ -543,62 +538,63 @@ class Database:
             del d["tasks_json"]
             result.append(d)
         return result
-    
+
     # Preferences
     async def set_preference(self, key: str, value: str):
         await self._db.execute(
             "INSERT OR REPLACE INTO preferences (key, value, updated_at) VALUES (?, ?, ?)",
-            (key, value, datetime.now().isoformat())
+            (key, value, datetime.now().isoformat()),
         )
         await self._db.commit()
-    
-    async def get_preference(self, key: str, default: Optional[str] = None) -> Optional[str]:
+
+    async def get_preference(self, key: str, default: str | None = None) -> str | None:
         cursor = await self._db.execute("SELECT value FROM preferences WHERE key = ?", (key,))
         row = await cursor.fetchone()
         return row["value"] if row else default
-    
+
     async def get_all_preferences(self) -> dict:
         cursor = await self._db.execute("SELECT key, value FROM preferences")
         rows = await cursor.fetchall()
         return {row["key"]: row["value"] for row in rows}
-    
+
     # Projects
     async def add_project(self, name: str, path: str, description: str = "", language: str = ""):
         await self._db.execute(
-            """INSERT OR REPLACE INTO projects (name, path, description, language, updated_at) 
+            """INSERT OR REPLACE INTO projects (name, path, description, language, updated_at)
                VALUES (?, ?, ?, ?, ?)""",
-            (name, path, description, language, datetime.now().isoformat())
+            (name, path, description, language, datetime.now().isoformat()),
         )
         await self._db.commit()
-    
-    async def get_project(self, name: str) -> Optional[dict]:
+
+    async def get_project(self, name: str) -> dict | None:
         cursor = await self._db.execute("SELECT * FROM projects WHERE name = ?", (name,))
         row = await cursor.fetchone()
         if row:
             return dict(row)
         return None
-    
+
     async def get_all_projects(self) -> list[dict]:
         cursor = await self._db.execute("SELECT * FROM projects ORDER BY updated_at DESC")
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
-    
+
     # Conversations
     async def save_conversation(self, session_id: str, role: str, content: str):
         await self._db.execute(
             "INSERT INTO conversations (session_id, role, content) VALUES (?, ?, ?)",
-            (session_id, role, content)
+            (session_id, role, content),
         )
         await self._db.commit()
-    
+
     async def get_conversation(self, session_id: str, limit: int = 50) -> list[dict]:
         cursor = await self._db.execute(
-            "SELECT role, content, timestamp FROM conversations WHERE session_id = ? ORDER BY id DESC LIMIT ?",
-            (session_id, limit)
+            "SELECT role, content, timestamp FROM conversations WHERE session_id = ? "
+            "ORDER BY id DESC LIMIT ?",
+            (session_id, limit),
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in reversed(rows)]
-    
+
     async def get_all_sessions(self, limit: int = 50, offset: int = 0) -> list[dict]:
         """Get all conversation sessions with first user message as preview."""
         cursor = await self._db.execute(
@@ -619,7 +615,7 @@ class Database:
                GROUP BY c.session_id
                ORDER BY last_at DESC
                LIMIT ? OFFSET ?""",
-            (limit, offset)
+            (limit, offset),
         )
         sessions = []
         for row in await cursor.fetchall():
@@ -628,45 +624,53 @@ class Database:
             d["title"] = d["title"] or d["preview"] or "New conversation"
             sessions.append(d)
         return sessions
-    
+
     async def get_session_count(self) -> int:
-        cursor = await self._db.execute("SELECT COUNT(DISTINCT session_id) as count FROM conversations")
+        cursor = await self._db.execute(
+            "SELECT COUNT(DISTINCT session_id) as count FROM conversations"
+        )
         row = await cursor.fetchone()
         return row["count"]
-    
+
     # Agent Messages
     async def save_agent_message(self, message: dict):
         await self._db.execute(
-            """INSERT OR REPLACE INTO agent_messages 
-               (id, sender, receiver, task_id, content, status, confidence, issues, result, timestamp)
+            """INSERT OR REPLACE INTO agent_messages
+               (id, sender, receiver, task_id, content, status, confidence, issues, result,
+                timestamp)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                message["id"], message["sender"], message["receiver"],
-                message["task_id"], message["content"], message["status"],
-                message["confidence"], json.dumps(message.get("issues", [])),
-                json.dumps(message.get("result")), message["timestamp"]
-            )
+                message["id"],
+                message["sender"],
+                message["receiver"],
+                message["task_id"],
+                message["content"],
+                message["status"],
+                message["confidence"],
+                json.dumps(message.get("issues", [])),
+                json.dumps(message.get("result")),
+                message["timestamp"],
+            ),
         )
         await self._db.commit()
-    
-    async def get_agent_messages(self, task_id: Optional[str] = None, limit: int = 100) -> list[dict]:
+
+    async def get_agent_messages(self, task_id: str | None = None, limit: int = 100) -> list[dict]:
         if task_id:
             cursor = await self._db.execute(
                 "SELECT * FROM agent_messages WHERE task_id = ? ORDER BY timestamp DESC LIMIT ?",
-                (task_id, limit)
+                (task_id, limit),
             )
         else:
             cursor = await self._db.execute(
-                "SELECT * FROM agent_messages ORDER BY timestamp DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM agent_messages ORDER BY timestamp DESC LIMIT ?", (limit,)
             )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
-    
+
     # Workspaces (unified mission workspace)
     async def save_workspace(self, workspace: dict):
         await self._db.execute(
-            """INSERT OR REPLACE INTO workspaces 
+            """INSERT OR REPLACE INTO workspaces
                (id, goal, owner, user_request, status, current_stage, progress, priority,
                 created_at, started_at, completed_at, duration_ms,
                 research_findings, tool_candidates, architecture_plan,
@@ -674,37 +678,52 @@ class Database:
                 memory_record, final_report, timeline_events, stage_history, errors)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                workspace["id"], workspace["goal"], workspace["owner"],
+                workspace["id"],
+                workspace["goal"],
+                workspace["owner"],
                 workspace.get("user_request", ""),
-                workspace["status"], workspace.get("current_stage", "understand"),
-                workspace["progress"], workspace.get("priority", "normal"),
+                workspace["status"],
+                workspace.get("current_stage", "understand"),
+                workspace["progress"],
+                workspace.get("priority", "normal"),
                 workspace.get("created_at", datetime.now().isoformat()),
                 workspace.get("started_at"),
                 workspace.get("completed_at"),
                 workspace.get("duration_ms", 0.0),
                 json.dumps(workspace.get("research_findings", [])),
                 json.dumps(workspace.get("tool_candidates", [])),
-                json.dumps(workspace.get("architecture_plan")) if workspace.get("architecture_plan") else None,
+                json.dumps(workspace.get("architecture_plan"))
+                if workspace.get("architecture_plan")
+                else None,
                 json.dumps(workspace.get("execution_results", [])),
                 json.dumps(workspace.get("verification_results", [])),
                 json.dumps(workspace.get("review_items", [])),
-                json.dumps(workspace.get("memory_record")) if workspace.get("memory_record") else None,
+                json.dumps(workspace.get("memory_record"))
+                if workspace.get("memory_record")
+                else None,
                 workspace.get("final_report", ""),
                 json.dumps(workspace.get("timeline_events", [])),
                 json.dumps(workspace.get("stage_history", [])),
                 json.dumps(workspace.get("errors", [])),
-            )
+            ),
         )
         await self._db.commit()
-    
-    async def get_workspace(self, workspace_id: str) -> Optional[dict]:
+
+    async def get_workspace(self, workspace_id: str) -> dict | None:
         cursor = await self._db.execute("SELECT * FROM workspaces WHERE id = ?", (workspace_id,))
         row = await cursor.fetchone()
         if row:
             d = dict(row)
-            for key in ("research_findings", "tool_candidates", "execution_results",
-                        "verification_results", "review_items", "timeline_events",
-                        "stage_history", "errors"):
+            for key in (
+                "research_findings",
+                "tool_candidates",
+                "execution_results",
+                "verification_results",
+                "review_items",
+                "timeline_events",
+                "stage_history",
+                "errors",
+            ):
                 if d.get(key) and isinstance(d[key], str):
                     try:
                         d[key] = json.loads(d[key])
@@ -718,22 +737,31 @@ class Database:
                         d[key] = None
             return d
         return None
-    
-    async def get_all_workspaces(self, status: Optional[str] = None, limit: int = 500) -> list[dict]:
+
+    async def get_all_workspaces(self, status: str | None = None, limit: int = 500) -> list[dict]:
         if status:
             cursor = await self._db.execute(
                 "SELECT * FROM workspaces WHERE status = ? ORDER BY created_at DESC LIMIT ?",
-                (status, limit)
+                (status, limit),
             )
         else:
-            cursor = await self._db.execute("SELECT * FROM workspaces ORDER BY created_at DESC LIMIT ?", (limit,))
+            cursor = await self._db.execute(
+                "SELECT * FROM workspaces ORDER BY created_at DESC LIMIT ?", (limit,)
+            )
         rows = await cursor.fetchall()
         results = []
         for row in rows:
             d = dict(row)
-            for key in ("research_findings", "tool_candidates", "execution_results",
-                        "verification_results", "review_items", "timeline_events",
-                        "stage_history", "errors"):
+            for key in (
+                "research_findings",
+                "tool_candidates",
+                "execution_results",
+                "verification_results",
+                "review_items",
+                "timeline_events",
+                "stage_history",
+                "errors",
+            ):
                 if d.get(key) and isinstance(d[key], str):
                     try:
                         d[key] = json.loads(d[key])
@@ -747,83 +775,90 @@ class Database:
                         d[key] = None
             results.append(d)
         return results
-    
+
     # Tasks
     async def save_task(self, task: dict, workspace_id: str):
         await self._db.execute(
-            """INSERT OR REPLACE INTO tasks 
-               (id, workspace_id, name, description, assigned_to, status, priority, 
+            """INSERT OR REPLACE INTO tasks
+               (id, workspace_id, name, description, assigned_to, status, priority,
                 dependencies, result, confidence, issues, created_at, completed_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                task["id"], workspace_id, task["name"], task["description"],
-                task["assigned_to"], task["status"], task["priority"],
+                task["id"],
+                workspace_id,
+                task["name"],
+                task["description"],
+                task["assigned_to"],
+                task["status"],
+                task["priority"],
                 json.dumps(task.get("dependencies", [])),
-                task.get("result"), task.get("confidence", 0.0),
+                task.get("result"),
+                task.get("confidence", 0.0),
                 json.dumps(task.get("issues", [])),
                 task.get("created_at", datetime.now().isoformat()),
-                task.get("completed_at")
-            )
+                task.get("completed_at"),
+            ),
         )
         await self._db.commit()
-    
+
     async def get_workspace_tasks(self, workspace_id: str) -> list[dict]:
         cursor = await self._db.execute(
-            "SELECT * FROM tasks WHERE workspace_id = ? ORDER BY created_at",
-            (workspace_id,)
+            "SELECT * FROM tasks WHERE workspace_id = ? ORDER BY created_at", (workspace_id,)
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
-    
+
     # Decisions
     async def save_decision(self, topic: str, decision: str, reason: str = "", context: str = ""):
         await self._db.execute(
             "INSERT INTO decisions (topic, decision, reason, context) VALUES (?, ?, ?, ?)",
-            (topic, decision, reason, context)
+            (topic, decision, reason, context),
         )
         await self._db.commit()
-    
-    async def get_decisions(self, topic: Optional[str] = None, limit: int = 10) -> list[dict]:
+
+    async def get_decisions(self, topic: str | None = None, limit: int = 10) -> list[dict]:
         if topic:
             cursor = await self._db.execute(
                 "SELECT * FROM decisions WHERE topic = ? ORDER BY created_at DESC LIMIT ?",
-                (topic, limit)
+                (topic, limit),
             )
         else:
             cursor = await self._db.execute(
-                "SELECT * FROM decisions ORDER BY created_at DESC LIMIT ?",
-                (limit,)
+                "SELECT * FROM decisions ORDER BY created_at DESC LIMIT ?", (limit,)
             )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
-    
+
     # Agent States (persistence across restarts)
     async def save_agent_state(self, card_id: str, state: str):
         await self._db.execute(
             "INSERT OR REPLACE INTO agent_states (card_id, state, updated_at) VALUES (?, ?, ?)",
-            (card_id, state, datetime.now().isoformat())
+            (card_id, state, datetime.now().isoformat()),
         )
         await self._db.commit()
-    
+
     async def get_agent_states(self) -> dict[str, str]:
         cursor = await self._db.execute("SELECT card_id, state FROM agent_states")
         rows = await cursor.fetchall()
         return {row["card_id"]: row["state"] for row in rows}
-    
-    async def get_agent_state(self, card_id: str) -> Optional[str]:
-        cursor = await self._db.execute("SELECT state FROM agent_states WHERE card_id = ?", (card_id,))
+
+    async def get_agent_state(self, card_id: str) -> str | None:
+        cursor = await self._db.execute(
+            "SELECT state FROM agent_states WHERE card_id = ?", (card_id,)
+        )
         row = await cursor.fetchone()
         return row["state"] if row else None
-    
+
     # LLM Conversation Context (for multi-turn persistence)
     async def save_llm_context(self, session_id: str, context: list[dict]):
         await self._db.execute(
-            "INSERT OR REPLACE INTO llm_context (session_id, context_json, updated_at) VALUES (?, ?, ?)",
-            (session_id, json.dumps(context), datetime.now().isoformat())
+            "INSERT OR REPLACE INTO llm_context (session_id, context_json, updated_at) "
+            "VALUES (?, ?, ?)",
+            (session_id, json.dumps(context), datetime.now().isoformat()),
         )
         await self._db.commit()
-    
-    async def get_llm_context(self, session_id: str) -> Optional[list[dict]]:
+
+    async def get_llm_context(self, session_id: str) -> list[dict] | None:
         cursor = await self._db.execute(
             "SELECT context_json FROM llm_context WHERE session_id = ?", (session_id,)
         )
@@ -831,11 +866,11 @@ class Database:
         if row:
             return json.loads(row["context_json"])
         return None
-    
+
     # Task History (for history page and replay)
     async def save_task_history(self, history: dict):
         cursor = await self._db.execute(
-            """INSERT INTO task_history 
+            """INSERT INTO task_history
                (plan_id, user_request, summary, tasks_json, workspace_id, owner, duration_ms)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (
@@ -846,7 +881,7 @@ class Database:
                 history.get("workspace_id"),
                 history.get("owner"),
                 history.get("duration_ms"),
-            )
+            ),
         )
         rowid = cursor.lastrowid
         await self._db.execute(
@@ -858,7 +893,7 @@ class Database:
                 history["user_request"],
                 history.get("summary", ""),
                 json.dumps(history.get("tasks", [])),
-            )
+            ),
         )
         await self._db.commit()
 
@@ -885,11 +920,10 @@ class Database:
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
-    
+
     async def get_task_history(self, limit: int = 20, offset: int = 0) -> list[dict]:
         cursor = await self._db.execute(
-            "SELECT * FROM task_history ORDER BY created_at DESC LIMIT ? OFFSET ?",
-            (limit, offset)
+            "SELECT * FROM task_history ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)
         )
         rows = await cursor.fetchall()
         result = []
@@ -899,16 +933,49 @@ class Database:
             del d["tasks_json"]
             result.append(d)
         return result
-    
+
     async def get_task_history_count(self) -> int:
         cursor = await self._db.execute("SELECT COUNT(*) as count FROM task_history")
         row = await cursor.fetchone()
         return row["count"]
-    
-    async def get_task_history_by_id(self, plan_id: str) -> Optional[dict]:
+
+    # Mission CRUD (aliases to workspaces table — unified storage)
+    async def save_mission(self, mission: dict):
+        await self.save_workspace(mission)
+
+    async def get_mission(self, mission_id: str) -> dict | None:
+        return await self.get_workspace(mission_id)
+
+    async def list_missions(self, status: str | None = None, limit: int = 500) -> list[dict]:
+        return await self.get_all_workspaces(status=status, limit=limit)
+
+    async def delete_mission(self, mission_id: str) -> bool:
+        cursor = await self._db.execute("DELETE FROM workspaces WHERE id = ?", (mission_id,))
+        await self._db.commit()
+        return cursor.rowcount > 0
+
+    async def update_mission_status(self, mission_id: str, status: str) -> bool:
         cursor = await self._db.execute(
-            "SELECT * FROM task_history WHERE plan_id = ?", (plan_id,)
+            "UPDATE workspaces SET status = ? WHERE id = ?", (status, mission_id)
         )
+        await self._db.commit()
+        return cursor.rowcount > 0
+
+    async def get_mission_metrics(self) -> dict:
+        cursor = await self._db.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN status IN ('completed', 'failed') THEN 1 ELSE 0 END) as finished,
+                SUM(CASE WHEN status NOT IN ('completed', 'failed') THEN 1 ELSE 0 END) as active
+            FROM workspaces
+        """)
+        row = await cursor.fetchone()
+        d = dict(row) if row else {"total": 0, "finished": 0, "active": 0}
+        d["completion_rate"] = round(d["finished"] / max(d["total"], 1) * 100, 1)
+        return d
+
+    async def get_task_history_by_id(self, plan_id: str) -> dict | None:
+        cursor = await self._db.execute("SELECT * FROM task_history WHERE plan_id = ?", (plan_id,))
         row = await cursor.fetchone()
         if row:
             d = dict(row)
@@ -919,8 +986,8 @@ class Database:
 
 
 # Singleton instance
-_db: Optional[Database] = None
-_db_lock: Optional[asyncio.Lock] = None
+_db: Database | None = None
+_db_lock: asyncio.Lock | None = None
 
 
 async def get_db() -> Database:

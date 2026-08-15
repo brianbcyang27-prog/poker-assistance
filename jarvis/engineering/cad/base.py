@@ -4,11 +4,11 @@ Supported platforms: Fusion 360, Onshape, Blender, Tinkercad, OpenSCAD
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class CADFormat(str, Enum):
+class CADFormat(StrEnum):
     STL = "stl"
     STEP = "step"
     OBJ = "obj"
@@ -18,7 +18,7 @@ class CADFormat(str, Enum):
     SCAD = "scad"
 
 
-class ModelType(str, Enum):
+class ModelType(StrEnum):
     PART = "part"
     ASSEMBLY = "assembly"
     SKETCH = "sketch"
@@ -36,12 +36,12 @@ class CADProvider(ABC):
 
     @property
     @abstractmethod
-    def supported_formats(self) -> List[CADFormat]:
+    def supported_formats(self) -> list[CADFormat]:
         """List of export formats this provider supports."""
         ...
 
     @abstractmethod
-    async def create_model(self, name: str, params: Dict[str, Any]) -> Dict:
+    async def create_model(self, name: str, params: dict[str, Any]) -> dict:
         """Create a new 3D model.
 
         Args:
@@ -54,7 +54,7 @@ class CADProvider(ABC):
         ...
 
     @abstractmethod
-    async def edit_model(self, model_id: str, changes: Dict[str, Any]) -> Dict:
+    async def edit_model(self, model_id: str, changes: dict[str, Any]) -> dict:
         """Edit an existing model.
 
         Args:
@@ -67,9 +67,7 @@ class CADProvider(ABC):
         ...
 
     @abstractmethod
-    async def export(
-        self, model_id: str, format: CADFormat, output_path: str
-    ) -> Dict:
+    async def export(self, model_id: str, format: CADFormat, output_path: str) -> dict:
         """Export model to specified format.
 
         Args:
@@ -83,7 +81,7 @@ class CADProvider(ABC):
         ...
 
     @abstractmethod
-    async def get_measurements(self, model_id: str) -> Dict:
+    async def get_measurements(self, model_id: str) -> dict:
         """Get model measurements (dimensions, volume, surface area).
 
         Returns:
@@ -92,7 +90,7 @@ class CADProvider(ABC):
         ...
 
     @abstractmethod
-    async def list_models(self, workspace: Optional[str] = None) -> List[Dict]:
+    async def list_models(self, workspace: str | None = None) -> list[dict]:
         """List available models.
 
         Returns:
@@ -101,7 +99,7 @@ class CADProvider(ABC):
         ...
 
     @abstractmethod
-    async def get_model_info(self, model_id: str) -> Dict:
+    async def get_model_info(self, model_id: str) -> dict:
         """Get detailed model information.
 
         Returns:
@@ -109,9 +107,7 @@ class CADProvider(ABC):
         """
         ...
 
-    async def create_parametric(
-        self, template: str, params: Dict[str, Any]
-    ) -> Dict:
+    async def create_parametric(self, template: str, params: dict[str, Any]) -> dict:
         """Create model from parametric template.
 
         Args:
@@ -123,7 +119,7 @@ class CADProvider(ABC):
         """
         return {"error": "Parametric templates not supported by this provider"}
 
-    async def check_manufacturability(self, model_id: str) -> Dict:
+    async def check_manufacturability(self, model_id: str) -> dict:
         """Check if model is suitable for manufacturing (3D printing, CNC, etc.).
 
         Returns:

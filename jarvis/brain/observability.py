@@ -7,13 +7,12 @@ Model Router, Review Pipeline, etc.) into a unified observability layer.
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Optional
-from loguru import logger
 
 
 @dataclass
 class Metric:
     """A single metric data point."""
+
     name: str
     value: float
     timestamp: float = field(default_factory=time.time)
@@ -23,9 +22,10 @@ class Metric:
 @dataclass
 class TraceSpan:
     """A trace span for request tracking."""
+
     trace_id: str
     span_id: str
-    parent_span_id: Optional[str]
+    parent_span_id: str | None
     operation: str
     start_time: float
     end_time: float = 0
@@ -65,7 +65,7 @@ class Observability:
         """Record a metric data point."""
         self._metrics.append(Metric(name=name, value=value, tags=tags or {}))
         if len(self._metrics) > self._max_metrics:
-            self._metrics = self._metrics[-self._max_metrics:]
+            self._metrics = self._metrics[-self._max_metrics :]
 
     def increment(self, name: str, amount: int = 1):
         """Increment a counter."""
@@ -75,7 +75,7 @@ class Observability:
         """Set a gauge value."""
         self._gauges[name] = value
 
-    def get_metrics(self, name: Optional[str] = None, limit: int = 100) -> list[dict]:
+    def get_metrics(self, name: str | None = None, limit: int = 100) -> list[dict]:
         """Get recorded metrics."""
         metrics = self._metrics
         if name:
@@ -110,7 +110,7 @@ class Observability:
         self._traces[trace_id] = [span]
         return trace_id
 
-    def start_span(self, trace_id: str, operation: str, parent_span_id: str = None) -> Optional[str]:
+    def start_span(self, trace_id: str, operation: str, parent_span_id: str = None) -> str | None:
         """Start a child span within a trace."""
         if trace_id not in self._traces:
             return None
@@ -145,11 +145,11 @@ class Observability:
 
         # Trim old traces
         if len(self._traces) > self._max_traces:
-            oldest = sorted(self._traces.keys())[:len(self._traces) - self._max_traces]
+            oldest = sorted(self._traces.keys())[: len(self._traces) - self._max_traces]
             for tid in oldest:
                 del self._traces[tid]
 
-    def get_trace(self, trace_id: str) -> Optional[dict]:
+    def get_trace(self, trace_id: str) -> dict | None:
         """Get a trace with all its spans."""
         spans = self._traces.get(trace_id)
         if not spans:
@@ -181,6 +181,7 @@ class Observability:
         # Event Bus
         try:
             from jarvis.core.events import event_bus
+
             stats = event_bus.get_stats()
             health["subsystems"]["event_bus"] = {
                 "status": "ok",
@@ -193,6 +194,7 @@ class Observability:
         # Capability Registry
         try:
             from jarvis.core.capabilities import registry
+
             stats = await registry.get_stats()
             health["subsystems"]["capabilities"] = {
                 "status": "ok",
@@ -204,6 +206,7 @@ class Observability:
         # Model Router
         try:
             from jarvis.brain.model_router import router
+
             stats = router.get_routing_stats()
             health["subsystems"]["model_router"] = {
                 "status": "ok",
@@ -216,6 +219,7 @@ class Observability:
         # ACI
         try:
             from jarvis.brain.aci import aci
+
             stats = aci.get_stats()
             health["subsystems"]["aci"] = {
                 "status": "ok",
@@ -227,6 +231,7 @@ class Observability:
         # DAG Planner
         try:
             from jarvis.brain.dag_planner import dag_planner
+
             stats = dag_planner.get_stats()
             health["subsystems"]["dag_planner"] = {
                 "status": "ok",
@@ -236,9 +241,7 @@ class Observability:
             health["subsystems"]["dag_planner"] = {"status": "error", "error": str(e)}
 
         # Overall status
-        has_error = any(
-            s.get("status") == "error" for s in health["subsystems"].values()
-        )
+        has_error = any(s.get("status") == "error" for s in health["subsystems"].values())
         health["status"] = "degraded" if has_error else "ok"
 
         return health

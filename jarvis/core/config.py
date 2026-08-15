@@ -1,15 +1,17 @@
 """Unified configuration for JARVIS."""
 
 import os
-from pydantic_settings import BaseSettings
-from pydantic import Field
 from pathlib import Path
+
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 def _secret(key: str, default: str = "") -> str:
     """Resolve a secret via SecretManager, falling back to env var."""
     try:
         from jarvis.security import get_secret
+
         value = get_secret(key)
         if value:
             return value
@@ -24,20 +26,14 @@ class Config(BaseSettings):
     # NVIDIA API Configuration
     nvidia_api_key: str = Field(default="")
     nvidia_model: str = Field(default="meta/llama-8b-instruct")
-    nvidia_api_base: str = Field(
-        default="https://integrate.api.nvidia.com/v1"
-    )
+    nvidia_api_base: str = Field(default="https://integrate.api.nvidia.com/v1")
 
     # OpenCode Configuration
     opencode_model: str = Field(default="opencode/big-pickle")
-    opencode_binary: str = Field(
-        default="/Users/brianyang/.opencode/bin/opencode"
-    )
+    opencode_binary: str = Field(default="/Users/brianyang/.opencode/bin/opencode")
 
     # Workspace Configuration
-    workspace_path: Path = Field(
-        default=Path("/Users/brianyang")
-    )
+    workspace_path: Path = Field(default=Path("/Users/brianyang"))
 
     # Web Server Configuration
     host: str = Field(default="0.0.0.0")
@@ -79,6 +75,22 @@ class Config(BaseSettings):
     # UI Configuration
     view_mode: str = Field(default="graph")  # core|graph
     chat_mode: str = Field(default="popup")  # popup|chat
+
+    # Logging Configuration
+    log_level: str = Field(default="INFO")
+    log_dir: str = Field(default="")
+    log_json_file: bool = Field(default=True)
+    log_json_max_bytes: int = Field(default=10 * 1024 * 1024)
+    log_json_backup_count: int = Field(default=5)
+    log_console: bool = Field(default=True)
+
+    # Architecture Configuration
+    active_architecture: str = Field(default="jarvis_native")
+    arch_planning_depth: int = Field(default=2)
+    arch_verification_strictness: float = Field(default=0.8)
+    arch_auto_reflect: bool = Field(default=True)
+    arch_skill_extraction: bool = Field(default=True)
+    arch_memory_retention_days: int = Field(default=30)
 
     model_config = {
         "env_file": ".env",

@@ -1,18 +1,18 @@
-import sys
-import os
 import asyncio
-import tempfile
+import os
+import sys
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest
-from jarvis.decisions.models import Decision, DecisionImpact, DecisionQuery, DecisionStatus
+
 from jarvis.decisions.engine import DecisionEngine
+from jarvis.decisions.models import Decision, DecisionQuery
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.new_event_loop().run_until_complete(coro)
 
 
 # ---------------------------------------------------------------------------
@@ -206,16 +206,18 @@ class TestDecisionEngine:
         assert d.status == "active"
 
     def test_record_with_all_fields(self, engine):
-        d = _run(engine.record(
-            title="Architecture",
-            description="Choose architecture",
-            reason="Scalability",
-            alternatives=["monolith", "microservices"],
-            chosen_option="microservices",
-            impact="high",
-            related_entities=["proj1"],
-            tags=["arch", "infra"],
-        ))
+        d = _run(
+            engine.record(
+                title="Architecture",
+                description="Choose architecture",
+                reason="Scalability",
+                alternatives=["monolith", "microservices"],
+                chosen_option="microservices",
+                impact="high",
+                related_entities=["proj1"],
+                tags=["arch", "infra"],
+            )
+        )
         assert d.description == "Choose architecture"
         assert d.chosen_option == "microservices"
         assert d.impact == "high"
@@ -343,8 +345,8 @@ class TestDecisionEngine:
         assert results == []
 
     def test_get_active(self, engine):
-        d1 = _run(engine.record(title="Active 1"))
-        d2 = _run(engine.record(title="Active 2"))
+        _run(engine.record(title="Active 1"))
+        _run(engine.record(title="Active 2"))
         _run(engine.record(title="Will be reversed"))
         all_d = _run(engine.get_all())
         for d in all_d:

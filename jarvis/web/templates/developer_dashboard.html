@@ -671,6 +671,56 @@
             color: var(--text-primary);
         }
 
+        /* ---- Startup Timing ---- */
+        .startup-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-2);
+        }
+        .startup-step {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        .startup-step-icon {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .startup-step-icon.done { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .startup-step-icon.pending { background: var(--text-muted); }
+        .startup-step-label {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+            min-width: 90px;
+            flex-shrink: 0;
+        }
+        .startup-step-label.active { color: var(--accent); }
+        .startup-track {
+            flex: 1;
+            height: 4px;
+            background: rgba(0, 240, 255, 0.06);
+            border-radius: 2px;
+            overflow: hidden;
+            min-width: 60px;
+        }
+        .startup-track-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        .startup-track-fill.done { background: var(--success); }
+        .startup-track-fill.pending { background: var(--text-muted); opacity: 0.3; }
+        .startup-step-value {
+            font-family: var(--font-mono);
+            font-size: var(--text-xs);
+            color: var(--text-primary);
+            min-width: 48px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
         /* ---- Empty State ---- */
         .empty-state {
             text-align: center;
@@ -873,6 +923,19 @@
             <div class="panel-body" style="padding: var(--space-2) 0;">
                 <div class="api-log" id="tool-log">
                     <div class="empty-state">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. Startup Timing Panel -->
+        <div class="panel" id="startup-timing-panel">
+            <div class="panel-header">
+                <span class="panel-title">Startup Timing</span>
+                <span class="panel-badge" id="startup-total">--</span>
+            </div>
+            <div class="panel-body">
+                <div class="startup-timeline" id="startup-timeline">
+                    <div class="empty-state">Waiting for startup data...</div>
                 </div>
             </div>
         </div>
@@ -1190,6 +1253,43 @@
             }
         }
 
+        /* ---- 8. Startup Timing ---- */
+        async function fetchStartupTiming() {
+            try {
+                const res = await fetch('/api/system/startup-timing');
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+
+                const steps = [
+                    { key: 'cli_launch_s', label: 'CLI Launch' },
+                    { key: 'server_ready_s', label: 'Server Ready' },
+                    { key: 'first_ai_response_s', label: 'First AI' },
+                    { key: 'first_voice_response_s', label: 'First Voice' },
+                ];
+
+                const maxVal = Math.max(...steps.map(s => data[s.key] || 0), 0.01);
+                const total = steps.reduce((acc, s) => acc + (data[s.key] || 0), 0);
+                $('startup-total').textContent = total.toFixed(2) + 's';
+
+                const container = $('startup-timeline');
+                container.innerHTML = steps.map(s => {
+                    const val = data[s.key] || 0;
+                    const pct = Math.min((val / maxVal) * 100, 100);
+                    const isDone = val > 0;
+                    return `<div class="startup-step">
+                        <span class="startup-step-icon ${isDone ? 'done' : 'pending'}"></span>
+                        <span class="startup-step-label ${isDone ? 'active' : ''}">${s.label}</span>
+                        <div class="startup-track">
+                            <div class="startup-track-fill ${isDone ? 'done' : 'pending'}" style="width:${pct}%"></div>
+                        </div>
+                        <span class="startup-step-value">${isDone ? val.toFixed(2) + 's' : '--'}</span>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                $('startup-timeline').innerHTML = '<div class="empty-state">Unavailable</div>';
+            }
+        }
+
         /* ---- WebSocket ---- */
         function connectWebSocket() {
             const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1256,6 +1356,7 @@
                 fetchMemoryStats(),
                 fetchApiStats(),
                 fetchToolUsage(),
+                fetchStartupTiming(),
             ]);
         }
 

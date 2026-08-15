@@ -1,30 +1,36 @@
 """v6.3.0 integration tests — Unified AI Operating System."""
-import sys
-import os
+
 import asyncio
+import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-loop = asyncio.get_event_loop()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 
 # ── Unified Tool Layer ──────────────────────────────────────────────
+
 
 class TestUnifiedToolLayer:
     """Test the unified tool interface (Phase 1)."""
 
     def test_import_tool(self):
         from jarvis.tools import tool
+
         assert tool is not None
 
     def test_list_tools(self):
         from jarvis.tools import tool
+
         tools = tool.list_tools()
         assert isinstance(tools, list)
         assert len(tools) >= 20
 
     def test_get_tool_info(self):
         from jarvis.tools import tool
+
         info = tool.get_tool_info("search_web")
         assert info is not None
         assert "name" in info
@@ -32,11 +38,13 @@ class TestUnifiedToolLayer:
 
     def test_get_tool_info_nonexistent(self):
         from jarvis.tools import tool
+
         info = tool.get_tool_info("nonexistent_xyz")
         assert info is None
 
     def test_tool_result_success(self):
         from jarvis.tools.result import ToolResult
+
         r = ToolResult(ok=True, data={"url": "https://example.com"})
         assert r.ok is True
         assert r.data["url"] == "https://example.com"
@@ -45,20 +53,23 @@ class TestUnifiedToolLayer:
 
     def test_tool_result_failure(self):
         from jarvis.tools.result import ToolResult
+
         r = ToolResult(ok=False, error="timeout")
         assert r.ok is False
         assert r.error == "timeout"
 
     def test_tool_result_no_data(self):
         from jarvis.tools.result import ToolResult
+
         r = ToolResult(ok=True)
         d = r.to_dict()
         assert d["ok"] is True
         assert d["data"] is None
 
     def test_timed_decorator(self):
-        from jarvis.tools.result import timed
         import time as t
+
+        from jarvis.tools.result import timed
 
         @timed
         async def fast_fn():
@@ -71,8 +82,20 @@ class TestUnifiedToolLayer:
 
     def test_tool_has_all_categories(self):
         from jarvis.tools import tool
+
         tools = tool.list_tools()
-        categories = {"web", "browser", "vision", "accessibility", "terminal", "file", "computer", "memory", "engineering", "mission"}
+        categories = {
+            "web",
+            "browser",
+            "vision",
+            "accessibility",
+            "terminal",
+            "file",
+            "computer",
+            "memory",
+            "engineering",
+            "mission",
+        }
         found = set()
         for t_name in tools:
             for cat in categories:
@@ -84,6 +107,7 @@ class TestUnifiedToolLayer:
 
     def test_controller_action_aliases(self):
         from jarvis.computer.controller import ComputerController
+
         c = ComputerController()
         assert c._normalize_action("keyboard_type") == "type_text"
         assert c._normalize_action("browser_text") == "browser_get_text"
@@ -91,7 +115,6 @@ class TestUnifiedToolLayer:
 
     def test_worker_tool_call_extraction(self):
         from jarvis.agents.workers.base import BaseWorker
-        from jarvis.core.models import Suit, Rank
 
         class DummyWorker(BaseWorker):
             @property
@@ -115,6 +138,7 @@ class TestUnifiedToolLayer:
 
 # ── Unified Context Engine ──────────────────────────────────────────
 
+
 class TestUnifiedContext:
     """Test the context engine (Phase 3).
 
@@ -124,11 +148,13 @@ class TestUnifiedContext:
 
     def test_context_engine_import(self):
         from jarvis.brain.core.context import BrainContextManager
+
         ctx = BrainContextManager()
         assert ctx is not None
 
     def test_context_engine_has_methods(self):
         from jarvis.brain.core.context import BrainContextManager
+
         ctx = BrainContextManager()
         assert hasattr(ctx, "build_context")
         assert hasattr(ctx, "inject_context")
@@ -141,15 +167,18 @@ class TestUnifiedContext:
 
 # ── Reliability Configuration ──────────────────────────────────────
 
+
 class TestReliabilityConfig:
     """Test the reliability system."""
 
     def test_config_singleton(self):
-        from jarvis.core.reliability import config, ReliabilityConfig
+        from jarvis.core.reliability import ReliabilityConfig, config
+
         assert isinstance(config, ReliabilityConfig)
 
     def test_config_defaults(self):
         from jarvis.core.reliability import config
+
         assert hasattr(config, "browser_timeout")
         assert hasattr(config, "max_retries")
         assert config.browser_timeout > 0
@@ -157,6 +186,7 @@ class TestReliabilityConfig:
 
     def test_config_update(self):
         from jarvis.core.reliability import config
+
         old_timeout = config.browser_timeout
         config.browser_timeout = 99
         assert config.browser_timeout == 99
@@ -164,6 +194,7 @@ class TestReliabilityConfig:
 
     def test_config_dataclass(self):
         from jarvis.core.reliability import ReliabilityConfig
+
         cfg = ReliabilityConfig(llm_timeout=10.0)
         assert cfg.llm_timeout == 10.0
         assert cfg.browser_timeout == 30.0
@@ -171,21 +202,25 @@ class TestReliabilityConfig:
 
 # ── Workspace Model ─────────────────────────────────────────────────
 
+
 class TestUnifiedWorkspace:
     """Test the unified Workspace model (Phase 2)."""
 
     def test_workspace_import(self):
         from jarvis.core.models import Workspace
+
         assert Workspace is not None
 
     def test_workspace_create(self):
         from jarvis.core.models import Workspace
+
         ws = Workspace(goal="Test mission", owner="user")
         assert ws.goal == "Test mission"
         assert ws.owner == "user"
 
     def test_workspace_to_dict(self):
         from jarvis.core.models import Workspace
+
         ws = Workspace(goal="Test", owner="user")
         d = ws.dict()
         assert isinstance(d, dict)
@@ -195,6 +230,7 @@ class TestUnifiedWorkspace:
 
     def test_workspace_has_core_fields(self):
         from jarvis.core.models import Workspace
+
         ws = Workspace(goal="Test", owner="user")
         assert hasattr(ws, "goal")
         assert hasattr(ws, "owner")
@@ -208,16 +244,19 @@ class TestUnifiedWorkspace:
 
 # ── Event Bus Collaboration ────────────────────────────────────────
 
+
 class TestEventBusCollaboration:
     """Test cross-agent event bus (worker collaboration)."""
 
     def test_event_bus_import(self):
         from jarvis.core.events import EventBus
+
         eb = EventBus()
         assert eb is not None
 
     def test_event_bus_emit_subscribe(self):
-        from jarvis.core.events import EventBus, Event
+        from jarvis.core.events import Event, EventBus
+
         eb = EventBus()
         received = []
 
@@ -232,22 +271,26 @@ class TestEventBusCollaboration:
 
 # ── Rate Limiting ───────────────────────────────────────────────────
 
+
 class TestRateLimiting:
     """Test API rate limiting."""
 
     def test_rate_limiter_import(self):
         from jarvis.web.rate_limit import RateLimiter
+
         rl = RateLimiter()
         assert rl is not None
 
     def test_rate_limiter_allows_within_limit(self):
         from jarvis.web.rate_limit import RateLimiter
+
         rl = RateLimiter()
         for _ in range(4):
             assert rl.is_allowed("test_key", max_requests=5, window_seconds=60) is True
 
     def test_rate_limiter_blocks_over_limit(self):
         from jarvis.web.rate_limit import RateLimiter
+
         rl = RateLimiter()
         for _ in range(5):
             rl.is_allowed("test_key2", max_requests=5, window_seconds=60)
@@ -256,29 +299,34 @@ class TestRateLimiting:
 
 # ── Old Tool Registry (backward compat) ────────────────────────────
 
+
 class TestOldToolRegistry:
     """Ensure the old ToolRegistry still works (backward compat)."""
 
     def test_import_models(self):
-        from jarvis.tools.models import ToolCapability, ToolInfo, ToolCategory
+        from jarvis.tools.models import ToolCapability, ToolCategory, ToolInfo
+
         assert ToolCapability is not None
         assert ToolInfo is not None
         assert ToolCategory is not None
 
     def test_tool_category_enum(self):
         from jarvis.tools.models import ToolCategory
+
         assert ToolCategory.CAD.value == "cad"
         assert ToolCategory.PCB.value == "pcb"
         assert ToolCategory.TESTING.value == "testing"
 
     def test_tool_capability(self):
         from jarvis.tools.models import ToolCapability
+
         c = ToolCapability(name="branching", description="Create branches")
         d = c.to_dict()
         assert d["name"] == "branching"
 
     def test_tool_info(self):
         from jarvis.tools.models import ToolInfo
+
         t = ToolInfo(name="pytest", category="testing", available=True)
         d = t.to_dict()
         assert d["name"] == "pytest"

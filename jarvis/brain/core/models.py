@@ -1,21 +1,23 @@
 """Unified brain data models."""
+
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 
 @dataclass
 class BrainContext:
     """Complete context provided to every agent before execution."""
+
     current_goal: str = ""
-    user_preferences: Dict[str, str] = field(default_factory=dict)
-    relevant_memories: List[Dict[str, Any]] = field(default_factory=list)
-    previous_attempts: List[Dict[str, Any]] = field(default_factory=list)
-    project_context: Dict[str, Any] = field(default_factory=dict)
-    available_tools: List[str] = field(default_factory=list)
-    recent_decisions: List[Dict[str, Any]] = field(default_factory=list)
-    timeline_events: List[Dict[str, Any]] = field(default_factory=list)
+    user_preferences: dict[str, str] = field(default_factory=dict)
+    relevant_memories: list[dict[str, Any]] = field(default_factory=list)
+    previous_attempts: list[dict[str, Any]] = field(default_factory=list)
+    project_context: dict[str, Any] = field(default_factory=dict)
+    available_tools: list[str] = field(default_factory=list)
+    recent_decisions: list[dict[str, Any]] = field(default_factory=list)
+    timeline_events: list[dict[str, Any]] = field(default_factory=list)
     confidence: float = 0.0
     timestamp: float = 0.0
 
@@ -63,15 +65,16 @@ class BrainContext:
 @dataclass
 class MemoryEntry:
     """A single memory entry from any source."""
+
     id: str = ""
     content: str = ""
     source: str = ""  # conversation, extraction, consolidation, manual
     memory_type: str = ""  # fact, preference, decision, event, lesson
     importance: str = "useful"
     confidence: float = 0.8
-    related_entities: List[str] = field(default_factory=list)
+    related_entities: list[str] = field(default_factory=list)
     timestamp: float = 0.0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.id:
@@ -96,12 +99,13 @@ class MemoryEntry:
 @dataclass
 class ReasoningResult:
     """Result of a reasoning operation."""
+
     conclusion: str = ""
     confidence: float = 0.0
-    reasoning_chain: List[str] = field(default_factory=list)
-    alternatives: List[Dict[str, Any]] = field(default_factory=list)
-    supporting_memories: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    reasoning_chain: list[str] = field(default_factory=list)
+    alternatives: list[dict[str, Any]] = field(default_factory=list)
+    supporting_memories: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -117,12 +121,13 @@ class ReasoningResult:
 @dataclass
 class ActionDecision:
     """A decision about what action to take."""
+
     id: str = ""
     action: str = ""
     reason: str = ""
     confidence: float = 0.0
-    alternatives_rejected: List[Dict[str, Any]] = field(default_factory=list)
-    supporting_evidence: List[str] = field(default_factory=list)
+    alternatives_rejected: list[dict[str, Any]] = field(default_factory=list)
+    supporting_evidence: list[str] = field(default_factory=list)
     risk_level: str = "low"
     timestamp: float = 0.0
 

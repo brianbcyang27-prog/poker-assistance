@@ -5,8 +5,6 @@ tool history — redact API keys, passwords, tokens, connection strings.
 """
 
 import re
-from typing import Optional
-
 
 _REDACT_PATTERNS = [
     (r"nvapi-[A-Za-z0-9\-_]{20,}", "[REDACTED_NVIDIA_KEY]"),
@@ -22,8 +20,14 @@ _REDACT_PATTERNS = [
     (r"(?i)bearer\s+([A-Za-z0-9\-_\.]{20,})", "Bearer [REDACTED_TOKEN]"),
     (r"(?i)authorization:\s*bearer\s+[^\s\"']+", "Authorization: Bearer [REDACTED_TOKEN]"),
     (r"(?i)api[_-]?key\s*[=:]\s*['\"]?([A-Za-z0-9\-_]{20,})['\"]?", "api_key=[REDACTED_KEY]"),
-    (r"(mysql|postgres|mongodb|redis)://[^:]+:[^@]+@[^\s\"']+", r"\1://[REDACTED_USER]:[REDACTED_PASS]@"),
-    (r"-----BEGIN (RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (RSA |EC )?PRIVATE KEY-----", "[REDACTED_PRIVATE_KEY]"),
+    (
+        r"(mysql|postgres|mongodb|redis)://[^:]+:[^@]+@[^\s\"']+",
+        r"\1://[REDACTED_USER]:[REDACTED_PASS]@",
+    ),
+    (
+        r"-----BEGIN (RSA |EC )?PRIVATE KEY-----[\s\S]*?-----END (RSA |EC )?PRIVATE KEY-----",
+        "[REDACTED_PRIVATE_KEY]",
+    ),
 ]
 
 
@@ -31,7 +35,9 @@ class LogRedactor:
     """Redact secrets from strings before logging/writing."""
 
     def __init__(self):
-        self._compiled = [(re.compile(pattern), replacement) for pattern, replacement in _REDACT_PATTERNS]
+        self._compiled = [
+            (re.compile(pattern), replacement) for pattern, replacement in _REDACT_PATTERNS
+        ]
 
     def redact(self, text: str) -> str:
         """Redact all secrets from the given text."""
@@ -53,7 +59,9 @@ class LogRedactor:
             elif isinstance(value, dict):
                 result[key] = self.redact_dict(value)
             elif isinstance(value, list):
-                result[key] = [self.redact(item) if isinstance(item, str) else item for item in value]
+                result[key] = [
+                    self.redact(item) if isinstance(item, str) else item for item in value
+                ]
             else:
                 result[key] = value
         return result
@@ -70,7 +78,7 @@ class LogRedactor:
         return True
 
 
-_redactor: Optional[LogRedactor] = None
+_redactor: LogRedactor | None = None
 
 
 def get_redactor() -> LogRedactor:

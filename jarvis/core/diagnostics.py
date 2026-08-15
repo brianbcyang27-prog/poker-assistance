@@ -4,10 +4,8 @@ Runs on server startup to verify all subsystems are healthy.
 Attempts auto-recovery for common failures.
 """
 
-import os
-import time
 import asyncio
-from typing import List, Tuple, Optional
+import os
 from pathlib import Path
 
 from .config import get_config
@@ -27,9 +25,9 @@ class DiagnosticResult:
         return f"{status} {self.name}: {self.message}{rec}"
 
 
-async def run_diagnostics() -> List[DiagnosticResult]:
+async def run_diagnostics() -> list[DiagnosticResult]:
     """Run all system checks and attempt auto-recovery."""
-    results: List[DiagnosticResult] = []
+    results: list[DiagnosticResult] = []
 
     # 1. Check port availability
     results.append(await _check_port())
@@ -56,6 +54,7 @@ async def _check_port() -> DiagnosticResult:
     """Check if the configured port is available."""
     config = get_config()
     import socket
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         sock.settimeout(2)
@@ -71,9 +70,9 @@ async def _kill_zombie_on_port(port: int) -> bool:
     """Kill any process holding the given port. Returns True if killed."""
     try:
         import subprocess
+
         result = subprocess.run(
-            ["lsof", "-ti", f":{port}"],
-            capture_output=True, text=True, timeout=5
+            ["lsof", "-ti", f":{port}"], capture_output=True, text=True, timeout=5
         )
         if result.stdout.strip():
             pids = result.stdout.strip().split("\n")
@@ -92,6 +91,7 @@ async def _check_database() -> DiagnosticResult:
     """Check database connectivity and recover from WAL locks."""
     try:
         from .database import get_db
+
         db = await get_db()
         # Use the raw aiosqlite connection for the health check
         if db._db is None:
@@ -104,21 +104,24 @@ async def _check_database() -> DiagnosticResult:
         if "locked" in error_msg or "busy" in error_msg:
             recovered = await _recover_database_lock()
             if recovered:
-                return DiagnosticResult("database", True, "Database was locked — recovered", recovered=True)
+                return DiagnosticResult(
+                    "database", True, "Database was locked — recovered", recovered=True
+                )
         return DiagnosticResult("database", False, f"Database error: {e}")
 
 
 async def _recover_database_lock() -> bool:
     """Recover from SQLite WAL lock by removing stale SHM/WAL files.
-    
+
     Safety: Only deletes files if no active database connection exists.
     """
     try:
-        from .database import get_db, _db
+        from .database import _db
+
         # Don't delete if there's an active connection
         if _db and _db._db:
             return False
-        
+
         config = get_config()
         db_path = Path(config.db_path)
         for suffix in ["-shm", "-wal"]:
@@ -134,14 +137,18 @@ async def _check_llm() -> DiagnosticResult:
     """Check LLM API availability."""
     try:
         from ..brain.llm import LLM
+
         llm = LLM()
         if not llm.is_available():
-            return DiagnosticResult("llm", False, "No LLM backend available — set NVIDIA_API_KEY or install Ollama")
+            return DiagnosticResult(
+                "llm", False, "No LLM backend available — set NVIDIA_API_KEY or install Ollama"
+            )
 
         # Quick health check: send a minimal request
         base_url, api_key, model = llm._get_endpoint()
         url = f"{base_url}/models"
         import httpx
+
         async with httpx.AsyncClient(timeout=reliability_config.health_check_timeout) as client:
             resp = await client.get(url, headers={"Authorization": f"Bearer {api_key}"})
             if resp.status_code == 200:
@@ -158,6 +165,7 @@ async def _check_agents() -> DiagnosticResult:
     """Check agent hierarchy integrity by examining registered workers."""
     try:
         from ..agents.kings import EngineeringKing, PersonalKing, ResearchKing, SystemKing
+
         kings = [EngineeringKing(), PersonalKing(), ResearchKing(), SystemKing()]
         total_workers = sum(len(k.get_all_workers()) for k in kings)
 
@@ -173,7 +181,7 @@ async def _check_disk() -> DiagnosticResult:
     """Check available disk space."""
     try:
         stat = os.statvfs("/")
-        free_gb = (stat.f_bavail * stat.f_frsize) / (1024 ** 3)
+        free_gb = (stat.f_bavail * stat.f_frsize) / (1024**3)
         if free_gb < 1.0:
             return DiagnosticResult("disk", False, f"Low disk space: {free_gb:.1f} GB free")
         return DiagnosticResult("disk", True, f"{free_gb:.1f} GB free")
@@ -187,5 +195,7 @@ async def _check_api_key() -> DiagnosticResult:
     if not config.nvidia_api_key:
         return DiagnosticResult("api_key", False, "NVIDIA_API_KEY not set in .env")
     if not config.nvidia_api_key.startswith("nvapi-"):
-        return DiagnosticResult("api_key", False, "NVIDIA_API_KEY format invalid (expected nvapi-...)")
+        return DiagnosticResult(
+            "api_key", False, "NVIDIA_API_KEY format invalid (expected nvapi-...)"
+        )
     return DiagnosticResult("api_key", True, "NVIDIA API key configured")

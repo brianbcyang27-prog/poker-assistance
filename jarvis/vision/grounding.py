@@ -10,7 +10,6 @@ Flow:
 """
 
 import logging
-from typing import Optional
 from dataclasses import dataclass
 
 from .providers.base import DetectedObject
@@ -21,15 +20,16 @@ log = logging.getLogger("jarvis.vision.grounding")
 @dataclass
 class GroundedAction:
     """An action grounded in visual understanding."""
-    action_type: str = ""     # click, type_into, double_click, right_click
-    method: str = ""          # vision, accessibility, hybrid
-    x: int = 0               # target coordinates
+
+    action_type: str = ""  # click, type_into, double_click, right_click
+    method: str = ""  # vision, accessibility, hybrid
+    x: int = 0  # target coordinates
     y: int = 0
-    element_name: str = ""    # semantic name
-    element_type: str = ""    # button, menu, text_field, etc.
-    text: str = ""            # text to type (for type actions)
-    confidence: float = 0.0   # grounding confidence
-    reasoning: str = ""       # why this action was chosen
+    element_name: str = ""  # semantic name
+    element_type: str = ""  # button, menu, text_field, etc.
+    text: str = ""  # text to type (for type actions)
+    confidence: float = 0.0  # grounding confidence
+    reasoning: str = ""  # why this action was chosen
 
     def to_dict(self) -> dict:
         return {
@@ -83,16 +83,16 @@ class GroundingEngine:
             GroundedAction with the best method
         """
         # Prefer accessibility if element is available
-        if element and hasattr(element, 'name'):
-            if element.has_bounds() if hasattr(element, 'has_bounds') else True:
-                center = element.center() if hasattr(element, 'center') else None
+        if element and hasattr(element, "name"):
+            if element.has_bounds() if hasattr(element, "has_bounds") else True:
+                center = element.center() if hasattr(element, "center") else None
                 return GroundedAction(
                     action_type="click",
                     method="accessibility",
                     x=center[0] if center else 0,
                     y=center[1] if center else 0,
-                    element_name=getattr(element, 'name', query),
-                    element_type=getattr(element, 'type', 'unknown'),
+                    element_name=getattr(element, "name", query),
+                    element_type=getattr(element, "type", "unknown"),
                     confidence=0.95,
                     reasoning=f"Accessibility found element '{element.name}'",
                 )
@@ -110,7 +110,7 @@ class GroundingEngine:
                     element_type=best.type,
                     confidence=best.confidence,
                     reasoning=f"Vision detected '{best.name}' ({best.type}) "
-                              f"at ({best.x},{best.y}) with confidence {best.confidence:.2f}",
+                    f"at ({best.x},{best.y}) with confidence {best.confidence:.2f}",
                 )
 
         # No detection — return with low confidence
@@ -130,15 +130,15 @@ class GroundingEngine:
         element: object = None,
     ) -> GroundedAction:
         """Ground a type-into action."""
-        if element and hasattr(element, 'name'):
-            center = element.center() if hasattr(element, 'center') else None
+        if element and hasattr(element, "name"):
+            center = element.center() if hasattr(element, "center") else None
             return GroundedAction(
                 action_type="type_into",
                 method="accessibility",
                 x=center[0] if center else 0,
                 y=center[1] if center else 0,
-                element_name=getattr(element, 'name', query),
-                element_type=getattr(element, 'type', 'text_field'),
+                element_name=getattr(element, "name", query),
+                element_type=getattr(element, "type", "text_field"),
                 text=text,
                 confidence=0.95,
                 reasoning=f"Accessibility found text field '{element.name}'",
@@ -146,8 +146,11 @@ class GroundingEngine:
 
         if detected_objects:
             text_fields = [
-                o for o in detected_objects
-                if "text" in o.type.lower() or "field" in o.type.lower() or "input" in o.type.lower()
+                o
+                for o in detected_objects
+                if "text" in o.type.lower()
+                or "field" in o.type.lower()
+                or "input" in o.type.lower()
             ]
             best = self._find_best_match(query, text_fields or detected_objects)
             if best and best.confidence >= 0.5:
@@ -172,7 +175,7 @@ class GroundingEngine:
             reasoning=f"Could not ground type action for '{query}'",
         )
 
-    def _find_best_match(self, query: str, objects: list) -> Optional[DetectedObject]:
+    def _find_best_match(self, query: str, objects: list) -> DetectedObject | None:
         """Find the best matching object for a query."""
         query_lower = query.lower()
         scored = []

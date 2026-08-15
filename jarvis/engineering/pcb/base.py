@@ -4,11 +4,11 @@ Supported platforms: KiCad, EasyEDA, Fusion Electronics, Altium
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class PCBFormat(str, Enum):
+class PCBFormat(StrEnum):
     GERBER = "gerber"
     DRILL = "drill"
     BOM = "bom"
@@ -19,7 +19,7 @@ class PCBFormat(str, Enum):
     IPC2581 = "ipc2581"
 
 
-class ComponentType(str, Enum):
+class ComponentType(StrEnum):
     RESISTOR = "resistor"
     CAPACITOR = "capacitor"
     INDUCTOR = "inductor"
@@ -46,12 +46,12 @@ class PCBProvider(ABC):
 
     @property
     @abstractmethod
-    def supported_formats(self) -> List[PCBFormat]:
+    def supported_formats(self) -> list[PCBFormat]:
         """List of export formats this provider supports."""
         ...
 
     @abstractmethod
-    async def create_project(self, name: str, params: Dict[str, Any]) -> Dict:
+    async def create_project(self, name: str, params: dict[str, Any]) -> dict:
         """Create a new PCB project.
 
         Args:
@@ -64,9 +64,7 @@ class PCBProvider(ABC):
         ...
 
     @abstractmethod
-    async def add_component(
-        self, project_id: str, component: Dict[str, Any]
-    ) -> Dict:
+    async def add_component(self, project_id: str, component: dict[str, Any]) -> dict:
         """Add component to schematic.
 
         Args:
@@ -79,9 +77,7 @@ class PCBProvider(ABC):
         ...
 
     @abstractmethod
-    async def connect_nets(
-        self, project_id: str, connections: List[Dict[str, str]]
-    ) -> Dict:
+    async def connect_nets(self, project_id: str, connections: list[dict[str, str]]) -> dict:
         """Connect nets in schematic.
 
         Args:
@@ -94,7 +90,7 @@ class PCBProvider(ABC):
         ...
 
     @abstractmethod
-    async def route(self, project_id: str, params: Dict[str, Any]) -> Dict:
+    async def route(self, project_id: str, params: dict[str, Any]) -> dict:
         """Route PCB traces.
 
         Args:
@@ -107,7 +103,7 @@ class PCBProvider(ABC):
         ...
 
     @abstractmethod
-    async def check_drc(self, project_id: str) -> Dict:
+    async def check_drc(self, project_id: str) -> dict:
         """Run Design Rule Check.
 
         Returns:
@@ -116,9 +112,7 @@ class PCBProvider(ABC):
         ...
 
     @abstractmethod
-    async def export(
-        self, project_id: str, format: PCBFormat, output_path: str
-    ) -> Dict:
+    async def export(self, project_id: str, format: PCBFormat, output_path: str) -> dict:
         """Export project files.
 
         Returns:
@@ -127,7 +121,7 @@ class PCBProvider(ABC):
         ...
 
     @abstractmethod
-    async def generate_bom(self, project_id: str) -> Dict:
+    async def generate_bom(self, project_id: str) -> dict:
         """Generate Bill of Materials.
 
         Returns:
@@ -136,7 +130,7 @@ class PCBProvider(ABC):
         ...
 
     @abstractmethod
-    async def get_schematic_info(self, project_id: str) -> Dict:
+    async def get_schematic_info(self, project_id: str) -> dict:
         """Get schematic information.
 
         Returns:
@@ -145,7 +139,7 @@ class PCBProvider(ABC):
         ...
 
     @abstractmethod
-    async def list_projects(self, workspace: Optional[str] = None) -> List[Dict]:
+    async def list_projects(self, workspace: str | None = None) -> list[dict]:
         """List PCB projects.
 
         Returns:
@@ -153,9 +147,7 @@ class PCBProvider(ABC):
         """
         ...
 
-    async def suggest_component(
-        self, params: Dict[str, Any]
-    ) -> List[Dict]:
+    async def suggest_component(self, params: dict[str, Any]) -> list[dict]:
         """Suggest components based on requirements.
 
         Args:
@@ -168,7 +160,7 @@ class PCBProvider(ABC):
 
     async def calculate_trace_width(
         self, current: float, layers: int = 2, temp_rise: float = 10
-    ) -> Dict:
+    ) -> dict:
         """Calculate PCB trace width for given current.
 
         Uses IPC-2221 standard.
@@ -177,13 +169,12 @@ class PCBProvider(ABC):
             Dict with width_mm, resistance, voltage_drop
         """
         # IPC-2221 trace width calculation
-        import math
 
         k = 0.024 if layers <= 1 else 0.048  # inner/outer layer
         b = 0.44
         c = 0.725
 
-        area = (current / (k * temp_rise ** b)) ** (1 / c)
+        area = (current / (k * temp_rise**b)) ** (1 / c)
         width_mil = area / (1.0 * 1.0)  # 1oz copper, 1mil thickness
         width_mm = width_mil * 0.0254
 

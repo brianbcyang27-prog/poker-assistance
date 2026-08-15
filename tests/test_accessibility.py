@@ -10,18 +10,18 @@ Tests:
   7. macOS provider (structure validation)
 """
 
-import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
-from jarvis.computer.accessibility.element import UIElement, ElementType, ElementState
-from jarvis.computer.accessibility.tree import AccessibilityTree
-from jarvis.computer.accessibility.manager import AccessibilityManager
+import pytest
+
 from jarvis.computer.accessibility.base import AccessibilityProvider
+from jarvis.computer.accessibility.element import ElementState, ElementType, UIElement
+from jarvis.computer.accessibility.manager import AccessibilityManager
+from jarvis.computer.accessibility.tree import AccessibilityTree
 from jarvis.computer.applications.base import ApplicationProfile, ApplicationRegistry, app_registry
 
-
 # ── UIElement Tests ──────────────────────────────────────────
+
 
 def test_element_creation():
     """Test creating a UIElement."""
@@ -86,13 +86,15 @@ def test_element_matches_fuzzy():
 def test_element_is_clickable():
     """Test clickable detection."""
     clickable = UIElement(
-        name="OK", type=ElementType.BUTTON,
+        name="OK",
+        type=ElementType.BUTTON,
         states={ElementState.ENABLED},
     )
     assert clickable.is_clickable()
 
     disabled = UIElement(
-        name="OK", type=ElementType.BUTTON,
+        name="OK",
+        type=ElementType.BUTTON,
         states={ElementState.DISABLED},
     )
     assert not disabled.is_clickable()
@@ -116,10 +118,14 @@ def test_element_is_typeable():
 def test_element_to_dict():
     """Test serialization."""
     el = UIElement(
-        id="el_1", name="Close", type=ElementType.BUTTON,
-        role="AXButton", states={ElementState.ENABLED},
+        id="el_1",
+        name="Close",
+        type=ElementType.BUTTON,
+        role="AXButton",
+        states={ElementState.ENABLED},
         bounds={"x": 50, "y": 50, "width": 60, "height": 24},
-        app="Finder", window="About",
+        app="Finder",
+        window="About",
     )
     d = el.to_dict()
     assert d["id"] == "el_1"
@@ -132,7 +138,8 @@ def test_element_to_dict():
 def test_element_summary():
     """Test summary output."""
     el = UIElement(
-        name="OK", type=ElementType.BUTTON,
+        name="OK",
+        type=ElementType.BUTTON,
         bounds={"x": 0, "y": 0, "width": 80, "height": 30},
     )
     s = el.summary()
@@ -141,6 +148,7 @@ def test_element_summary():
 
 
 # ── AccessibilityTree Tests ─────────────────────────────────
+
 
 def test_tree_add_and_count():
     """Test adding elements and counting."""
@@ -208,8 +216,7 @@ def test_tree_find_elements_filtered():
 def test_tree_find_elements_clickable_only():
     """Test clickable-only filter."""
     tree = AccessibilityTree()
-    tree.add(UIElement(id="1", name="OK", type=ElementType.BUTTON,
-                       states={ElementState.ENABLED}))
+    tree.add(UIElement(id="1", name="OK", type=ElementType.BUTTON, states={ElementState.ENABLED}))
     tree.add(UIElement(id="2", name="Hello", type=ElementType.STATIC_TEXT))
     tree.add(UIElement(id="3", name="Search", type=ElementType.TEXT_FIELD))
 
@@ -283,6 +290,7 @@ def test_tree_iter():
 
 # ── Application Profiles Tests ──────────────────────────────
 
+
 def test_app_profile_creation():
     """Test creating an application profile."""
     profile = ApplicationProfile(
@@ -346,9 +354,12 @@ def test_app_registry_list():
 def test_app_registry_find_by_bundle():
     """Test finding by bundle ID."""
     registry = ApplicationRegistry()
-    registry.register(ApplicationProfile(
-        name="Finder", bundle_id="com.apple.finder",
-    ))
+    registry.register(
+        ApplicationProfile(
+            name="Finder",
+            bundle_id="com.apple.finder",
+        )
+    )
 
     found = registry.find_by_bundle("com.apple.finder")
     assert found is not None
@@ -358,9 +369,12 @@ def test_app_registry_find_by_bundle():
 def test_app_registry_find_by_executable():
     """Test finding by executable name."""
     registry = ApplicationRegistry()
-    registry.register(ApplicationProfile(
-        name="Chrome", executable="Google Chrome",
-    ))
+    registry.register(
+        ApplicationProfile(
+            name="Chrome",
+            executable="Google Chrome",
+        )
+    )
 
     found = registry.find_by_executable("Google Chrome")
     assert found is not None
@@ -368,8 +382,15 @@ def test_app_registry_find_by_executable():
 
 def test_builtin_profiles_registered():
     """Test that built-in profiles are auto-registered."""
-    # Import the profiles module to trigger registration
-    from jarvis.computer.applications import finder, terminal, vscode, chrome, fusion360, blender
+    # Import the profile modules to trigger side-effect registration
+    from jarvis.computer.applications import (  # noqa: F401
+        blender,
+        chrome,
+        finder,
+        fusion360,
+        terminal,
+        vscode,
+    )
 
     assert app_registry.get("Finder") is not None
     assert app_registry.get("Terminal") is not None
@@ -380,6 +401,7 @@ def test_builtin_profiles_registered():
 
 
 # ── AccessibilityManager Tests ──────────────────────────────
+
 
 def test_manager_initialization():
     """Test manager can be created."""
@@ -429,7 +451,9 @@ async def test_manager_find_element():
             UIElement(id="2", name="Cancel", type=ElementType.BUTTON),
         ]
         manager._provider.get_elements = AsyncMock(return_value=mock_elements)
-        manager._provider.get_active_window = AsyncMock(return_value={"app": "Finder", "title": "Test"})
+        manager._provider.get_active_window = AsyncMock(
+            return_value={"app": "Finder", "title": "Test"}
+        )
 
         # Force cache refresh
         manager._last_tree = None
@@ -446,11 +470,15 @@ async def test_manager_click_element():
         await manager.initialize()
 
         element = UIElement(
-            id="1", name="OK", type=ElementType.BUTTON,
+            id="1",
+            name="OK",
+            type=ElementType.BUTTON,
             bounds={"x": 100, "y": 200, "width": 80, "height": 30},
         )
         manager._provider.get_elements = AsyncMock(return_value=[element])
-        manager._provider.get_active_window = AsyncMock(return_value={"app": "Finder", "title": "Test"})
+        manager._provider.get_active_window = AsyncMock(
+            return_value={"app": "Finder", "title": "Test"}
+        )
         manager._provider.click_element = AsyncMock(return_value={"ok": True})
 
         manager._last_tree = None
@@ -467,7 +495,9 @@ async def test_manager_click_not_found():
         await manager.initialize()
 
         manager._provider.get_elements = AsyncMock(return_value=[])
-        manager._provider.get_active_window = AsyncMock(return_value={"app": "Finder", "title": "Test"})
+        manager._provider.get_active_window = AsyncMock(
+            return_value={"app": "Finder", "title": "Test"}
+        )
 
         manager._last_tree = None
         result = await manager.click("NonExistent")
@@ -483,11 +513,15 @@ async def test_manager_type_into():
         await manager.initialize()
 
         field = UIElement(
-            id="1", name="Search", type=ElementType.TEXT_FIELD,
+            id="1",
+            name="Search",
+            type=ElementType.TEXT_FIELD,
             bounds={"x": 50, "y": 50, "width": 200, "height": 24},
         )
         manager._provider.get_elements = AsyncMock(return_value=[field])
-        manager._provider.get_active_window = AsyncMock(return_value={"app": "Finder", "title": "Test"})
+        manager._provider.get_active_window = AsyncMock(
+            return_value={"app": "Finder", "title": "Test"}
+        )
         manager._provider.type_text = AsyncMock(return_value={"ok": True})
 
         manager._last_tree = None
@@ -505,7 +539,9 @@ async def test_manager_type_into_non_typeable():
 
         button = UIElement(id="1", name="OK", type=ElementType.BUTTON)
         manager._provider.get_elements = AsyncMock(return_value=[button])
-        manager._provider.get_active_window = AsyncMock(return_value={"app": "Finder", "title": "Test"})
+        manager._provider.get_active_window = AsyncMock(
+            return_value={"app": "Finder", "title": "Test"}
+        )
 
         manager._last_tree = None
         result = await manager.type_into("OK", "hello")
@@ -515,6 +551,7 @@ async def test_manager_type_into_non_typeable():
 
 # ── AccessibilityProvider Abstract Tests ────────────────────
 
+
 def test_provider_is_abstract():
     """Test that AccessibilityProvider cannot be instantiated directly."""
     with pytest.raises(TypeError):
@@ -523,10 +560,12 @@ def test_provider_is_abstract():
 
 # ── Integration: ComputerManager Semantic Actions ──────────
 
+
 @pytest.mark.asyncio
 async def test_computer_manager_has_accessibility_actions():
     """Test that ComputerManager registers accessibility actions."""
     from jarvis.computer.manager import ComputerManager
+
     manager = ComputerManager()
     actions = [a["name"] for a in manager.get_actions()]
 

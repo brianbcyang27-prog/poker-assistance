@@ -1,8 +1,7 @@
 """Auth API endpoints for JARVIS v8.0.0."""
 
-from fastapi import APIRouter, Request, Response, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 from pydantic import BaseModel
-from typing import Optional
 
 from jarvis.web.auth import auth_manager
 
@@ -10,7 +9,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 class LoginRequest(BaseModel):
-    api_key: Optional[str] = None
+    api_key: str | None = None
 
 
 @router.post("/login")
@@ -30,7 +29,7 @@ async def login(request: Request, response: Response, req: LoginRequest):
             )
             return {"ok": True, "session_id": session_id}
         raise HTTPException(status_code=401, detail="Invalid API key")
-    
+
     # No API key provided — check if we're on localhost
     host = request.client.host if request.client else ""
     if host in ("127.0.0.1", "::1", "localhost"):
@@ -43,7 +42,7 @@ async def login(request: Request, response: Response, req: LoginRequest):
             max_age=86400,
         )
         return {"ok": True, "session_id": session_id}
-    
+
     raise HTTPException(status_code=401, detail="API key required")
 
 
@@ -63,16 +62,22 @@ async def auth_status(request: Request):
     """Check authentication status."""
     host = request.client.host if request.client else ""
     is_local = host in ("127.0.0.1", "::1", "localhost")
-    
+
     session_id = request.cookies.get("jarvis_session")
     has_session = session_id and auth_manager.verify_session(session_id)
-    
+
     api_key = request.headers.get("X-API-Key")
     has_api_key = api_key and auth_manager.verify_api_key(api_key)
-    
+
     return {
         "authenticated": is_local or has_session or has_api_key,
-        "method": "local" if is_local else "session" if has_session else "api_key" if has_api_key else "none",
+        "method": "local"
+        if is_local
+        else "session"
+        if has_session
+        else "api_key"
+        if has_api_key
+        else "none",
         "is_local": is_local,
         "has_api_key_configured": auth_manager.get_api_key() is not None,
     }
@@ -84,7 +89,10 @@ async def get_api_key():
     key = auth_manager.get_api_key()
     if key:
         return {"api_key": key, "message": "Store this key securely. It won't be shown again."}
-    return {"api_key": None, "message": "No API key configured. Call POST /api/auth/api-key to generate."}
+    return {
+        "api_key": None,
+        "message": "No API key configured. Call POST /api/auth/api-key to generate.",
+    }
 
 
 class GenerateKeyRequest(BaseModel):
@@ -96,8 +104,7 @@ async def generate_api_key(req: GenerateKeyRequest):
     """Generate a new API key (only if none exists)."""
     if auth_manager.get_api_key() and not req.confirm:
         raise HTTPException(
-            status_code=400,
-            detail="API key already exists. Set confirm=true to regenerate."
+            status_code=400, detail="API key already exists. Set confirm=true to regenerate."
         )
     key = auth_manager.setup()
     return {"api_key": key, "message": "Store this key securely. It won't be shown again."}

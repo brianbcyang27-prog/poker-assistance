@@ -1,9 +1,9 @@
 """Reasoning engine — evidence-based reasoning chain with memory integration."""
-import logging
-import time
-from typing import Any, Dict, List, Optional
 
-from .models import BrainContext, MemoryEntry, ReasoningResult
+import logging
+from typing import Any
+
+from .models import BrainContext, ReasoningResult
 
 logger = logging.getLogger(__name__)
 
@@ -13,57 +13,45 @@ class ReasoningEngine:
 
     def __init__(self, memory_manager=None) -> None:
         self._memory = memory_manager
-        self._history: List[ReasoningResult] = []
+        self._history: list[ReasoningResult] = []
 
-    async def reason(
-        self, goal: str, context: BrainContext
-    ) -> ReasoningResult:
+    async def reason(self, goal: str, context: BrainContext) -> ReasoningResult:
         """Build a reasoning chain toward the goal using available context."""
-        chain: List[str] = []
-        warnings: List[str] = []
-        supporting: List[str] = []
-        alternatives: List[Dict[str, Any]] = []
+        chain: list[str] = []
+        warnings: list[str] = []
+        supporting: list[str] = []
+        alternatives: list[dict[str, Any]] = []
 
         chain.append(f"Goal: {goal}")
 
         if context.user_preferences:
-            chain.append(
-                f"Considering {len(context.user_preferences)} user preferences"
-            )
+            chain.append(f"Considering {len(context.user_preferences)} user preferences")
             for k, v in list(context.user_preferences.items())[:3]:
                 chain.append(f"  Preference: {k}={v}")
 
         if context.relevant_memories:
-            chain.append(
-                f"Incorporating {len(context.relevant_memories)} relevant memories"
-            )
+            chain.append(f"Incorporating {len(context.relevant_memories)} relevant memories")
             for m in context.relevant_memories[:3]:
                 supporting.append(m.get("content", m.get("id", ""))[:100])
 
         if context.previous_attempts:
-            chain.append(
-                f"Found {len(context.previous_attempts)} previous attempts"
-            )
+            chain.append(f"Found {len(context.previous_attempts)} previous attempts")
             for a in context.previous_attempts[:3]:
                 status = "succeeded" if a.get("outcome") else "pending"
-                chain.append(
-                    f"  Previous: {a.get('title', 'unknown')} ({status})"
+                chain.append(f"  Previous: {a.get('title', 'unknown')} ({status})")
+                alternatives.append(
+                    {
+                        "title": a.get("title", ""),
+                        "reason": a.get("reason", ""),
+                        "status": status,
+                    }
                 )
-                alternatives.append({
-                    "title": a.get("title", ""),
-                    "reason": a.get("reason", ""),
-                    "status": status,
-                })
 
         if context.recent_decisions:
-            chain.append(
-                f"Reviewing {len(context.recent_decisions)} recent decisions"
-            )
+            chain.append(f"Reviewing {len(context.recent_decisions)} recent decisions")
 
         if context.timeline_events:
-            chain.append(
-                f"Context includes {len(context.timeline_events)} timeline events"
-            )
+            chain.append(f"Context includes {len(context.timeline_events)} timeline events")
 
         if context.confidence < 0.5:
             warnings.append(
@@ -93,13 +81,13 @@ class ReasoningEngine:
         return result
 
     async def analyze_options(
-        self, options: List[Dict[str, Any]], criteria: List[str]
-    ) -> List[Dict[str, Any]]:
+        self, options: list[dict[str, Any]], criteria: list[str]
+    ) -> list[dict[str, Any]]:
         """Rank options against criteria, returning scored and sorted list."""
-        scored: List[Dict[str, Any]] = []
+        scored: list[dict[str, Any]] = []
         for opt in options:
             score = 0.0
-            matches: List[str] = []
+            matches: list[str] = []
             for c in criteria:
                 c_lower = c.lower()
                 opt_text = " ".join(str(v) for v in opt.values()).lower()
@@ -114,12 +102,10 @@ class ReasoningEngine:
         scored.sort(key=lambda x: x["score"], reverse=True)
         return scored
 
-    async def assess_risk(
-        self, action: str, context: BrainContext
-    ) -> Dict[str, Any]:
+    async def assess_risk(self, action: str, context: BrainContext) -> dict[str, Any]:
         """Evaluate risk level for a proposed action."""
         risk_level = "low"
-        factors: List[str] = []
+        factors: list[str] = []
 
         if context.confidence < 0.3:
             risk_level = "high"
@@ -135,7 +121,8 @@ class ReasoningEngine:
 
         if context.previous_attempts:
             failed = [
-                a for a in context.previous_attempts
+                a
+                for a in context.previous_attempts
                 if a.get("outcome") and "fail" in a.get("outcome", "").lower()
             ]
             if failed:
@@ -148,15 +135,15 @@ class ReasoningEngine:
             "factors": factors,
             "confidence": context.confidence,
             "recommendation": (
-                "Proceed" if risk_level == "low"
-                else "Proceed with caution" if risk_level == "medium"
+                "Proceed"
+                if risk_level == "low"
+                else "Proceed with caution"
+                if risk_level == "medium"
                 else "Reconsider or get user approval"
             ),
         }
 
-    async def explain_decision(
-        self, decision_id: str, decisions_engine
-    ) -> str:
+    async def explain_decision(self, decision_id: str, decisions_engine) -> str:
         """Generate a natural-language explanation of why a decision was made."""
         if not decisions_engine:
             return "No decision engine available to explain."
@@ -180,6 +167,6 @@ class ReasoningEngine:
         except Exception as exc:
             return f"Failed to explain decision: {exc}"
 
-    def get_reasoning_history(self) -> List[ReasoningResult]:
+    def get_reasoning_history(self) -> list[ReasoningResult]:
         """Return the full history of reasoning operations."""
         return list(self._history)

@@ -2,11 +2,12 @@
 
 import enum
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
-class PluginType(str, enum.Enum):
+class PluginType(enum.StrEnum):
     """Supported plugin types."""
+
     TOOL = "tool"
     WORKER = "worker"
     KING = "king"
@@ -23,17 +24,18 @@ class PluginType(str, enum.Enum):
 @dataclass
 class PluginManifest:
     """Describes a plugin via its plugin.json."""
+
     name: str
     version: str
     author: str = ""
     description: str = ""
     plugin_type: PluginType = PluginType.TOOL
     entry_point: str = "__init__.py"
-    dependencies: List[str] = field(default_factory=list)
-    config_schema: Dict[str, Any] = field(default_factory=dict)
+    dependencies: list[str] = field(default_factory=list)
+    config_schema: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PluginManifest":
+    def from_dict(cls, data: dict[str, Any]) -> "PluginManifest":
         raw_type = data.get("plugin_type", "tool")
         try:
             ptype = PluginType(raw_type)
@@ -50,7 +52,7 @@ class PluginManifest:
             config_schema=data.get("config_schema", {}),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "version": self.version,
@@ -66,12 +68,13 @@ class PluginManifest:
 @dataclass
 class Plugin:
     """A loaded or loadable plugin."""
+
     name: str
     version: str
     author: str = ""
     description: str = ""
     plugin_type: PluginType = PluginType.TOOL
-    manifest: Optional[PluginManifest] = None
+    manifest: PluginManifest | None = None
     module: Any = None
     enabled: bool = True
-    loaded_at: Optional[float] = None
+    loaded_at: float | None = None

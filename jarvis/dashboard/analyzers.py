@@ -2,20 +2,19 @@
 
 import ast
 import hashlib
-import math
 import os
 import re
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 from jarvis.dashboard.models import HealthIssue
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _iter_python_files(root: str) -> List[str]:
+
+def _iter_python_files(root: str) -> list[str]:
     """Recursively collect all .py files under root, skipping hidden dirs."""
     files = []  # type: List[str]
     for dirpath, _, filenames in os.walk(root):
@@ -30,9 +29,9 @@ def _iter_python_files(root: str) -> List[str]:
 
 def _read(path: str) -> str:
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             return fh.read()
-    except (OSError, IOError):
+    except OSError:
         return ""
 
 
@@ -63,6 +62,7 @@ def _clamp(value: float, lo: float = 0.0, hi: float = 100.0) -> float:
 # CodeHealthAnalyzer
 # ===========================================================================
 
+
 class CodeHealthAnalyzer:
     """Analyzes code structure, naming, nesting, and type hints."""
 
@@ -70,7 +70,7 @@ class CodeHealthAnalyzer:
     MAX_NESTING = 4
     MIN_TYPE_HINT_COVERAGE = 0.5
 
-    def analyze(self, root: str) -> Tuple[float, List[HealthIssue], Dict[str, Any]]:
+    def analyze(self, root: str) -> tuple[float, list[HealthIssue], dict[str, Any]]:
         issues = []  # type: List[HealthIssue]
         total_funcs = 0
         hinted = 0
@@ -87,20 +87,25 @@ class CodeHealthAnalyzer:
             except SyntaxError:
                 continue
 
-            lines = source.splitlines()
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     total_funcs += 1
                     func_lines = (node.end_lineno or node.lineno) - node.lineno + 1
                     if func_lines > self.MAX_FUNC_LINES:
                         long_funcs += 1
-                        issues.append(HealthIssue(
-                            file=rel, line=node.lineno,
-                            category="function_length",
-                            severity="warning",
-                            description=f"Function '{node.name}' is {func_lines} lines (max {self.MAX_FUNC_LINES})",
-                            suggestion="Break into smaller functions",
-                        ))
+                        issues.append(
+                            HealthIssue(
+                                file=rel,
+                                line=node.lineno,
+                                category="function_length",
+                                severity="warning",
+                                description=(
+                                    f"Function '{node.name}' is {func_lines} lines "
+                                    f"(max {self.MAX_FUNC_LINES})"
+                                ),
+                                suggestion="Break into smaller functions",
+                            )
+                        )
                     # type hint coverage
                     if node.returns is not None:
                         hinted += 1
@@ -112,32 +117,41 @@ class CodeHealthAnalyzer:
                     depth = self._max_nesting(node)
                     if depth > self.MAX_NESTING:
                         deep_nesting += 1
-                        issues.append(HealthIssue(
-                            file=rel, line=node.lineno,
-                            category="nesting_depth",
-                            severity="warning",
-                            description=f"Function '{node.name}' nesting depth {depth} (max {self.MAX_NESTING})",
-                            suggestion="Reduce nesting with early returns or extraction",
-                        ))
+                        issues.append(
+                            HealthIssue(
+                                file=rel,
+                                line=node.lineno,
+                                category="nesting_depth",
+                                severity="warning",
+                                description=(
+                                    f"Function '{node.name}' nesting depth {depth} "
+                                    f"(max {self.MAX_NESTING})"
+                                ),
+                                suggestion="Reduce nesting with early returns or extraction",
+                            )
+                        )
                     # naming convention
                     if not node.name.startswith("_") and not node.name.isupper():
                         if not re.match(r"^[a-z_][a-z0-9_]*$", node.name):
-                            issues.append(HealthIssue(
-                                file=rel, line=node.lineno,
-                                category="naming_convention",
-                                severity="info",
-                                description=f"Function '{node.name}' doesn't follow snake_case",
-                                suggestion="Rename to snake_case convention",
-                                auto_fixable=True,
-                            ))
+                            issues.append(
+                                HealthIssue(
+                                    file=rel,
+                                    line=node.lineno,
+                                    category="naming_convention",
+                                    severity="info",
+                                    description=f"Function '{node.name}' doesn't follow snake_case",
+                                    suggestion="Rename to snake_case convention",
+                                    auto_fixable=True,
+                                )
+                            )
 
         hint_ratio = hinted / max(total_funcs * 2, 1)
         long_ratio = long_funcs / max(total_funcs, 1)
         nest_ratio = deep_nesting / max(total_funcs, 1)
         health = _clamp(
             100
-            - long_ratio * 40       # up to -40 for 100% long functions
-            - nest_ratio * 30       # up to -30 for 100% deep nesting
+            - long_ratio * 40  # up to -40 for 100% long functions
+            - nest_ratio * 30  # up to -30 for 100% deep nesting
             - max(0, (0.5 - hint_ratio)) * 60  # up to -30 for 0% type hints
         )
         meta = {
@@ -151,7 +165,9 @@ class CodeHealthAnalyzer:
     def _max_nesting(self, node: ast.AST, depth: int = 0) -> int:
         max_d = depth
         for child in ast.iter_child_nodes(node):
-            if isinstance(child, (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.ExceptHandler)):
+            if isinstance(
+                child, (ast.If, ast.For, ast.While, ast.With, ast.Try, ast.ExceptHandler)
+            ):
                 max_d = max(max_d, self._max_nesting(child, depth + 1))
             else:
                 max_d = max(max_d, self._max_nesting(child, depth))
@@ -162,10 +178,11 @@ class CodeHealthAnalyzer:
 # TestAnalyzer
 # ===========================================================================
 
+
 class TestAnalyzer:
     """Analyzes test suite metrics."""
 
-    def analyze(self, root: str) -> Tuple[float, Dict[str, Any]]:
+    def analyze(self, root: str) -> tuple[float, dict[str, Any]]:
         test_files = []  # type: List[str]
         test_count = 0
         fixture_count = 0
@@ -187,14 +204,19 @@ class TestAnalyzer:
                         if node.name.startswith("test_"):
                             test_count += 1
                     if isinstance(node, ast.FunctionDef) and any(
-                        isinstance(d, ast.Name) and d.id == "fixture"
-                        for d in node.decorator_list
+                        isinstance(d, ast.Name) and d.id == "fixture" for d in node.decorator_list
                     ):
                         fixture_count += 1
                     # count assert statements
                     if isinstance(node, (ast.Assert, ast.Call)):
                         if isinstance(node, ast.Call):
-                            if isinstance(node.func, ast.Attribute) and node.func.attr in ("assertEqual", "assertTrue", "assertFalse", "assertIn", "assertRaises"):
+                            if isinstance(node.func, ast.Attribute) and node.func.attr in (
+                                "assertEqual",
+                                "assertTrue",
+                                "assertFalse",
+                                "assertIn",
+                                "assertRaises",
+                            ):
                                 assertion_count += 1
                         else:
                             assertion_count += 1
@@ -215,7 +237,7 @@ class TestAnalyzer:
         density_score = _clamp(assertion_density / 3 * 0.5 * 100 + 50)
         presence_score = _clamp(100 if test_count > 0 else 20)
 
-        score = (ratio_score * 0.3 + density_score * 0.4 + presence_score * 0.3)
+        score = ratio_score * 0.3 + density_score * 0.4 + presence_score * 0.3
 
         meta = {
             "test_files": len(test_files),
@@ -232,12 +254,21 @@ class TestAnalyzer:
 # SecurityAnalyzer
 # ===========================================================================
 
+
 class SecurityAnalyzer:
     """Detects common security issues in Python code."""
 
     SECRET_PATTERNS = [
-        (re.compile(r"""(?:password|passwd|secret|api_key|apikey|token)\s*=\s*['"][^'"]+['"]""", re.I), "hardcoded_secret"),
-        (re.compile(r"""(?:AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID)\s*=\s*['"][^'"]+['"]"""), "aws_secret"),
+        (
+            re.compile(
+                r"""(?:password|passwd|secret|api_key|apikey|token)\s*=\s*['"][^'"]+['"]""", re.I
+            ),
+            "hardcoded_secret",
+        ),
+        (
+            re.compile(r"""(?:AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID)\s*=\s*['"][^'"]+['"]"""),
+            "aws_secret",
+        ),
         (re.compile(r"""-----BEGIN (?:RSA |EC )?PRIVATE KEY-----"""), "private_key"),
     ]
     UNSAFE_BUILTINS = {"eval", "exec", "compile", "__import__"}
@@ -245,7 +276,7 @@ class SecurityAnalyzer:
         r"""(?:execute|cursor\.execute)\s*\(\s*(?:f['"]|['"].*%s|['"].*\+\s*\w)""", re.I
     )
 
-    def analyze(self, root: str) -> Tuple[float, List[HealthIssue], Dict[str, Any]]:
+    def analyze(self, root: str) -> tuple[float, list[HealthIssue], dict[str, Any]]:
         issues = []  # type: List[HealthIssue]
         secrets = 0
         unsafe_imports = 0
@@ -263,24 +294,32 @@ class SecurityAnalyzer:
                 for pattern, cat in self.SECRET_PATTERNS:
                     if pattern.search(line):
                         secrets += 1
-                        issues.append(HealthIssue(
-                            file=rel, line=i, category=cat,
-                            severity="critical",
-                            description=f"Possible hardcoded secret detected: {cat}",
-                            suggestion="Move to environment variable or secret manager",
-                        ))
+                        issues.append(
+                            HealthIssue(
+                                file=rel,
+                                line=i,
+                                category=cat,
+                                severity="critical",
+                                description=f"Possible hardcoded secret detected: {cat}",
+                                suggestion="Move to environment variable or secret manager",
+                            )
+                        )
 
             # SQL injection
             for m in self.SQL_INJECTION.finditer(source):
-                line_no = source[:m.start()].count("\n") + 1
+                line_no = source[: m.start()].count("\n") + 1
                 sql_inject += 1
-                issues.append(HealthIssue(
-                    file=rel, line=line_no, category="sql_injection",
-                    severity="critical",
-                    description="Potential SQL injection via string interpolation",
-                    suggestion="Use parameterized queries",
-                    auto_fixable=False,
-                ))
+                issues.append(
+                    HealthIssue(
+                        file=rel,
+                        line=line_no,
+                        category="sql_injection",
+                        severity="critical",
+                        description="Potential SQL injection via string interpolation",
+                        suggestion="Use parameterized queries",
+                        auto_fixable=False,
+                    )
+                )
 
             # AST-based checks
             try:
@@ -293,12 +332,18 @@ class SecurityAnalyzer:
                     for alias in node.names:
                         if alias.name in ("pickle", "shelve", "marshal"):
                             unsafe_imports += 1
-                            issues.append(HealthIssue(
-                                file=rel, line=node.lineno, category="unsafe_import",
-                                severity="warning",
-                                description=f"Unsafe deserialization module '{alias.name}' imported",
-                                suggestion="Avoid unpickling untrusted data",
-                            ))
+                            issues.append(
+                                HealthIssue(
+                                    file=rel,
+                                    line=node.lineno,
+                                    category="unsafe_import",
+                                    severity="warning",
+                                    description=(
+                                        f"Unsafe deserialization module '{alias.name}' imported"
+                                    ),
+                                    suggestion="Avoid unpickling untrusted data",
+                                )
+                            )
                 if isinstance(node, ast.ImportFrom):
                     if node.module and ("subprocess" in node.module or "os" in node.module):
                         for alias in node.names:
@@ -308,19 +353,25 @@ class SecurityAnalyzer:
                     func = node.func
                     if isinstance(func, ast.Name) and func.id in self.UNSAFE_BUILTINS:
                         eval_exec += 1
-                        issues.append(HealthIssue(
-                            file=rel, line=node.lineno, category="eval_exec",
-                            severity="critical",
-                            description=f"Use of '{func.id}()' — potential code injection",
-                            suggestion="Replace with safe alternatives (ast.literal_eval, importlib)",
-                        ))
+                        issues.append(
+                            HealthIssue(
+                                file=rel,
+                                line=node.lineno,
+                                category="eval_exec",
+                                severity="critical",
+                                description=f"Use of '{func.id}()' — potential code injection",
+                                suggestion=(
+                                    "Replace with safe alternatives (ast.literal_eval, importlib)"
+                                ),
+                            )
+                        )
 
         total_issues = secrets + unsafe_imports + eval_exec + sql_inject
         score = _clamp(
             100
-            - min(secrets, 3) * 20       # max -60 from secrets
-            - min(eval_exec, 3) * 15     # max -45 from eval/exec
-            - min(sql_inject, 2) * 15    # max -30 from SQL injection
+            - min(secrets, 3) * 20  # max -60 from secrets
+            - min(eval_exec, 3) * 15  # max -45 from eval/exec
+            - min(sql_inject, 2) * 15  # max -30 from SQL injection
             - min(unsafe_imports, 3) * 5  # max -15 from unsafe imports
         )
         meta = {
@@ -337,13 +388,14 @@ class SecurityAnalyzer:
 # PerformanceAnalyzer
 # ===========================================================================
 
+
 class PerformanceAnalyzer:
     """Detects common performance anti-patterns."""
 
     LARGE_IMPORT_THRESHOLD = 50  # imports in a single file
     RECURSION_LIMIT = 10
 
-    def analyze(self, root: str) -> Tuple[float, List[HealthIssue], Dict[str, Any]]:
+    def analyze(self, root: str) -> tuple[float, list[HealthIssue], dict[str, Any]]:
         issues = []  # type: List[HealthIssue]
         n_plus_one = 0
         large_imports = 0
@@ -371,15 +423,25 @@ class PerformanceAnalyzer:
                     for child in ast.walk(node):
                         if isinstance(child, ast.Call):
                             if isinstance(child.func, ast.Attribute):
-                                if child.func.attr in ("query", "filter", "get", "fetch", "find", "select"):
+                                if child.func.attr in (
+                                    "query",
+                                    "filter",
+                                    "get",
+                                    "fetch",
+                                    "find",
+                                    "select",
+                                ):
                                     n_plus_one += 1
-                                    issues.append(HealthIssue(
-                                        file=rel, line=node.lineno,
-                                        category="n_plus_one",
-                                        severity="warning",
-                                        description="Possible N+1 query pattern inside loop",
-                                        suggestion="Batch queries or use eager loading",
-                                    ))
+                                    issues.append(
+                                        HealthIssue(
+                                            file=rel,
+                                            line=node.lineno,
+                                            category="n_plus_one",
+                                            severity="warning",
+                                            description="Possible N+1 query pattern inside loop",
+                                            suggestion="Batch queries or use eager loading",
+                                        )
+                                    )
                                     break
 
                 # Detect excessive recursion (functions that call themselves)
@@ -388,18 +450,25 @@ class PerformanceAnalyzer:
 
             if import_count > self.LARGE_IMPORT_THRESHOLD:
                 large_imports += 1
-                issues.append(HealthIssue(
-                    file=rel, line=1, category="large_file_imports",
-                    severity="info",
-                    description=f"File has {import_count} imports (threshold {self.LARGE_IMPORT_THRESHOLD})",
-                    suggestion="Consider splitting into smaller modules",
-                ))
+                issues.append(
+                    HealthIssue(
+                        file=rel,
+                        line=1,
+                        category="large_file_imports",
+                        severity="info",
+                        description=(
+                            f"File has {import_count} imports "
+                            f"(threshold {self.LARGE_IMPORT_THRESHOLD})"
+                        ),
+                        suggestion="Consider splitting into smaller modules",
+                    )
+                )
 
         score = _clamp(
             100
-            - min(n_plus_one, 5) * 6     # max -30
+            - min(n_plus_one, 5) * 6  # max -30
             - min(large_imports, 4) * 5  # max -20
-            - min(deep_recursion, 3) * 8 # max -24
+            - min(deep_recursion, 3) * 8  # max -24
         )
         meta = {
             "n_plus_one_patterns": n_plus_one,
@@ -408,18 +477,21 @@ class PerformanceAnalyzer:
         }
         return score, issues, meta
 
-    def _check_recursion(self, node: ast.FunctionDef, rel: str, issues: List[HealthIssue]) -> None:
+    def _check_recursion(self, node: ast.FunctionDef, rel: str, issues: list[HealthIssue]) -> None:
         """Check if a function directly calls itself (simple recursion detection)."""
         for child in ast.walk(node):
             if isinstance(child, ast.Call):
                 if isinstance(child.func, ast.Name) and child.func.id == node.name:
-                    issues.append(HealthIssue(
-                        file=rel, line=node.lineno,
-                        category="recursion",
-                        severity="info",
-                        description=f"Function '{node.name}' calls itself recursively",
-                        suggestion="Ensure base case exists or use iterative approach",
-                    ))
+                    issues.append(
+                        HealthIssue(
+                            file=rel,
+                            line=node.lineno,
+                            category="recursion",
+                            severity="info",
+                            description=f"Function '{node.name}' calls itself recursively",
+                            suggestion="Ensure base case exists or use iterative approach",
+                        )
+                    )
                     return
 
 
@@ -427,13 +499,14 @@ class PerformanceAnalyzer:
 # ComplexityAnalyzer
 # ===========================================================================
 
+
 class ComplexityAnalyzer:
     """Estimates cyclomatic and cognitive complexity."""
 
     BRANCH_NODES = (ast.If, ast.For, ast.While, ast.ExceptHandler, ast.With)
     BOOL_OPS = {"and", "or"}
 
-    def analyze(self, root: str) -> Tuple[float, Dict[str, Any]]:
+    def analyze(self, root: str) -> tuple[float, dict[str, Any]]:
         func_complexities = []  # type: List[Tuple[str, int, int]]  # (file, line, cc)
         total_cc = 0
         max_cc = 0
@@ -465,7 +538,7 @@ class ComplexityAnalyzer:
         # avg < 5 is excellent, > 20 is terrible; cap impact
         score = _clamp(
             100
-            - min(avg, 20) * 3           # max -60 from average
+            - min(avg, 20) * 3  # max -60 from average
             - min(max(0, max_cc - 20), 20) * 1  # max -20 from peak
         )
         meta = {
@@ -505,10 +578,11 @@ class ComplexityAnalyzer:
 # DeadCodeAnalyzer
 # ===========================================================================
 
+
 class DeadCodeAnalyzer:
     """Finds unused imports, unreferenced functions, and unused variables."""
 
-    def analyze(self, root: str) -> Tuple[int, Dict[str, Any]]:
+    def analyze(self, root: str) -> tuple[int, dict[str, Any]]:
         total_dead = 0
         unused_imports = 0
         unused_functions = 0
@@ -593,10 +667,11 @@ class DeadCodeAnalyzer:
 # DependencyAnalyzer
 # ===========================================================================
 
+
 class DependencyAnalyzer:
     """Analyzes project dependencies from requirements.txt / setup.py / pyproject.toml."""
 
-    def analyze(self, root: str) -> Tuple[float, List[HealthIssue], Dict[str, Any]]:
+    def analyze(self, root: str) -> tuple[float, list[HealthIssue], dict[str, Any]]:
         issues = []  # type: List[HealthIssue]
         deps = []  # type: List[str]
         dep_files_found = []  # type: List[str]
@@ -647,13 +722,16 @@ class DependencyAnalyzer:
                 unused_deps.append(dep)
 
         for dep in unused_deps:
-            issues.append(HealthIssue(
-                file="dependencies", line=0,
-                category="unused_dependency",
-                severity="info",
-                description=f"Dependency '{dep}' appears unused",
-                suggestion="Remove if not needed at runtime",
-            ))
+            issues.append(
+                HealthIssue(
+                    file="dependencies",
+                    line=0,
+                    category="unused_dependency",
+                    severity="info",
+                    description=f"Dependency '{dep}' appears unused",
+                    suggestion="Remove if not needed at runtime",
+                )
+            )
 
         score = _clamp(100 - min(len(unpinned), 10) * 3 - min(len(unused_deps), 5) * 5)
         meta = {
@@ -666,7 +744,7 @@ class DependencyAnalyzer:
         }
         return score, issues, meta
 
-    def _parse_requirements(self, path: str) -> List[str]:
+    def _parse_requirements(self, path: str) -> list[str]:
         deps = []  # type: List[str]
         for line in _read(path).splitlines():
             line = line.strip()
@@ -674,7 +752,7 @@ class DependencyAnalyzer:
                 deps.append(line)
         return deps
 
-    def _parse_setup_py(self, path: str) -> List[str]:
+    def _parse_setup_py(self, path: str) -> list[str]:
         source = _read(path)
         deps = []  # type: List[str]
         match = re.search(r"install_requires\s*=\s*\[(.*?)\]", source, re.S)
@@ -683,7 +761,7 @@ class DependencyAnalyzer:
                 deps.append(item)
         return deps
 
-    def _parse_pyproject(self, path: str) -> List[str]:
+    def _parse_pyproject(self, path: str) -> list[str]:
         source = _read(path)
         deps = []  # type: List[str]
         # Simple regex for [project] dependencies = [...]
@@ -698,10 +776,11 @@ class DependencyAnalyzer:
 # DocumentationAnalyzer
 # ===========================================================================
 
+
 class DocumentationAnalyzer:
     """Measures documentation coverage and quality."""
 
-    def analyze(self, root: str) -> Tuple[float, Dict[str, Any]]:
+    def analyze(self, root: str) -> tuple[float, dict[str, Any]]:
         total_funcs = 0
         documented_funcs = 0
         total_classes = 0
@@ -751,9 +830,7 @@ class DocumentationAnalyzer:
         if has_readme:
             readme_score = min(100, readme_length * 2)
 
-        score = _clamp(
-            func_ratio * 40 + class_ratio * 20 + module_ratio * 20 + readme_score * 0.2
-        )
+        score = _clamp(func_ratio * 40 + class_ratio * 20 + module_ratio * 20 + readme_score * 0.2)
         meta = {
             "total_functions": total_funcs,
             "documented_functions": documented_funcs,
@@ -773,12 +850,13 @@ class DocumentationAnalyzer:
 # DuplicateAnalyzer
 # ===========================================================================
 
+
 class DuplicateAnalyzer:
     """Detects duplicate code via function body hashing."""
 
     MIN_FUNC_LINES = 5
 
-    def analyze(self, root: str) -> Tuple[float, Dict[str, Any]]:
+    def analyze(self, root: str) -> tuple[float, dict[str, Any]]:
         body_hashes = defaultdict(list)  # type: Dict[str, List[Tuple[str, int, str]]]
         total_funcs = 0
 
@@ -801,11 +879,9 @@ class DuplicateAnalyzer:
                     # Hash the function body (excluding decorators and signature)
                     body_start = node.lineno
                     body_end = node.end_lineno or node.lineno
-                    body_lines = source.splitlines()[body_start - 1:body_end]
+                    body_lines = source.splitlines()[body_start - 1 : body_end]
                     # Normalize: strip whitespace, skip blank lines
-                    normalized = "\n".join(
-                        l.strip() for l in body_lines if l.strip()
-                    )
+                    normalized = "\n".join(line.strip() for line in body_lines if line.strip())
                     if not normalized:
                         continue
                     h = hashlib.md5(normalized.encode()).hexdigest()

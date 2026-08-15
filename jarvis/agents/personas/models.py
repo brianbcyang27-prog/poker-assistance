@@ -1,10 +1,10 @@
 """Agent persona data models."""
+
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from enum import Enum
+from enum import StrEnum
 
 
-class AgentRole(str, Enum):
+class AgentRole(StrEnum):
     ARCHITECT = "architect"
     DEVELOPER = "developer"
     TESTER = "tester"
@@ -22,11 +22,11 @@ class Persona:
     name: str = ""
     role: str = "developer"
     personality: str = ""
-    expertise: List[str] = field(default_factory=list)
+    expertise: list[str] = field(default_factory=list)
     communication_style: str = ""
-    strengths: List[str] = field(default_factory=list)
-    weaknesses: List[str] = field(default_factory=list)
-    preferred_tools: List[str] = field(default_factory=list)
+    strengths: list[str] = field(default_factory=list)
+    weaknesses: list[str] = field(default_factory=list)
+    preferred_tools: list[str] = field(default_factory=list)
     greeting: str = ""
     icon: str = ""
     color: str = ""
@@ -52,10 +52,10 @@ class Persona:
 @dataclass
 class AgentIdentity:
     agent_id: str = ""
-    persona: Optional[Persona] = None
+    persona: Persona | None = None
     mission_count: int = 0
     success_rate: float = 0.0
-    special_achievements: List[str] = field(default_factory=list)
+    special_achievements: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {

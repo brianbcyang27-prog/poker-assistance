@@ -6,16 +6,17 @@ Every credential MUST go through SecretManager.get().
 
 import os
 from pathlib import Path
-from typing import Dict, List, Optional
 
+from .audit import AuditLog
 from .providers import (
-    SecretProvider, KeychainProvider, VaultProvider,
-    EnvProvider, DotEnvProvider, GitHubProvider,
+    DotEnvProvider,
+    EnvProvider,
+    GitHubProvider,
+    KeychainProvider,
+    SecretProvider,
+    VaultProvider,
 )
 from .vault import EncryptedVault
-from .audit import AuditLog
-from .exceptions import VaultError
-
 
 _DEFAULT_SECRETS = {
     "NVIDIA_API_KEY": "",
@@ -36,12 +37,12 @@ class SecretManager:
         api_key = get_secret("NVIDIA_API_KEY")
     """
 
-    def __init__(self, vault_dir: Optional[str] = None):
+    def __init__(self, vault_dir: str | None = None):
         self._dir = Path(vault_dir) if vault_dir else Path.cwd()
         self._audit = AuditLog(str(self._dir))
 
         self._vault = EncryptedVault(str(self._dir))
-        self._providers: List[SecretProvider] = [
+        self._providers: list[SecretProvider] = [
             KeychainProvider(),
             VaultProvider(self._vault),
             EnvProvider(),
@@ -50,8 +51,8 @@ class SecretManager:
         ]
         self._providers.sort(key=lambda p: p.priority)
 
-        self._cache: Dict[str, str] = {}
-        self._overrides: Dict[str, str] = {}
+        self._cache: dict[str, str] = {}
+        self._overrides: dict[str, str] = {}
 
     @property
     def vault(self) -> EncryptedVault:
@@ -62,7 +63,7 @@ class SecretManager:
         return self._vault.exists
 
     @property
-    def providers(self) -> List[SecretProvider]:
+    def providers(self) -> list[SecretProvider]:
         return list(self._providers)
 
     def get(self, key: str, default: str = "", use_cache: bool = True) -> str:
@@ -112,7 +113,7 @@ class SecretManager:
     def clear_overrides(self) -> None:
         self._overrides.clear()
 
-    def list_all(self) -> Dict[str, str]:
+    def list_all(self) -> dict[str, str]:
         """List all known secrets with masked values."""
         result = {}
         for key in _DEFAULT_SECRETS:
@@ -126,7 +127,7 @@ class SecretManager:
                 result[key] = self._mask(value) if value else "(not set)"
         return result
 
-    def list_keys(self) -> List[str]:
+    def list_keys(self) -> list[str]:
         """List all known secret keys."""
         return list(set(list(_DEFAULT_SECRETS.keys()) + list(self._cache.keys())))
 
@@ -135,7 +136,7 @@ class SecretManager:
             return "****"
         return value[:4] + "*" * (len(value) - 8) + value[-4:]
 
-    def get_provider_for(self, key: str) -> Optional[str]:
+    def get_provider_for(self, key: str) -> str | None:
         """Find which provider resolves a given key."""
         for provider in self._providers:
             try:
@@ -146,7 +147,7 @@ class SecretManager:
                 continue
         return None
 
-    def health_check(self) -> Dict[str, dict]:
+    def health_check(self) -> dict[str, dict]:
         """Check health of all providers."""
         results = {}
         for provider in self._providers:

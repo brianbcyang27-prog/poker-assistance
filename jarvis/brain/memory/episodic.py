@@ -14,17 +14,16 @@ Each episode captures the essential context needed to recall an experience
 without storing every raw message.
 """
 
-import time
 import json
 import logging
-from typing import Optional
+import time
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 
 log = logging.getLogger("jarvis.memory.episodic")
 
 
-class EpisodeType(str, Enum):
+class EpisodeType(StrEnum):
     CONVERSATION = "conversation"
     MISSION = "mission"
     DECISION = "decision"
@@ -37,6 +36,7 @@ class EpisodeType(str, Enum):
 @dataclass
 class Episode:
     """A single episodic memory — a compressed experience."""
+
     id: int = 0
     title: str = ""
     summary: str = ""
@@ -106,6 +106,7 @@ class EpisodicMemoryManager:
             return
         if self._db is None:
             from ...core.database import get_db
+
             self._db = await get_db()
         self._initialized = True
 
@@ -115,14 +116,14 @@ class EpisodicMemoryManager:
         summary: str,
         episode_type: str = "conversation",
         project: str = "",
-        participants: Optional[list[str]] = None,
-        goals: Optional[list[str]] = None,
-        decisions: Optional[list[str]] = None,
+        participants: list[str] | None = None,
+        goals: list[str] | None = None,
+        decisions: list[str] | None = None,
         outcome: str = "",
         importance_score: float = 0.0,
-        tags: Optional[list[str]] = None,
-        source_conversation_ids: Optional[list[str]] = None,
-        source_task_ids: Optional[list[str]] = None,
+        tags: list[str] | None = None,
+        source_conversation_ids: list[str] | None = None,
+        source_task_ids: list[str] | None = None,
     ) -> dict:
         """Create a new episodic memory.
 
@@ -154,15 +155,20 @@ class EpisodicMemoryManager:
                 created_at, consolidated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                title, summary, episode_type, project,
+                title,
+                summary,
+                episode_type,
+                project,
                 json.dumps(participants or []),
                 json.dumps(goals or []),
                 json.dumps(decisions or []),
-                outcome, importance_score,
+                outcome,
+                importance_score,
                 json.dumps(tags or []),
                 json.dumps(source_conversation_ids or []),
                 json.dumps(source_task_ids or []),
-                now, 0,
+                now,
+                0,
             ),
         )
         await self._db.commit()
@@ -171,7 +177,7 @@ class EpisodicMemoryManager:
         log.info(f"Created episode: {title} (importance={importance_score:.0f})")
         return {"ok": True, "id": episode_id, "importance": importance_score}
 
-    async def get(self, episode_id: int) -> Optional[Episode]:
+    async def get(self, episode_id: int) -> Episode | None:
         """Get a specific episode by ID."""
         await self._ensure_db()
         cursor = await self._db.execute("SELECT * FROM episodes WHERE id = ?", (episode_id,))
@@ -252,8 +258,14 @@ class EpisodicMemoryManager:
         """Update specific fields of an episode."""
         await self._ensure_db()
         allowed = {
-            "title", "summary", "outcome", "importance_score",
-            "tags", "decisions", "goals", "participants",
+            "title",
+            "summary",
+            "outcome",
+            "importance_score",
+            "tags",
+            "decisions",
+            "goals",
+            "participants",
         }
         updates = {k: v for k, v in kwargs.items() if k in allowed}
         if not updates:
@@ -299,9 +311,7 @@ class EpisodicMemoryManager:
         )
         types = {row[0]: row[1] for row in await cursor.fetchall()}
 
-        cursor = await self._db.execute(
-            "SELECT AVG(importance_score) FROM episodes"
-        )
+        cursor = await self._db.execute("SELECT AVG(importance_score) FROM episodes")
         avg_importance = (await cursor.fetchone())[0] or 0
 
         cursor = await self._db.execute(
@@ -330,17 +340,24 @@ class EpisodicMemoryManager:
         rows = await cursor.fetchall()
         return [
             {
-                "id": r[0], "title": r[1], "summary": r[2],
-                "type": r[3], "project": r[4],
-                "importance": r[5], "date": r[6],
+                "id": r[0],
+                "title": r[1],
+                "summary": r[2],
+                "type": r[3],
+                "project": r[4],
+                "importance": r[5],
+                "date": r[6],
             }
             for r in rows
         ]
 
     def _row_to_episode(self, row) -> Episode:
         return Episode(
-            id=row[0], title=row[1], summary=row[2],
-            episode_type=row[3], project=row[4],
+            id=row[0],
+            title=row[1],
+            summary=row[2],
+            episode_type=row[3],
+            project=row[4],
             participants=json.loads(row[5]) if row[5] else [],
             goals=json.loads(row[6]) if row[6] else [],
             decisions=json.loads(row[7]) if row[7] else [],
@@ -357,7 +374,7 @@ class EpisodicMemoryManager:
         self,
         title: str,
         summary: str,
-        decisions: Optional[list[str]],
+        decisions: list[str] | None,
         outcome: str,
     ) -> float:
         """Auto-compute importance score based on content signals."""
@@ -372,8 +389,17 @@ class EpisodicMemoryManager:
             score += 10
 
         # Important keywords
-        important = ["architecture", "decision", "critical", "bug", "launch",
-                     "deploy", "milestone", "breakthrough", "completed"]
+        important = [
+            "architecture",
+            "decision",
+            "critical",
+            "bug",
+            "launch",
+            "deploy",
+            "milestone",
+            "breakthrough",
+            "completed",
+        ]
         text = (title + " " + summary).lower()
         for kw in important:
             if kw in text:
@@ -383,7 +409,7 @@ class EpisodicMemoryManager:
 
 
 # Module-level convenience
-_episodic: Optional[EpisodicMemoryManager] = None
+_episodic: EpisodicMemoryManager | None = None
 
 
 def get_episodic_memory(db=None) -> EpisodicMemoryManager:

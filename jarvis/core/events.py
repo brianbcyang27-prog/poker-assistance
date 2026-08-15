@@ -20,10 +20,11 @@ Usage:
 """
 
 import asyncio
-import time
 import logging
+import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine, Optional
+from typing import Any
 
 log = logging.getLogger("jarvis.events")
 
@@ -91,9 +92,7 @@ class EventBus:
         """Unsubscribe a handler from an event type."""
         async with self._lock:
             if event_type in self._handlers:
-                self._handlers[event_type] = [
-                    h for h in self._handlers[event_type] if h != handler
-                ]
+                self._handlers[event_type] = [h for h in self._handlers[event_type] if h != handler]
             if event_type in self._once_handlers:
                 self._once_handlers[event_type] = [
                     h for h in self._once_handlers[event_type] if h != handler
@@ -177,7 +176,7 @@ class EventBus:
             self._error_count += 1
             log.error(f"Handler {handler.__qualname__} failed for '{event.type}': {e}")
 
-    def get_history(self, event_type: Optional[str] = None, limit: int = 50) -> list[Event]:
+    def get_history(self, event_type: str | None = None, limit: int = 50) -> list[Event]:
         """Get event history, optionally filtered by type."""
         events = self._history
         if event_type:
@@ -200,7 +199,7 @@ class EventBus:
         """Clear event history."""
         self._history.clear()
 
-    def off_all(self, event_type: Optional[str] = None) -> None:
+    def off_all(self, event_type: str | None = None) -> None:
         """Remove all handlers, optionally for a specific event type."""
         if event_type:
             self._handlers.pop(event_type, None)

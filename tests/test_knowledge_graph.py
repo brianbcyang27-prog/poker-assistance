@@ -4,21 +4,19 @@ import asyncio
 import os
 import sys
 import tempfile
-import time
-import uuid
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from jarvis.knowledge.graph import KnowledgeGraph
 from jarvis.knowledge.models import (
     Entity,
-    Relationship,
     EntityCluster,
-    GraphStats,
     EntityType,
+    GraphStats,
     ImportanceLevel,
+    Relationship,
     RelationType,
 )
-from jarvis.knowledge.graph import KnowledgeGraph
 from jarvis.knowledge.relationships import RelationshipEngine
 
 
@@ -255,9 +253,15 @@ class TestKnowledgeGraph:
 
     def test_search_entities(self):
         g = self._make_graph()
-        _run(g.add_entity(_make_entity(name="python_project", entity_type=EntityType.PROJECT.value)))
+        _run(
+            g.add_entity(_make_entity(name="python_project", entity_type=EntityType.PROJECT.value))
+        )
         _run(g.add_entity(_make_entity(name="rust_tool", entity_type=EntityType.TECHNOLOGY.value)))
-        _run(g.add_entity(_make_entity(name="python_script", entity_type=EntityType.TECHNOLOGY.value)))
+        _run(
+            g.add_entity(
+                _make_entity(name="python_script", entity_type=EntityType.TECHNOLOGY.value)
+            )
+        )
         results = _run(g.search_entities("python"))
         assert len(results) == 2
         names = {r.name for r in results}
@@ -268,7 +272,9 @@ class TestKnowledgeGraph:
     def test_search_entities_with_type_filter(self):
         g = self._make_graph()
         _run(g.add_entity(_make_entity(name="python_proj", entity_type=EntityType.PROJECT.value)))
-        _run(g.add_entity(_make_entity(name="python_lang", entity_type=EntityType.TECHNOLOGY.value)))
+        _run(
+            g.add_entity(_make_entity(name="python_lang", entity_type=EntityType.TECHNOLOGY.value))
+        )
         results = _run(g.search_entities("python", entity_type="project"))
         assert len(results) == 1
         assert results[0].name == "python_proj"
@@ -341,11 +347,21 @@ class TestKnowledgeGraph:
 
     def test_get_stats(self):
         g = self._make_graph()
-        e1 = _make_entity(name="s1", entity_type=EntityType.PERSON.value, importance=ImportanceLevel.IMPORTANT.value)
-        e2 = _make_entity(name="s2", entity_type=EntityType.PROJECT.value, importance=ImportanceLevel.USEFUL.value)
+        e1 = _make_entity(
+            name="s1",
+            entity_type=EntityType.PERSON.value,
+            importance=ImportanceLevel.IMPORTANT.value,
+        )
+        e2 = _make_entity(
+            name="s2", entity_type=EntityType.PROJECT.value, importance=ImportanceLevel.USEFUL.value
+        )
         _run(g.add_entity(e1))
         _run(g.add_entity(e2))
-        _run(g.add_relationship(Relationship(source_id=e1.id, target_id=e2.id, relation_type="related_to")))
+        _run(
+            g.add_relationship(
+                Relationship(source_id=e1.id, target_id=e2.id, relation_type="related_to")
+            )
+        )
         stats = _run(g.get_stats())
         assert stats.total_entities == 2
         assert stats.total_relationships == 1
@@ -385,7 +401,11 @@ class TestKnowledgeGraph:
         e2 = _make_entity(name="dr2")
         _run(g.add_entity(e1))
         _run(g.add_entity(e2))
-        _run(g.add_relationship(Relationship(source_id=e1.id, target_id=e2.id, relation_type="contains")))
+        _run(
+            g.add_relationship(
+                Relationship(source_id=e1.id, target_id=e2.id, relation_type="contains")
+            )
+        )
         result = _run(g.delete_relationship(e1.id, e2.id, "contains"))
         assert result["ok"] is True
         rels = _run(g.get_relationships())
@@ -398,8 +418,14 @@ class TestKnowledgeGraph:
         e2 = _make_entity(name="rt2")
         _run(g.add_entity(e1))
         _run(g.add_entity(e2))
-        _run(g.add_relationship(Relationship(source_id=e1.id, target_id=e2.id, relation_type="uses")))
-        _run(g.add_relationship(Relationship(source_id=e1.id, target_id=e2.id, relation_type="depends_on")))
+        _run(
+            g.add_relationship(Relationship(source_id=e1.id, target_id=e2.id, relation_type="uses"))
+        )
+        _run(
+            g.add_relationship(
+                Relationship(source_id=e1.id, target_id=e2.id, relation_type="depends_on")
+            )
+        )
         rels = _run(g.get_relationships(relation_type="uses"))
         assert len(rels) == 1
         assert rels[0].relation_type == "uses"
@@ -432,7 +458,7 @@ class TestRelationshipEngine:
 
     def test_find_path_same_node(self):
         eng, g = self._make_engine()
-        e1, = self._seed_entities(eng, ["solo"])
+        (e1,) = self._seed_entities(eng, ["solo"])
         path = _run(eng.find_path(e1.id, e1.id))
         assert path == [e1.id]
         _run(g.close())

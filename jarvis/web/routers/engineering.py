@@ -2,24 +2,24 @@
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, Any
 
 router = APIRouter(prefix="/api/engineering", tags=["engineering"])
 
 
 # --- Request Models ---
 
+
 class CADCreateRequest(BaseModel):
     name: str
     model_type: str = "part"
     dimensions: dict = {}
-    material: Optional[str] = None
+    material: str | None = None
 
 
 class CADExportRequest(BaseModel):
     model_id: str
     format: str = "stl"
-    path: Optional[str] = None
+    path: str | None = None
 
 
 class PCBCreateRequest(BaseModel):
@@ -31,7 +31,7 @@ class PCBCreateRequest(BaseModel):
 class FirmwareCreateRequest(BaseModel):
     name: str
     platform: str  # arduino, esp32, stm32, raspberry_pi, micropython
-    board: Optional[str] = None
+    board: str | None = None
 
 
 class FirmwareCompileRequest(BaseModel):
@@ -41,12 +41,12 @@ class FirmwareCompileRequest(BaseModel):
 
 class FirmwareUploadRequest(BaseModel):
     project_id: str
-    port: Optional[str] = None
+    port: str | None = None
 
 
 class KnowledgeQueryRequest(BaseModel):
     query: str
-    category: Optional[str] = None
+    category: str | None = None
 
 
 class MaterialRecommendRequest(BaseModel):
@@ -56,7 +56,7 @@ class MaterialRecommendRequest(BaseModel):
 class BearingSelectRequest(BaseModel):
     load_n: float
     speed_rpm: float
-    bore_mm: Optional[float] = None
+    bore_mm: float | None = None
 
 
 class GearRatioRequest(BaseModel):
@@ -74,10 +74,12 @@ class BeamStressRequest(BaseModel):
 
 # --- CAD Endpoints ---
 
+
 @router.post("/cad/create")
 async def cad_create(req: CADCreateRequest):
     """Create a new 3D model."""
     from ...engineering.cad.base import CADProvider
+
     cad = CADProvider()
     model_id = await cad.create_model(
         name=req.name,
@@ -92,6 +94,7 @@ async def cad_create(req: CADCreateRequest):
 async def cad_export(req: CADExportRequest):
     """Export model to file."""
     from ...engineering.cad.base import CADProvider
+
     cad = CADProvider()
     path = await cad.export_model(
         model_id=req.model_id,
@@ -105,6 +108,7 @@ async def cad_export(req: CADExportRequest):
 async def cad_list_models():
     """List all CAD models."""
     from ...engineering.cad.base import CADProvider
+
     cad = CADProvider()
     models = cad.list_models()
     return {"success": True, "models": models}
@@ -112,10 +116,12 @@ async def cad_list_models():
 
 # --- PCB Endpoints ---
 
+
 @router.post("/pcb/create")
 async def pcb_create(req: PCBCreateRequest):
     """Create a new PCB board."""
     from ...engineering.pcb.base import PCBProvider
+
     pcb = PCBProvider()
     board_id = await pcb.create_board(
         name=req.name,
@@ -129,15 +135,17 @@ async def pcb_create(req: PCBCreateRequest):
 async def pcb_drc(board_id: str):
     """Run design rule check."""
     from ...engineering.pcb.base import PCBProvider
+
     pcb = PCBProvider()
     results = await pcb.run_drc(board_id=board_id)
     return {"success": True, "results": results}
 
 
 @router.post("/pcb/export")
-async def pcb_export(board_id: str, path: Optional[str] = None):
+async def pcb_export(board_id: str, path: str | None = None):
     """Export Gerber files."""
     from ...engineering.pcb.base import PCBProvider
+
     pcb = PCBProvider()
     export_path = await pcb.export_gerbers(board_id=board_id, path=path)
     return {"success": True, "path": export_path}
@@ -145,10 +153,12 @@ async def pcb_export(board_id: str, path: Optional[str] = None):
 
 # --- Firmware Endpoints ---
 
+
 @router.post("/firmware/create")
 async def firmware_create(req: FirmwareCreateRequest):
     """Create a new firmware project."""
     from ...engineering.embedded.base import EmbeddedProvider
+
     embedded = EmbeddedProvider()
     project_id = await embedded.create_project(
         name=req.name,
@@ -162,6 +172,7 @@ async def firmware_create(req: FirmwareCreateRequest):
 async def firmware_compile(req: FirmwareCompileRequest):
     """Compile firmware."""
     from ...engineering.embedded.base import EmbeddedProvider
+
     embedded = EmbeddedProvider()
     result = await embedded.compile(
         project_id=req.project_id,
@@ -174,6 +185,7 @@ async def firmware_compile(req: FirmwareCompileRequest):
 async def firmware_upload(req: FirmwareUploadRequest):
     """Upload firmware to device."""
     from ...engineering.embedded.base import EmbeddedProvider
+
     embedded = EmbeddedProvider()
     result = await embedded.upload(
         project_id=req.project_id,
@@ -186,6 +198,7 @@ async def firmware_upload(req: FirmwareUploadRequest):
 async def firmware_devices():
     """List connected devices."""
     from ...engineering.embedded.base import EmbeddedProvider
+
     embedded = EmbeddedProvider()
     devices = await embedded.list_devices()
     return {"success": True, "devices": devices}
@@ -193,10 +206,12 @@ async def firmware_devices():
 
 # --- Mechanical Endpoints ---
 
+
 @router.get("/mechanical/materials")
 async def mechanical_materials():
     """List available materials."""
     from ...engineering.knowledge import engineering_knowledge
+
     materials = engineering_knowledge.list_materials()
     return {"success": True, "materials": materials}
 
@@ -205,6 +220,7 @@ async def mechanical_materials():
 async def mechanical_material(name: str):
     """Get material properties."""
     from ...engineering.knowledge import engineering_knowledge
+
     mat = engineering_knowledge.get_material(name)
     if not mat:
         raise HTTPException(status_code=404, detail=f"Material '{name}' not found")
@@ -215,6 +231,7 @@ async def mechanical_material(name: str):
 async def mechanical_recommend(req: MaterialRecommendRequest):
     """Recommend materials based on requirements."""
     from ...engineering.knowledge import engineering_knowledge
+
     candidates = engineering_knowledge.get_material_recommendation(req.requirements)
     return {"success": True, "candidates": candidates}
 
@@ -223,6 +240,7 @@ async def mechanical_recommend(req: MaterialRecommendRequest):
 async def mechanical_bearing(req: BearingSelectRequest):
     """Select best bearing for requirements."""
     from ...engineering.knowledge import engineering_knowledge
+
     bearing = engineering_knowledge.select_bearing(
         load_n=req.load_n,
         speed_rpm=req.speed_rpm,
@@ -237,6 +255,7 @@ async def mechanical_bearing(req: BearingSelectRequest):
 async def mechanical_gear(req: GearRatioRequest):
     """Calculate gear ratio."""
     from ...engineering.knowledge import engineering_knowledge
+
     result = engineering_knowledge.calculate_gear_ratio(
         driver_teeth=req.driver_teeth,
         driven_teeth=req.driven_teeth,
@@ -249,6 +268,7 @@ async def mechanical_gear(req: GearRatioRequest):
 async def mechanical_beam(req: BeamStressRequest):
     """Calculate beam stress."""
     from ...engineering.knowledge import engineering_knowledge
+
     result = engineering_knowledge.calculate_beam_stress(
         force_n=req.force_n,
         length_m=req.length_m,
@@ -260,10 +280,12 @@ async def mechanical_beam(req: BeamStressRequest):
 
 # --- Knowledge Endpoints ---
 
+
 @router.post("/knowledge/query")
 async def knowledge_query(req: KnowledgeQueryRequest):
     """Query the engineering knowledge base."""
     from ...engineering.knowledge import engineering_knowledge
+
     result = engineering_knowledge.query(req.query, req.category)
     return {"success": True, "result": result}
 
@@ -272,6 +294,7 @@ async def knowledge_query(req: KnowledgeQueryRequest):
 async def knowledge_formulas():
     """List all formulas."""
     from ...engineering.knowledge import engineering_knowledge
+
     formulas = list(engineering_knowledge.formulas.keys())
     return {"success": True, "formulas": formulas}
 
@@ -280,6 +303,7 @@ async def knowledge_formulas():
 async def knowledge_formula(name: str):
     """Get formula details."""
     from ...engineering.knowledge import engineering_knowledge
+
     formula = engineering_knowledge.formulas.get(name)
     if not formula:
         raise HTTPException(status_code=404, detail=f"Formula '{name}' not found")
@@ -288,11 +312,12 @@ async def knowledge_formula(name: str):
 
 # --- Summary Endpoint ---
 
+
 @router.get("/summary")
 async def engineering_summary():
     """Get engineering suite summary."""
     from ...engineering.knowledge import engineering_knowledge
-    
+
     return {
         "version": "3.3.0",
         "modules": {

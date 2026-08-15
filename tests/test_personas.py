@@ -1,19 +1,20 @@
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import asyncio
 import tempfile
-import pytest
 
-from jarvis.agents.personas.models import Persona, AgentIdentity, AgentRole
+from jarvis.agents.personas.models import AgentIdentity, AgentRole, Persona
 from jarvis.agents.personas.registry import PersonaRegistry
 
-
-loop = asyncio.get_event_loop()
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
 
 
 # ── Persona ───────────────────────────────────────────────────────────────────
+
 
 class TestPersona:
     def test_create_default(self):
@@ -74,6 +75,7 @@ class TestPersona:
 
 # ── AgentIdentity ─────────────────────────────────────────────────────────────
 
+
 class TestAgentIdentity:
     def test_create_default(self):
         i = AgentIdentity()
@@ -112,6 +114,7 @@ class TestAgentIdentity:
 
 
 # ── PersonaRegistry ───────────────────────────────────────────────────────────
+
 
 class TestPersonaRegistry:
     def _make(self):
@@ -195,9 +198,7 @@ class TestPersonaRegistry:
 
     def test_get_random_for_task_unknown(self):
         reg = self._make()
-        persona = loop.run_until_complete(
-            reg.get_random_for_task("xyzzy nothing matches")
-        )
+        persona = loop.run_until_complete(reg.get_random_for_task("xyzzy nothing matches"))
         assert persona is not None  # returns random persona
 
     def test_save_and_reload(self):

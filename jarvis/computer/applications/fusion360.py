@@ -7,19 +7,37 @@ profile = ApplicationProfile(
     bundle_id="com.autodesk.fusion360",
     executable="Fusion 360",
     category="cad",
-
     common_buttons=[
-        "New Design", "Open", "Save", "Undo", "Redo",
-        "Extrude", "Revolve", "Fillet", "Chamfer",
-        "Sketch", "Construct", "Inspect", "Insert",
-        "Make", "Automate", "Drawing",
+        "New Design",
+        "Open",
+        "Save",
+        "Undo",
+        "Redo",
+        "Extrude",
+        "Revolve",
+        "Fillet",
+        "Chamfer",
+        "Sketch",
+        "Construct",
+        "Inspect",
+        "Insert",
+        "Make",
+        "Automate",
+        "Drawing",
     ],
-
     common_menus=[
-        "File", "Edit", "View", "Solid", "Surface", "Mesh",
-        "Sketch", "Construct", "Inspect", "Insert", "Make",
+        "File",
+        "Edit",
+        "View",
+        "Solid",
+        "Surface",
+        "Mesh",
+        "Sketch",
+        "Construct",
+        "Inspect",
+        "Insert",
+        "Make",
     ],
-
     common_shortcuts={
         "undo": "Cmd+Z",
         "redo": "Shift+Cmd+Z",
@@ -42,7 +60,6 @@ profile = ApplicationProfile(
         "finish_sketch": "Q",
         "toggle_construction": "X",
     },
-
     workflows={
         "new_design": ["File menu", "New Design"],
         "save_design": ["Cmd+S"],
@@ -54,7 +71,6 @@ profile = ApplicationProfile(
         "measure": ["Inspect menu", "Measure", "Select entity"],
         "take_screenshot": ["View menu", "Capture Image"],
     },
-
     interaction_notes=(
         "Fusion 360 has a ribbon toolbar at the top with context-sensitive tools. "
         "The timeline at the bottom shows the design history. "

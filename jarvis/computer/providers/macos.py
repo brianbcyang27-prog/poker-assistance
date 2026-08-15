@@ -7,10 +7,9 @@ Implements computer control using macOS-native tools:
 - NSWorkspace for app management
 """
 
-import os
 import asyncio
 import logging
-from typing import Optional
+import os
 
 log = logging.getLogger("jarvis.computer.providers.macos")
 
@@ -21,14 +20,17 @@ class MacOSProvider:
     All methods are async and return dicts with {"ok": bool, ...}.
     """
 
-    async def screenshot(self, path: Optional[str] = None) -> dict:
+    async def screenshot(self, path: str | None = None) -> dict:
         """Take a screenshot of the entire screen."""
         import time
+
         if path is None:
             path = f"/tmp/jarvis_screenshot_{int(time.time())}.png"
         try:
             proc = await asyncio.create_subprocess_exec(
-                "screencapture", "-x", path,
+                "screencapture",
+                "-x",
+                path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -43,7 +45,9 @@ class MacOSProvider:
         """Open a macOS application."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "open", "-a", app_name,
+                "open",
+                "-a",
+                app_name,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -57,7 +61,9 @@ class MacOSProvider:
         try:
             script = f'tell application "{app_name}" to quit'
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -69,7 +75,7 @@ class MacOSProvider:
     async def get_active_window(self) -> dict:
         """Get the currently focused window info."""
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set frontApp to first application process whose frontmost is true
                 set appName to name of frontApp
@@ -80,9 +86,11 @@ class MacOSProvider:
                 end try
                 return appName & "|||" & winTitle
             end tell
-            '''
+            """
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -98,7 +106,7 @@ class MacOSProvider:
     async def list_windows(self) -> dict:
         """List all visible windows."""
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set winList to ""
                 repeat with proc in (every application process whose visible is true)
@@ -110,9 +118,11 @@ class MacOSProvider:
                 end repeat
                 return winList
             end tell
-            '''
+            """
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -132,13 +142,15 @@ class MacOSProvider:
         try:
             if button == "right":
                 # Right click via osascript
-                script = f'''
+                script = f"""
                 tell application "System Events"
                     click at {{{x}, {y}}} using button 2
                 end tell
-                '''
+                """
                 proc = await asyncio.create_subprocess_exec(
-                    "osascript", "-e", script,
+                    "osascript",
+                    "-e",
+                    script,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -147,7 +159,8 @@ class MacOSProvider:
 
             # Left click via cliclick if available, else osascript
             proc = await asyncio.create_subprocess_exec(
-                "which", "cliclick",
+                "which",
+                "cliclick",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -155,20 +168,23 @@ class MacOSProvider:
 
             if proc.returncode == 0:
                 proc = await asyncio.create_subprocess_exec(
-                    "cliclick", f"c:{x},{y}",
+                    "cliclick",
+                    f"c:{x},{y}",
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
                 await proc.communicate()
                 return {"ok": proc.returncode == 0, "x": x, "y": y}
             else:
-                script = f'''
+                script = f"""
                 tell application "System Events"
                     click at {{{x}, {y}}}
                 end tell
-                '''
+                """
                 proc = await asyncio.create_subprocess_exec(
-                    "osascript", "-e", script,
+                    "osascript",
+                    "-e",
+                    script,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
@@ -188,7 +204,9 @@ class MacOSProvider:
             end tell
             '''
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -200,13 +218,15 @@ class MacOSProvider:
     async def press_key(self, key: str) -> dict:
         """Press a single key."""
         try:
-            script = f'''
+            script = f"""
             tell application "System Events"
                 key code {self._key_code(key)}
             end tell
-            '''
+            """
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -244,7 +264,9 @@ class MacOSProvider:
                 '''
 
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -256,21 +278,42 @@ class MacOSProvider:
     def _key_code(self, key: str) -> int:
         """Map key name to macOS key code."""
         codes = {
-            "return": 36, "enter": 36, "tab": 48, "space": 49,
-            "delete": 51, "backspace": 51, "escape": 53, "esc": 53,
-            "left": 123, "right": 124, "down": 125, "up": 126,
-            "f1": 122, "f2": 120, "f3": 99, "f4": 118,
-            "f5": 96, "f6": 97, "f7": 98, "f8": 100,
-            "f9": 101, "f10": 109, "f11": 103, "f12": 111,
+            "return": 36,
+            "enter": 36,
+            "tab": 48,
+            "space": 49,
+            "delete": 51,
+            "backspace": 51,
+            "escape": 53,
+            "esc": 53,
+            "left": 123,
+            "right": 124,
+            "down": 125,
+            "up": 126,
+            "f1": 122,
+            "f2": 120,
+            "f3": 99,
+            "f4": 118,
+            "f5": 96,
+            "f6": 97,
+            "f7": 98,
+            "f8": 100,
+            "f9": 101,
+            "f10": 109,
+            "f11": 103,
+            "f12": 111,
         }
         return codes.get(key.lower(), ord(key.lower()) if len(key) == 1 else 0)
 
     def _modifier_name(self, key: str) -> str:
         """Map key name to AppleScript modifier."""
         modifiers = {
-            "command": "command down", "cmd": "command down",
-            "shift": "shift down", "alt": "option down",
-            "option": "option down", "ctrl": "control down",
+            "command": "command down",
+            "cmd": "command down",
+            "shift": "shift down",
+            "alt": "option down",
+            "option": "option down",
+            "ctrl": "control down",
             "control": "control down",
         }
         return modifiers.get(key.lower(), "")
@@ -279,7 +322,8 @@ class MacOSProvider:
         """Get screen resolution."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e",
+                "osascript",
+                "-e",
                 'tell application "Finder" to get bounds of window of desktop',
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,

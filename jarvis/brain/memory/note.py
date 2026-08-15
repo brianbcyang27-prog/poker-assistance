@@ -1,13 +1,11 @@
 """Markdown notes with Obsidian-style [[bidirectional links]]."""
-import asyncio
+
 import json
 import re
 import time
-import uuid
 from pathlib import Path
-from typing import Optional, List
 
-from .graph import graph, Node, Edge
+from .graph import Edge, Node, graph
 
 NOTES_DIR = Path(__file__).parent.parent.parent.parent / "memory_store" / "notes"
 NOTES_DIR.mkdir(parents=True, exist_ok=True)
@@ -28,7 +26,7 @@ class NoteManager:
             end = content.find("---", 3)
             if end > 0:
                 fm = content[3:end].strip()
-                body = content[end+3:].strip()
+                body = content[end + 3 :].strip()
                 meta = {}
                 for line in fm.split("\n"):
                     if ":" in line:
@@ -37,12 +35,12 @@ class NoteManager:
                 return {"meta": meta, "body": body}
         return {"meta": {}, "body": content}
 
-    def _extract_links(self, content: str) -> List[str]:
+    def _extract_links(self, content: str) -> list[str]:
         """Extract [[bidirectional links]] from content."""
-        return re.findall(r'\[\[(.+?)\]\]', content)
+        return re.findall(r"\[\[(.+?)\]\]", content)
 
-    async def create_note(self, title: str, content: str, tags: Optional[List[str]] = None) -> dict:
-        note_id = re.sub(r'[^a-z0-9_-]', '_', title.lower().replace(' ', '_'))
+    async def create_note(self, title: str, content: str, tags: list[str] | None = None) -> dict:
+        note_id = re.sub(r"[^a-z0-9_-]", "_", title.lower().replace(" ", "_"))
         now = time.time()
 
         # Add frontmatter
@@ -61,7 +59,7 @@ class NoteManager:
             content=content,
             metadata=json.dumps({"tags": tags or [], "path": str(path)}),
             created_at=now,
-            updated_at=now
+            updated_at=now,
         )
         await graph.add_node(node)
 
@@ -69,17 +67,25 @@ class NoteManager:
         links = self._extract_links(content)
         for link in links:
             target_id = f"concept_{link.lower().replace(' ', '_')}"
-            target_node = Node(id=target_id, label=link, type="concept", created_at=now, updated_at=now)
+            target_node = Node(
+                id=target_id, label=link, type="concept", created_at=now, updated_at=now
+            )
             await graph.add_node(target_node)
-            await graph.add_edge(Edge(source=node.id, target=target_id, relation="references", created_at=now))
-            await graph.add_edge(Edge(source=target_id, target=node.id, relation="referenced_by", created_at=now))
+            await graph.add_edge(
+                Edge(source=node.id, target=target_id, relation="references", created_at=now)
+            )
+            await graph.add_edge(
+                Edge(source=target_id, target=node.id, relation="referenced_by", created_at=now)
+            )
 
         # Also create edges for tags
-        for tag in (tags or []):
+        for tag in tags or []:
             tag_id = f"tag_{tag.lower()}"
             tag_node = Node(id=tag_id, label=f"#{tag}", type="tag", created_at=now, updated_at=now)
             await graph.add_node(tag_node)
-            await graph.add_edge(Edge(source=node.id, target=tag_id, relation="tagged_with", created_at=now))
+            await graph.add_edge(
+                Edge(source=node.id, target=tag_id, relation="tagged_with", created_at=now)
+            )
 
         return {"ok": True, "id": note_id, "title": title, "links": links, "path": str(path)}
 
@@ -97,10 +103,10 @@ class NoteManager:
             "meta": parsed["meta"],
             "content": parsed["body"],
             "links": links,
-            "backlinks": backlinks
+            "backlinks": backlinks,
         }
 
-    async def _get_backlinks(self, note_id: str) -> List[dict]:
+    async def _get_backlinks(self, note_id: str) -> list[dict]:
         """Find notes that link to this note."""
         node_id = f"note_{note_id}"
         result = await graph.get_neighbors(node_id, direction="incoming")
@@ -121,7 +127,7 @@ class NoteManager:
         if isinstance(tags, str):
             try:
                 tags = json.loads(tags)
-            except:
+            except json.JSONDecodeError:
                 tags = []
 
         fm_tags = json.dumps(tags)
@@ -130,10 +136,7 @@ class NoteManager:
 
         # Update graph node
         node_id = f"note_{note_id}"
-        node = Node(
-            id=node_id, label=title, type="note",
-            content=content, updated_at=time.time()
-        )
+        node = Node(id=node_id, label=title, type="note", content=content, updated_at=time.time())
         await graph.add_node(node)
 
         # Re-extract links
@@ -160,35 +163,38 @@ class NoteManager:
     async def list_notes(self, limit: int = 50) -> dict:
         conn = graph._get_conn()
         rows = conn.execute(
-            "SELECT * FROM nodes WHERE type = 'note' ORDER BY updated_at DESC LIMIT ?",
-            (limit,)
+            "SELECT * FROM nodes WHERE type = 'note' ORDER BY updated_at DESC LIMIT ?", (limit,)
         ).fetchall()
         notes = []
         for r in rows:
             meta = json.loads(r["metadata"]) if r["metadata"] else {}
-            notes.append({
-                "id": r["id"].replace("note_", ""),
-                "title": r["label"],
-                "tags": meta.get("tags", []),
-                "updated_at": r["updated_at"]
-            })
+            notes.append(
+                {
+                    "id": r["id"].replace("note_", ""),
+                    "title": r["label"],
+                    "tags": meta.get("tags", []),
+                    "updated_at": r["updated_at"],
+                }
+            )
         return {"ok": True, "notes": notes}
 
     async def search_notes(self, query: str, limit: int = 20) -> dict:
         conn = graph._get_conn()
         rows = conn.execute(
             "SELECT * FROM nodes WHERE type = 'note' AND (label LIKE ? OR content LIKE ?) LIMIT ?",
-            (f"%{query}%", f"%{query}%", limit)
+            (f"%{query}%", f"%{query}%", limit),
         ).fetchall()
         results = []
         for r in rows:
             meta = json.loads(r["metadata"]) if r["metadata"] else {}
-            results.append({
-                "id": r["id"].replace("note_", ""),
-                "title": r["label"],
-                "content_preview": r["content"][:200] if r["content"] else "",
-                "tags": meta.get("tags", [])
-            })
+            results.append(
+                {
+                    "id": r["id"].replace("note_", ""),
+                    "title": r["label"],
+                    "content_preview": r["content"][:200] if r["content"] else "",
+                    "tags": meta.get("tags", []),
+                }
+            )
         return {"ok": True, "results": results}
 
 

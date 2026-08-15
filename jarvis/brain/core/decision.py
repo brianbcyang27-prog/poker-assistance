@@ -1,9 +1,9 @@
 """Brain-level decision engine — decides, records, explains, and learns."""
-import logging
-import time
-from typing import Any, Dict, List, Optional
 
-from .models import ActionDecision, BrainContext, MemoryEntry
+import logging
+from typing import Any
+
+from .models import ActionDecision, BrainContext
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +20,13 @@ class BrainDecisionEngine:
         self._memory = memory_manager
         self._reasoning = reasoning_engine
         self._decisions = decisions_engine
-        self._action_history: Dict[str, ActionDecision] = {}
+        self._action_history: dict[str, ActionDecision] = {}
 
     async def decide(
         self,
         goal: str,
         context: BrainContext,
-        options: Optional[List[Dict[str, Any]]] = None,
+        options: list[dict[str, Any]] | None = None,
     ) -> ActionDecision:
         """Evaluate options and return the best action decision."""
         if not options:
@@ -41,17 +41,13 @@ class BrainDecisionEngine:
         best = ranked[0] if ranked else options[0]
         rejected = [r for r in ranked[1:]] if len(ranked) > 1 else []
 
-        supporting: List[str] = []
+        supporting: list[str] = []
         if context.relevant_memories:
-            supporting.extend(
-                m.get("content", "")[:100] for m in context.relevant_memories[:3]
-            )
+            supporting.extend(m.get("content", "")[:100] for m in context.relevant_memories[:3])
 
         risk_level = "low"
         if self._reasoning:
-            risk = await self._reasoning.assess_risk(
-                best.get("action", ""), context
-            )
+            risk = await self._reasoning.assess_risk(best.get("action", ""), context)
             risk_level = risk.get("risk_level", "low")
 
         decision = ActionDecision(
@@ -79,7 +75,9 @@ class BrainDecisionEngine:
 
         logger.debug(
             "Decision made: %s (confidence=%.2f, risk=%s)",
-            decision.action[:60], decision.confidence, decision.risk_level,
+            decision.action[:60],
+            decision.confidence,
+            decision.risk_level,
         )
         return decision
 
@@ -89,9 +87,11 @@ class BrainDecisionEngine:
         if not decision:
             if self._decisions:
                 try:
-                    return await self._reasoning.explain_decision(
-                        decision_id, self._decisions
-                    ) if self._reasoning else f"Decision {decision_id} not found."
+                    return (
+                        await self._reasoning.explain_decision(decision_id, self._decisions)
+                        if self._reasoning
+                        else f"Decision {decision_id} not found."
+                    )
                 except Exception:
                     pass
             return f"Decision {decision_id} not found."
@@ -103,9 +103,7 @@ class BrainDecisionEngine:
             f"Risk: {decision.risk_level}",
         ]
         if decision.alternatives_rejected:
-            parts.append(
-                f"Alternatives rejected: {len(decision.alternatives_rejected)}"
-            )
+            parts.append(f"Alternatives rejected: {len(decision.alternatives_rejected)}")
         if decision.supporting_evidence:
             parts.append(f"Supporting evidence: {len(decision.supporting_evidence)} items")
 
@@ -116,7 +114,7 @@ class BrainDecisionEngine:
         decision_id: str,
         outcome: str,
         success: bool,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Record the outcome of a previously made decision."""
         decision = self._action_history.get(decision_id)
         if not decision:
@@ -153,9 +151,7 @@ class BrainDecisionEngine:
 
         return result
 
-    async def get_decision_history(
-        self, limit: int = 20
-    ) -> List[ActionDecision]:
+    async def get_decision_history(self, limit: int = 20) -> list[ActionDecision]:
         """Return the most recent action decisions."""
         sorted_d = sorted(
             self._action_history.values(),
@@ -164,9 +160,7 @@ class BrainDecisionEngine:
         )
         return sorted_d[:limit]
 
-    async def learn_from_mistake(
-        self, decision_id: str, lesson: str
-    ) -> Dict[str, Any]:
+    async def learn_from_mistake(self, decision_id: str, lesson: str) -> dict[str, Any]:
         """Extract a lesson from a failed decision."""
         decision = self._action_history.get(decision_id)
         if not decision:

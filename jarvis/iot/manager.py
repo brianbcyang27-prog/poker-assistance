@@ -17,23 +17,21 @@ import asyncio
 import json
 import time
 from pathlib import Path
-from typing import Optional
-from datetime import datetime
 
 import aiohttp
 
-from .protocol import IoTMessage, IoTResponse, DeviceInfo
+from .protocol import DeviceInfo, IoTMessage
 
 
 class DeviceManager:
     """Manages all connected IoT devices."""
-    
+
     def __init__(self):
         self._devices: dict[str, DeviceInfo] = {}
         self._config_path = Path("devices.json")
         self._load_config()
-        self._discovery_task: Optional[asyncio.Task] = None
-    
+        self._discovery_task: asyncio.Task | None = None
+
     def _load_config(self):
         """Load device config from file."""
         if self._config_path.exists():
@@ -45,15 +43,13 @@ class DeviceManager:
                     self._devices[info.device_id] = info
             except Exception:
                 pass
-    
+
     def _save_config(self):
         """Save device config to file."""
-        data = {
-            "devices": [d.model_dump() for d in self._devices.values()]
-        }
+        data = {"devices": [d.model_dump() for d in self._devices.values()]}
         with open(self._config_path, "w") as f:
             json.dump(data, f, indent=2)
-    
+
     def register_device(
         self,
         device_id: str,
@@ -79,32 +75,32 @@ class DeviceManager:
         self._devices[device_id] = info
         self._save_config()
         return info
-    
+
     def unregister_device(self, device_id: str):
         """Remove a device."""
         self._devices.pop(device_id, None)
         self._save_config()
-    
+
     def list_devices(self) -> list[dict]:
         """List all registered devices."""
         # Mark offline if not seen in 60s
         now = time.time()
         for d in self._devices.values():
             d.online = (now - d.last_seen) < 60
-        
+
         return [d.model_dump() for d in self._devices.values()]
-    
-    def get_device(self, device_id: str) -> Optional[DeviceInfo]:
+
+    def get_device(self, device_id: str) -> DeviceInfo | None:
         """Get a specific device."""
         return self._devices.get(device_id)
-    
+
     def get_status(self, device_id: str) -> dict:
         """Get device status (sync wrapper for tool executor)."""
         device = self._devices.get(device_id)
         if not device:
             return {"error": f"Device {device_id} not found"}
         return device.model_dump()
-    
+
     async def send_command(
         self,
         device_id: str,
@@ -115,9 +111,9 @@ class DeviceManager:
         device = self._devices.get(device_id)
         if not device:
             return {"error": f"Device {device_id} not found"}
-        
+
         msg = IoTMessage(cmd=command, payload=payload or {})
-        
+
         try:
             url = f"http://{device.ip}:{device.port}/jarvis"
             async with aiohttp.ClientSession() as session:
@@ -129,15 +125,15 @@ class DeviceManager:
                     data = await resp.json()
                     device.last_seen = time.time()
                     return data
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {"error": "Device timed out"}
         except Exception as e:
             return {"error": str(e)}
-    
+
     async def read_sensor(self, device_id: str, sensor: str) -> dict:
         """Read a sensor value from a device."""
         return await self.send_command(device_id, "read_sensor", {"sensor": sensor})
-    
+
     async def broadcast(self, command: str, payload: dict = None) -> dict:
         """Send a command to ALL online devices."""
         results = {}
@@ -145,22 +141,22 @@ class DeviceManager:
             if device.online:
                 results[device_id] = await self.send_command(device_id, command, payload)
         return results
-    
+
     async def start_discovery(self):
         """Start mDNS discovery in background."""
         self._discovery_task = asyncio.create_task(self._discovery_loop())
-    
+
     async def _discovery_loop(self):
         """Continuously look for new devices via mDNS."""
         while True:
             try:
                 # Try zeroconf if available
                 from zeroconf import ServiceBrowser, Zeroconf
-                
+
                 class Listener:
                     def __init__(self, manager):
                         self.manager = manager
-                    
+
                     def add_service(self, zc, svc_type, name):
                         info = zc.get_service_info(svc_type, name)
                         if info:
@@ -176,22 +172,22 @@ class DeviceManager:
                                     sensors=props.get("sensors", "").split(","),
                                     actuators=props.get("actuators", "").split(","),
                                 )
-                    
+
                     def remove_service(self, zc, svc_type, name):
                         pass
-                    
+
                     def update_service(self, zc, svc_type, name):
                         pass
-                
+
                 zc = Zeroconf()
                 listener = Listener(self)
                 browser = ServiceBrowser(zc, "_jarvis-iot._tcp.local.", listener)
-                
+
                 # Run for 30s then restart
                 await asyncio.sleep(30)
                 browser.cancel()
                 zc.close()
-                
+
             except ImportError:
                 # zeroconf not installed, skip discovery
                 await asyncio.sleep(60)

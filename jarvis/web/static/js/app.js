@@ -3,12 +3,12 @@
  * LEFT nav (3 items) | CENTER workspace | RIGHT context | BOTTOM input
  */
 
-let currentSessionId = null;
-let goldenCore = null;
+let currentSessionId = localStorage.getItem('jarvis_session_id');
 let currentWorkspace = 'home';
 let currentChatMode = 'chat';
 let _startTime = Date.now();
 let _eventCount = 0;
+let _healthInterval = null;
 
 /* ---- Chat State ---- */
 let _chatStreaming = false;
@@ -30,7 +30,8 @@ function toggleSettings() {
         loadVoiceProfiles();
         loadBuiltinProviders();
         const textarea = document.getElementById('voice-test-text');
-        if (textarea) {
+        if (textarea && !textarea.dataset.autoResize) {
+            textarea.dataset.autoResize = 'true';
             textarea.addEventListener('input', function() {
                 this.style.height = 'auto';
                 this.style.height = this.scrollHeight + 'px';
@@ -39,6 +40,23 @@ function toggleSettings() {
         // Open first collapsible card in voice panel
         document.querySelectorAll('#panel-voice .settings-card:has(.settings-card-header)').forEach(c => c.classList.add('open'));
     }
+}
+
+function applyDeveloperMode(enabled) {
+    const dashboard = document.getElementById('dashboard');
+    const toggle = document.getElementById('dev-mode-toggle');
+    if (!dashboard) return;
+    dashboard.classList.toggle('dev-mode', enabled);
+    if (toggle) {
+        toggle.classList.toggle('active', enabled);
+        toggle.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+    }
+    localStorage.setItem('jarvis_developer_mode', enabled ? '1' : '0');
+}
+
+function toggleDeveloperMode() {
+    const dashboard = document.getElementById('dashboard');
+    applyDeveloperMode(!(dashboard && dashboard.classList.contains('dev-mode')));
 }
 
 function switchSettingsSection(sectionId) {
@@ -95,15 +113,16 @@ async function loadSettings() {
         setupVoiceTabs();
         loadVoiceProfiles();
         loadBuiltinProviders();
-        // Setup textarea auto-resize
+        // Setup textarea auto-resize (guarded against duplicate listeners)
         const textarea = document.getElementById('voice-test-text');
-        if (textarea) {
+        if (textarea && !textarea.dataset.autoResize) {
+            textarea.dataset.autoResize = 'true';
             textarea.addEventListener('input', function() {
                 this.style.height = 'auto';
                 this.style.height = this.scrollHeight + 'px';
             });
         }
-    } catch (_) {}
+    } catch (e) { console.warn('Failed to load settings:', e); }
 }
 
 async function loadVoiceModels() {
@@ -126,7 +145,7 @@ async function loadVoiceModels() {
         const cur = document.querySelector('[name="tts_provider"]')?.value || 'macos';
         prov.value = cur;
         updateVoiceList(data.voices, cur);
-    } catch (_) {}
+    } catch (e) { console.warn('Failed to load voice models:', e); }
 }
 
 /* ---- Provider Management ---- */
@@ -339,6 +358,13 @@ function resetSettings() {
         stt_enabled: true,
         host: '127.0.0.1',
         port: 8000,
+        // Architecture defaults
+        active_architecture: 'jarvis_native',
+        arch_planning_depth: 2,
+        arch_verification_strictness: 0.8,
+        arch_auto_reflect: true,
+        arch_skill_extraction: true,
+        arch_memory_retention_days: 30,
     };
     const form = document.getElementById('settings-form');
     for (const [k, v] of Object.entries(defaults)) {
@@ -393,8 +419,11 @@ async function _sendMessageAsync(message) {
         try {
             const res = await fetch('/api/chat/sessions', { method: 'POST' });
             const data = await res.json();
-            if (data.ok && data.session_id) currentSessionId = data.session_id;
-        } catch (_) {}
+            if (data.ok && data.session_id) {
+                currentSessionId = data.session_id;
+                localStorage.setItem('jarvis_session_id', currentSessionId);
+            }
+        } catch (e) { console.warn('Failed to create session:', e); }
     }
 
     const params = new URLSearchParams({ message });
@@ -454,8 +483,44 @@ async function _sendMessageAsync(message) {
                                         duration_ms: tc.duration_ms
                                     })));
                                 }
+                            } else if (evt.type === 'mission_start') {
+                                // Auto-switch to chat workspace if not already there, then show mission panel
+                                if (currentWorkspace !== 'chat') {
+                                    switchWorkspace('chat');
+                                }
+                                if (window.missionPanel) {
+                                    window.missionPanel.show(evt.mission);
+                                }
+                            } else if (evt.type === 'mission_plan') {
+                                // Update mission panel with plan
+                                if (window.missionPanel && window.missionPanel.currentMission) {
+                                    window.missionPanel.currentMission.plan = evt.plan;
+                                    window.missionPanel.renderPlan(evt.plan);
+                                }
+                            } else if (evt.type === 'mission_step') {
+                                // Update step status in mission panel
+                                if (window.missionPanel && evt.step && evt.result) {
+                                    const stepId = evt.step.id;
+                                    const status = evt.result.success ? 'success' : 'failed';
+                                    window.missionPanel.updateStepStatus(stepId, status, {
+                                        tools: evt.result.output?.tools,
+                                        output: typeof evt.result.output === 'object' ? JSON.stringify(evt.result.output) : String(evt.result.output),
+                                        duration_ms: evt.result.duration_ms
+                                    });
+                                }
+                            } else if (evt.type === 'mission_verify') {
+                                // Render verification results in verification tab
+                                if (window.missionPanel) {
+                                    window.missionPanel.renderVerification(evt.verification);
+                                }
+                            } else if (evt.type === 'mission_reflect') {
+                                // Render reflection in reflection tab
+                                if (window.missionPanel) {
+                                    window.missionPanel.renderReflection(evt.reflection);
+                                }
                             } else if (evt.type === 'done') {
                                 currentSessionId = evt.session_id || currentSessionId;
+                                if (currentSessionId) localStorage.setItem('jarvis_session_id', currentSessionId);
                                 _chatStreaming = false;
                                 _chatAbortController = null;
                                 setErrorState(false);
@@ -483,6 +548,23 @@ async function _sendMessageAsync(message) {
                     buffer += decoder.decode(value, { stream: true });
                     processBuffer();
                     read();
+                }).catch(err => {
+                    clearTimeout(timeout);
+                    _chatStreaming = false;
+                    _chatAbortController = null;
+                    setErrorState(true);
+                    const errorMsg = err?.name === 'AbortError'
+                        ? 'Request timed out. Please try again.'
+                        : 'Error: ' + (err?.message || 'Stream read failed');
+                    _addTerminalLine(`ERROR: ${errorMsg}`, 'error');
+                    if (bubble) {
+                        bubble.innerHTML = _md(errorMsg);
+                    } else {
+                        addChatMessage('assistant', errorMsg);
+                    }
+                    if (window.jarvisState) window.jarvisState.set('idle');
+                    if (window.livingUI) window.livingUI.setState('idle');
+                    if (goldenCore) goldenCore.setState('idle');
                 });
             }
             read();
@@ -646,13 +728,17 @@ async function switchWorkspace(workspace) {
 
     // Lazy-load workspace-specific scripts
     if (workspace === 'chat') {
-        await Promise.all([
-            window._loadScript('/static/js/chat-background.js?v=8.0.0'),
-            window._loadScript('/static/js/voice-experience.js?v=8.0.0'),
-            window._loadScript('/static/js/voice.js?v=8.0.0'),
-            window._loadScript('/static/js/vision-experience.js?v=8.0.0'),
-            window._loadScript('/static/js/computer-control.js?v=8.0.0'),
-        ]);
+        try {
+            await Promise.all([
+                window._loadScript('/static/js/chat-background.js?v=8.0.0'),
+                window._loadScript('/static/js/voice-experience.js?v=8.0.0'),
+                window._loadScript('/static/js/voice.js?v=8.0.0'),
+                window._loadScript('/static/js/vision-experience.js?v=8.0.0'),
+                window._loadScript('/static/js/computer-control.js?v=8.0.0'),
+            ]);
+        } catch (e) {
+            console.warn('Failed to load chat workspace scripts:', e);
+        }
     }
 
     switch (workspace) {
@@ -711,6 +797,17 @@ async function loadChatHistory() {
             const data = await res.json();
             if (data.sessions && data.sessions.length > 0) {
                 currentSessionId = data.sessions[0].session_id;
+                // Load history for this session
+                const historyRes = await fetch(`/api/chat/history/${currentSessionId}`);
+                const messages = await historyRes.json();
+                const container = document.getElementById('chat-messages');
+                if (container) {
+                    container.innerHTML = '';
+                    for (const msg of messages) {
+                        addChatMessage(msg.role, msg.content);
+                    }
+                }
+                return;
             }
         } catch (_) {}
     }
@@ -894,6 +991,7 @@ async function startNewChat() {
         const data = await res.json();
         if (data.ok && data.session_id) {
             currentSessionId = data.session_id;
+            localStorage.setItem('jarvis_session_id', currentSessionId);
         } else {
             currentSessionId = null;
         }
@@ -1052,6 +1150,7 @@ async function deleteSession(sessionId) {
         if (res.ok) {
             if (currentSessionId === sessionId) {
                 currentSessionId = null;
+                localStorage.removeItem('jarvis_session_id');
                 _resetChatState();
                 const container = document.getElementById('chat-messages');
                 if (container) container.innerHTML = '';
@@ -1110,7 +1209,7 @@ async function _loadHomeContext() {
             const active = projects.find(p => p.status === 'active') || projects[0];
             el.textContent = active.goal || active.name || '';
         }
-    } catch (_) {}
+    } catch (e) { console.warn('Failed to load project context:', e); }
 }
 
 async function _loadHomeRecent() {
@@ -1118,7 +1217,7 @@ async function _loadHomeRecent() {
     const section = document.getElementById('home-recent-section');
     if (!list || !section) return;
     try {
-        const res = await fetch('/api/sessions');
+        const res = await fetch('/api/chat/sessions');
         const data = await res.json();
         const sessions = data.sessions || data || [];
         if (sessions.length === 0) {
@@ -1131,7 +1230,8 @@ async function _loadHomeRecent() {
                 <span>${s.title || s.name || 'Untitled conversation'}</span>
             </div>
         `).join('');
-    } catch (_) {
+    } catch (e) {
+        console.warn('Failed to load recent sessions:', e);
         section.style.display = 'none';
     }
 }
@@ -1156,15 +1256,20 @@ function sendHomeMessage(text) {
     const message = text || (input ? input.value.trim() : '');
     if (!message) return;
     if (input) input.value = '';
-    switchWorkspace('chat');
-    setTimeout(() => {
-        const chatInput = document.getElementById('chat-input');
-        if (chatInput) {
-            chatInput.value = message;
-            chatInput.dispatchEvent(new Event('input'));
-        }
-        sendMessage(message);
-    }, 100);
+    
+    // Switch to chat workspace and send message
+    switchWorkspace('chat').then(() => {
+        // Wait for chat workspace to be fully loaded
+        setTimeout(() => {
+            const chatInput = document.getElementById('message-input');
+            if (chatInput) {
+                chatInput.value = message;
+                chatInput.dispatchEvent(new Event('input'));
+                // Call the internal send function that uses the input value
+                sendMessage();
+            }
+        }, 100);
+    });
 }
 
 /* ---- Init ---- */
@@ -1195,25 +1300,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize living interface (WebSocket events)
     try {
         window.livingUI = new LivingInterface();
+        if (window.livingUI.connectEvents) {
+            window.livingUI.connectEvents();
+        }
     } catch (e) { console.warn('LivingInterface:', e); }
 
     // Lazy-load explainability + mission DAG (not needed on initial load)
     window._loadScript('/static/js/explainability.js?v=8.0.0').then(() => {
-        try { window.explainability = new ExplainabilityOverlay(); } catch (e) {}
+        try { window.explainability = new ExplainabilityOverlay(); } catch (e) { console.warn('Explainability init failed:', e); }
     }).catch(() => {});
     window._loadScript('/static/js/mission-dag.js?v=8.0.0').then(() => {
         try {
             window.missionDAG = new MissionDAG(document.getElementById('mission-dag-container'));
             window.missionDAG.init();
-        } catch (e) {}
+        } catch (e) { console.warn('MissionDAG init failed:', e); }
     }).catch(() => {});
     window._loadScript('/static/js/mission-timeline.js?v=8.0.0').catch(() => {});
     window._loadScript('/static/js/graph-3d.js?v=8.0.0').then(() => {
         if (window.Graph3D) {
-            goldenCore = new Graph3D(document.getElementById('golden-core-container'));
-            goldenCore.init();
-            goldenCore.loadData();
-            goldenCore.start();
+            try {
+                goldenCore = new Graph3D(document.getElementById('golden-core-container'));
+                goldenCore.init();
+                goldenCore.loadData();
+                goldenCore.start();
+            } catch (e) {
+                console.warn('Golden core visualization unavailable:', e);
+            }
         }
     }).catch(() => {});
     window._loadScript('/static/js/digital-twin.js?v=8.0.0').then(() => {
@@ -1229,7 +1341,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Wire up state changes to all visual systems
     if (window.jarvisState) {
         window.jarvisState.onStateChange(state => {
-            if (goldenCore) goldenCore.setState(state);
+            if (window.goldenCore) window.goldenCore.setState(state);
             if (window.livingUI) window.livingUI.setState(state);
         });
     }
@@ -1248,11 +1360,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.workspaceMgr._hydrate();
     }
 
+    applyDeveloperMode(localStorage.getItem('jarvis_developer_mode') === '1');
+
     // Wire up workspace navigation
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             if (btn.dataset.workspace) {
-                if (btn.dataset.workspace === 'chat' && currentWorkspace === 'chat') {
+                if (btn.id === 'dev-mode-toggle') {
+                    toggleDeveloperMode();
+                } else if (btn.dataset.workspace === 'chat' && currentWorkspace === 'chat') {
                     startNewChat();
                 } else {
                     switchWorkspace(btn.dataset.workspace);
@@ -1288,8 +1404,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize home workspace
     _initHome();
 
-    // Health polling
-    setInterval(_refreshHealth, 10000);
+    // Health polling (stored for cleanup)
+    _healthInterval = setInterval(_refreshHealth, 10000);
     _refreshHealth();
 
     // Load session list for chat sidebar
@@ -1338,6 +1454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'D') {
             e.preventDefault();
+            toggleDeveloperMode();
         }
         if (e.key === 'Escape') {
             const ov = document.getElementById('settings-overlay');

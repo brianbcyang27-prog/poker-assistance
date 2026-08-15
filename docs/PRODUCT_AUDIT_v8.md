@@ -92,10 +92,10 @@ Routers define endpoints that no frontend JS ever calls:
 ### 9. Four Broken Imports in living_dashboard/manager.py
 
 ```python
-from jarvis.memory import MemoryStore      # MemoryStore doesn't exist
-from jarvis.journal import Journal          # Journal doesn't exist (JournalEngine does)
+from jarvis.memory import MemoryStore  # MemoryStore doesn't exist
+from jarvis.journal import Journal  # Journal doesn't exist (JournalEngine does)
 from jarvis.suggestions import SuggestionEngine  # get_active() doesn't exist
-from jarvis.agents import AgentRegistry     # AgentRegistry doesn't exist
+from jarvis.agents import AgentRegistry  # AgentRegistry doesn't exist
 ```
 
 All wrapped in `try/except: return []` — silently returns empty data forever.

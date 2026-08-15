@@ -7,16 +7,26 @@ profile = ApplicationProfile(
     bundle_id="com.microsoft.VSCode",
     executable="Code",
     category="editor",
-
     common_buttons=[
-        "Explorer", "Search", "Source Control", "Run", "Extensions",
-        "Close", "Minimize", "Maximize",
+        "Explorer",
+        "Search",
+        "Source Control",
+        "Run",
+        "Extensions",
+        "Close",
+        "Minimize",
+        "Maximize",
     ],
-
     common_menus=[
-        "File", "Edit", "Selection", "View", "Go", "Run", "Terminal", "Help",
+        "File",
+        "Edit",
+        "Selection",
+        "View",
+        "Go",
+        "Run",
+        "Terminal",
+        "Help",
     ],
-
     common_shortcuts={
         "command_palette": "Shift+Cmd+P",
         "quick_open": "Cmd+P",
@@ -41,7 +51,6 @@ profile = ApplicationProfile(
         "toggle_focus_editor": "Cmd+1",
         "toggle_focus_terminal": "Ctrl+`",
     },
-
     workflows={
         "open_file": ["Cmd+P", "Type filename", "Press Enter"],
         "open_folder": ["Cmd+O", "Select folder in dialog"],
@@ -53,7 +62,6 @@ profile = ApplicationProfile(
         "open_terminal": ["Ctrl+`"],
         "git_commit": ["Source Control panel", "Type message", "Cmd+Enter to commit"],
     },
-
     interaction_notes=(
         "VS Code has a rich UI: Activity Bar (left), Editor (center), Panel (bottom), "
         "Status Bar (bottom). The Command Palette (Shift+Cmd+P) gives access to all commands. "

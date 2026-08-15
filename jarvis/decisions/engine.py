@@ -1,9 +1,8 @@
 """Decision memory engine for JARVIS v5.4.0."""
+
 import json
 import logging
 import os
-import time
-from typing import Dict, List, Optional, Any
 
 from .models import Decision, DecisionQuery
 
@@ -16,10 +15,10 @@ DECISIONS_FILE = "decisions.json"
 class DecisionEngine:
     """Persistent decision memory backed by JSON storage."""
 
-    def __init__(self, storage_dir: Optional[str] = None) -> None:
+    def __init__(self, storage_dir: str | None = None) -> None:
         self._storage_dir = storage_dir or DEFAULT_STORAGE_DIR
         self._store_path = os.path.join(self._storage_dir, DECISIONS_FILE)
-        self._decisions: Dict[str, Decision] = {}
+        self._decisions: dict[str, Decision] = {}
         self._loaded = False
 
     async def load(self) -> None:
@@ -31,11 +30,9 @@ class DecisionEngine:
             self._decisions = {}
             return
         try:
-            with open(self._store_path, "r") as f:
+            with open(self._store_path) as f:
                 data = json.load(f)
-            self._decisions = {
-                k: Decision.from_dict(v) for k, v in data.items()
-            }
+            self._decisions = {k: Decision.from_dict(v) for k, v in data.items()}
             self._loaded = True
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning("Failed to load decisions: %s", exc)
@@ -63,11 +60,11 @@ class DecisionEngine:
         title: str,
         description: str = "",
         reason: str = "",
-        alternatives: Optional[List[str]] = None,
+        alternatives: list[str] | None = None,
         chosen_option: str = "",
         impact: str = "medium",
-        related_entities: Optional[List[str]] = None,
-        tags: Optional[List[str]] = None,
+        related_entities: list[str] | None = None,
+        tags: list[str] | None = None,
     ) -> Decision:
         """Record a new decision."""
         decision = Decision(
@@ -84,13 +81,13 @@ class DecisionEngine:
         await self.save()
         return decision
 
-    async def get(self, decision_id: str) -> Optional[Decision]:
+    async def get(self, decision_id: str) -> Decision | None:
         """Retrieve a decision by ID."""
         return self._decisions.get(decision_id)
 
-    async def query(self, q: DecisionQuery) -> List[Decision]:
+    async def query(self, q: DecisionQuery) -> list[Decision]:
         """Query decisions with filters."""
-        results: List[Decision] = []
+        results: list[Decision] = []
         for d in self._decisions.values():
             if q.status and d.status != q.status:
                 continue
@@ -108,7 +105,7 @@ class DecisionEngine:
         results.sort(key=lambda d: d.timestamp, reverse=True)
         return results[: q.limit]
 
-    async def update_outcome(self, decision_id: str, outcome: str) -> Optional[Decision]:
+    async def update_outcome(self, decision_id: str, outcome: str) -> Decision | None:
         """Update the outcome of a decision."""
         d = self._decisions.get(decision_id)
         if not d:
@@ -142,7 +139,7 @@ class DecisionEngine:
         await self.save()
         return new
 
-    async def reverse(self, decision_id: str, reason: str = "") -> Optional[Decision]:
+    async def reverse(self, decision_id: str, reason: str = "") -> Decision | None:
         """Mark a decision as reversed."""
         d = self._decisions.get(decision_id)
         if not d:
@@ -153,39 +150,39 @@ class DecisionEngine:
         await self.save()
         return d
 
-    async def why(self, entity_id: str) -> List[Decision]:
+    async def why(self, entity_id: str) -> list[Decision]:
         """Find all active decisions related to an entity."""
         return [
-            d for d in self._decisions.values()
+            d
+            for d in self._decisions.values()
             if entity_id in d.related_entities and d.status == "active"
         ]
 
-    async def get_active(self) -> List[Decision]:
+    async def get_active(self) -> list[Decision]:
         """Return all active decisions."""
         return [d for d in self._decisions.values() if d.status == "active"]
 
-    async def get_by_impact(self, impact: str) -> List[Decision]:
+    async def get_by_impact(self, impact: str) -> list[Decision]:
         """Return decisions filtered by impact level."""
         return [d for d in self._decisions.values() if d.impact == impact]
 
-    async def get_recent(self, n: int = 10) -> List[Decision]:
+    async def get_recent(self, n: int = 10) -> list[Decision]:
         """Return the N most recent decisions."""
-        sorted_d = sorted(
-            self._decisions.values(), key=lambda d: d.timestamp, reverse=True
-        )
+        sorted_d = sorted(self._decisions.values(), key=lambda d: d.timestamp, reverse=True)
         return sorted_d[:n]
 
-    async def search(self, query: str) -> List[Decision]:
+    async def search(self, query: str) -> list[Decision]:
         """Simple substring search across titles, descriptions, and reasons."""
         q = query.lower()
         return [
-            d for d in self._decisions.values()
+            d
+            for d in self._decisions.values()
             if q in d.title.lower()
             or q in d.description.lower()
             or q in d.reason.lower()
             or q in d.chosen_option.lower()
         ]
 
-    async def get_all(self) -> List[Decision]:
+    async def get_all(self) -> list[Decision]:
         """Return all decisions."""
         return list(self._decisions.values())

@@ -1,12 +1,13 @@
 """Mission replay data models."""
+
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class MissionEventType(str, Enum):
+class MissionEventType(StrEnum):
     STARTED = "started"
     RESEARCH = "research"
     PLAN = "plan"
@@ -30,7 +31,7 @@ class MissionEvent:
     duration_ms: int = 0
     agent_id: str = ""
     success: bool = True
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.id:
@@ -58,10 +59,10 @@ class MissionReport:
     mission_id: str = ""
     goal: str = ""
     plan: str = ""
-    actions: List[MissionEvent] = field(default_factory=list)
-    problems: List[MissionEvent] = field(default_factory=list)
+    actions: list[MissionEvent] = field(default_factory=list)
+    problems: list[MissionEvent] = field(default_factory=list)
     verification: str = ""
-    lessons: List[str] = field(default_factory=list)
+    lessons: list[str] = field(default_factory=list)
     outcome: str = ""  # success, partial, failed
     duration_seconds: float = 0.0
     total_events: int = 0
@@ -84,23 +85,26 @@ class MissionReport:
             "completed_at": self.completed_at,
         }
 
-    def to_timeline(self) -> List[Dict[str, Any]]:
+    def to_timeline(self) -> list[dict[str, Any]]:
         """Format as timeline for UI display."""
         all_events = self.actions + self.problems
         all_events.sort(key=lambda e: e.timestamp)
-        return [{
-            "time": time.strftime("%H:%M", time.localtime(e.timestamp)),
-            "type": e.event_type,
-            "title": e.title,
-            "description": e.description[:200],
-            "success": e.success,
-        } for e in all_events]
+        return [
+            {
+                "time": time.strftime("%H:%M", time.localtime(e.timestamp)),
+                "type": e.event_type,
+                "title": e.title,
+                "description": e.description[:200],
+                "success": e.success,
+            }
+            for e in all_events
+        ]
 
 
 @dataclass
 class MissionReplayQuery:
     mission_id: str = ""
-    event_types: List[str] = field(default_factory=list)
+    event_types: list[str] = field(default_factory=list)
     start_time: float = 0.0
     end_time: float = 0.0
     agent_id: str = ""

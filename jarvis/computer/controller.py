@@ -2,9 +2,8 @@
 
 import asyncio
 import tempfile
-import subprocess
-from typing import Optional
 
+from jarvis.core.reliability import CircuitBreakerOpenError, circuit_breaker
 from jarvis.core.reliability import config as reliability_config
 
 from .browser import browser
@@ -22,25 +21,59 @@ class ComputerController:
         self.screen = screen
         self.search = web_search
         self._initialized = False
+        self._snapshot_history: list[dict] = []
+        self._snapshot_max = 200
 
     def list_actions(self) -> list[str]:
         """Return list of available action names."""
         return [
-            "register_project", "list_projects", "get_active_project",
-            "record_activity", "resume_project", "open_terminal",
-            "browser_navigate", "browser_click", "browser_type",
-            "browser_screenshot", "browser_get_text", "browser_text", "browser_fill", "browser_scroll",
-            "browser_press_key", "browser_evaluate",
-            "screen_capture", "screen_capture_region", "screen_get_active_window",
-            "screen_active_window", "screen_open_app", "screen_open_url",
+            "register_project",
+            "list_projects",
+            "get_active_project",
+            "record_activity",
+            "resume_project",
+            "open_terminal",
+            "browser_navigate",
+            "browser_click",
+            "browser_type",
+            "browser_screenshot",
+            "browser_get_text",
+            "browser_text",
+            "browser_fill",
+            "browser_scroll",
+            "browser_press_key",
+            "browser_evaluate",
+            "screen_capture",
+            "screen_capture_region",
+            "screen_get_active_window",
+            "screen_active_window",
+            "screen_open_app",
+            "screen_open_url",
             "screen_list_windows",
-            "mouse_move", "mouse_click", "mouse_drag", "mouse_scroll",
-            "keyboard_type", "keyboard_press", "keyboard_hotkey",
-            "type_text", "hotkey", "press_key",
-            "list_files", "read_file", "write_file", "create_file", "file_exists",
-            "file_list", "file_read", "file_write", "file_create",
-            "shell_execute", "web_search", "web_fetch",
-            "arduino_send", "arduino_list",
+            "mouse_move",
+            "mouse_click",
+            "mouse_drag",
+            "mouse_scroll",
+            "keyboard_type",
+            "keyboard_press",
+            "keyboard_hotkey",
+            "type_text",
+            "hotkey",
+            "press_key",
+            "list_files",
+            "read_file",
+            "write_file",
+            "create_file",
+            "file_exists",
+            "file_list",
+            "file_read",
+            "file_write",
+            "file_create",
+            "shell_execute",
+            "web_search",
+            "web_fetch",
+            "arduino_send",
+            "arduino_list",
         ]
 
     async def initialize(self):
@@ -53,9 +86,15 @@ class ComputerController:
         """Execute an action."""
         action = self._normalize_action(action)
         if not self._initialized and action not in (
-            "search", "open_url", "open_app",
-            "register_project", "list_projects", "get_active_project",
-            "record_activity", "resume_project", "open_terminal",
+            "search",
+            "open_url",
+            "open_app",
+            "register_project",
+            "list_projects",
+            "get_active_project",
+            "record_activity",
+            "resume_project",
+            "open_terminal",
         ):
             await self.initialize()
 
@@ -67,7 +106,6 @@ class ComputerController:
             "record_activity": self._record_activity,
             "resume_project": self._resume_project,
             "open_terminal": self._open_terminal,
-
             # Browser
             "browser_navigate": self._browser_navigate,
             "browser_click": self._browser_click,
@@ -77,13 +115,11 @@ class ComputerController:
             "browser_scroll": self._browser_scroll,
             "browser_press_key": self._browser_press_key,
             "browser_evaluate": self._browser_evaluate,
-
             # Screen
             "screen_capture": self._screen_capture,
             "screen_capture_region": self._screen_capture_region,
             "screen_get_active_window": self._screen_get_active_window,
             "screen_list_windows": self._screen_list_windows,
-
             # Mouse/keyboard
             "mouse_click": self._mouse_click,
             "mouse_move": self._mouse_move,
@@ -94,25 +130,20 @@ class ComputerController:
             "scroll": self._scroll,
             "get_mouse_position": self._get_mouse_position,
             "get_screen_size": self._get_screen_size,
-
             # App
             "open_app": self._open_app,
             "open_url": self._open_url,
-
             # Files
             "list_files": self._list_files,
             "read_file": self._read_file,
             "write_file": self._write_file,
             "create_file": self._create_file,
             "file_exists": self._file_exists,
-
             # Shell
             "shell_execute": self._shell_execute,
-
             # Search
             "web_search": self._web_search,
             "web_fetch": self._web_fetch,
-
             # Workflow
             "task_complete": self._task_complete,
         }
@@ -122,7 +153,18 @@ class ComputerController:
             return {"ok": False, "error": f"Unknown action: {action}"}
 
         try:
-            return await handler(**params)
+            # Pre-action snapshot
+            await self._capture_snapshot(action, params)
+            async with circuit_breaker(
+                f"tool:{action}", failure_threshold=3, recovery_timeout=30.0
+            ):
+                return await handler(**params)
+        except CircuitBreakerOpenError:
+            return {
+                "ok": False,
+                "error": f"Tool '{action}' is temporarily disabled (circuit breaker open)",
+                "circuit_open": True,
+            }
         except Exception as e:
             return {"ok": False, "error": str(e), "action": action}
 
@@ -162,6 +204,7 @@ class ComputerController:
         **kw,
     ):
         from ..brain.project_memory import project_memory
+
         project = await project_memory.register_project(
             name=name,
             path=path,
@@ -177,11 +220,13 @@ class ComputerController:
 
     async def _list_projects(self, status: str = None, **kw):
         from ..brain.project_memory import project_memory
+
         projects = await project_memory.list_projects(status=status)
         return {"ok": True, "projects": projects}
 
     async def _get_active_project(self, **kw):
         from ..brain.project_memory import project_memory
+
         project = await project_memory.get_active_project()
         if project:
             return {"ok": True, "project": project}
@@ -189,12 +234,13 @@ class ComputerController:
 
     async def _record_activity(self, name: str = "", **kw):
         from ..brain.project_memory import project_memory
+
         await project_memory.record_activity(name)
         return {"ok": True}
 
     async def _resume_project(self, name: str = None, **kw):
         """Resume a project: open terminal in project dir, browser, AI tool.
-        
+
         Server is NOT auto-started — user runs it manually for stability.
         """
         from ..brain.project_memory import project_memory
@@ -211,7 +257,11 @@ class ComputerController:
 
         commands = project_memory.build_resume_commands(project)
         if not commands:
-            return {"ok": True, "message": "No auto-launch commands configured", "project": project["name"]}
+            return {
+                "ok": True,
+                "message": "No auto-launch commands configured",
+                "project": project["name"],
+            }
 
         script = project_memory.build_resume_script(project)
         if not script:
@@ -223,7 +273,7 @@ class ComputerController:
             f.flush()
             script_path = f.name
 
-        proc = await asyncio.create_subprocess_shell(
+        await asyncio.create_subprocess_shell(
             f"bash {script_path}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -246,10 +296,10 @@ class ComputerController:
         escaped_title = title.replace('"', '\\"')
         apple_script = (
             f'tell application "Terminal"\n'
-            f'  activate\n'
+            f"  activate\n"
             f'  do script "{escaped_cmd}"\n'
             f'  set custom title of front window to "{escaped_title}"\n'
-            f'end tell'
+            f"end tell"
         )
         proc = await asyncio.create_subprocess_shell(
             f"osascript -e '{apple_script}'",
@@ -290,7 +340,9 @@ class ComputerController:
     async def _screen_capture(self, name: str = None, **kw):
         return await self.screen.capture(name)
 
-    async def _screen_capture_region(self, x: int = 0, y: int = 0, width: int = 800, height: int = 600, **kw):
+    async def _screen_capture_region(
+        self, x: int = 0, y: int = 0, width: int = 800, height: int = 600, **kw
+    ):
         return await self.screen.capture_region(x, y, width, height)
 
     async def _screen_get_active_window(self, **kw):
@@ -343,6 +395,7 @@ class ComputerController:
     async def _list_files(self, path: str = ".", **kw):
         """List files in a directory."""
         from pathlib import Path
+
         try:
             p = Path(path).expanduser()
             if not p.exists():
@@ -351,12 +404,14 @@ class ComputerController:
                 return {"ok": False, "error": f"Not a directory: {path}"}
             items = []
             for item in sorted(p.iterdir()):
-                items.append({
-                    "name": item.name,
-                    "type": "directory" if item.is_dir() else "file",
-                    "path": str(item),
-                    "size": item.stat().st_size if item.is_file() else 0,
-                })
+                items.append(
+                    {
+                        "name": item.name,
+                        "type": "directory" if item.is_dir() else "file",
+                        "path": str(item),
+                        "size": item.stat().st_size if item.is_file() else 0,
+                    }
+                )
             return {"ok": True, "files": items, "count": len(items)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -364,6 +419,7 @@ class ComputerController:
     async def _read_file(self, path: str = "", max_size: int = 100000, **kw):
         """Read a file's contents."""
         from pathlib import Path
+
         try:
             p = Path(path).expanduser()
             if not p.exists():
@@ -378,6 +434,7 @@ class ComputerController:
     async def _write_file(self, path: str = "", content: str = "", **kw):
         """Write content to a file."""
         from pathlib import Path
+
         try:
             p = Path(path).expanduser()
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -393,6 +450,7 @@ class ComputerController:
     async def _file_exists(self, path: str = "", **kw):
         """Check if a file exists."""
         from pathlib import Path
+
         try:
             p = Path(path).expanduser()
             return {"ok": True, "exists": p.exists(), "path": str(p)}
@@ -409,14 +467,16 @@ class ComputerController:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.browser_timeout)
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=reliability_config.browser_timeout
+            )
             return {
                 "ok": proc.returncode == 0,
                 "stdout": stdout.decode("utf-8", errors="replace")[:4000],
                 "stderr": stderr.decode("utf-8", errors="replace")[:2000],
                 "returncode": proc.returncode,
             }
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return {"ok": False, "error": "Command timed out (30s)"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -433,6 +493,34 @@ class ComputerController:
 
     async def _task_complete(self, summary: str = "", **kw):
         return {"ok": True, "task_complete": True, "summary": summary}
+
+    async def _capture_snapshot(self, action: str, params: dict) -> None:
+        """Capture pre-action state snapshot (best-effort — failures are silently caught)."""
+        snapshot: dict = {
+            "timestamp": __import__("time").time(),
+            "action": action,
+            "params": {k: v for k, v in params.items() if k != "password"},
+        }
+        try:
+            window = await self.screen.get_active_window()
+            if isinstance(window, dict):
+                snapshot["active_window"] = window.get("title", "") or window.get("app", "")
+        except Exception:
+            pass
+        if self._initialized:
+            try:
+                ss = await self.screen.capture(name=f"pre_{action}")
+                if isinstance(ss, dict) and ss.get("path"):
+                    snapshot["screenshot"] = ss["path"]
+            except Exception:
+                pass
+        self._snapshot_history.append(snapshot)
+        if len(self._snapshot_history) > self._snapshot_max:
+            self._snapshot_history.pop(0)
+
+    def get_snapshots(self, limit: int = 50) -> list[dict]:
+        """Return the most recent pre-action snapshots."""
+        return list(self._snapshot_history[-limit:])
 
     async def shutdown(self):
         if self._initialized:

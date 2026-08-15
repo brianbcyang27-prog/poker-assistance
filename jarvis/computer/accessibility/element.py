@@ -13,13 +13,13 @@ This is the foundation of semantic computer control.
 """
 
 import time
-from enum import Enum
 from dataclasses import dataclass, field
-from typing import Optional
+from enum import StrEnum
 
 
-class ElementType(str, Enum):
+class ElementType(StrEnum):
     """Types of UI elements."""
+
     BUTTON = "button"
     MENU = "menu"
     MENU_ITEM = "menu_item"
@@ -48,8 +48,9 @@ class ElementType(str, Enum):
     UNKNOWN = "unknown"
 
 
-class ElementState(str, Enum):
+class ElementState(StrEnum):
     """State flags for UI elements."""
+
     ENABLED = "enabled"
     DISABLED = "disabled"
     FOCUSED = "focused"
@@ -79,15 +80,16 @@ class UIElement:
         if element.matches("export"):
             element.click()
     """
+
     # Identity
     id: str = ""
-    name: str = ""              # Display name/label
-    description: str = ""       # Accessibility description
-    role: str = ""              # Raw accessibility role (AXButton, etc.)
+    name: str = ""  # Display name/label
+    description: str = ""  # Accessibility description
+    role: str = ""  # Raw accessibility role (AXButton, etc.)
 
     # Type
     type: str = ElementType.UNKNOWN
-    sub_type: str = ""          # e.g., "submit" for buttons
+    sub_type: str = ""  # e.g., "submit" for buttons
 
     # State
     states: set = field(default_factory=set)
@@ -96,18 +98,18 @@ class UIElement:
     bounds: dict = field(default_factory=dict)  # {x, y, width, height}
 
     # Context
-    app: str = ""               # Application name
-    window: str = ""            # Window title
-    parent_id: str = ""         # Parent element ID
+    app: str = ""  # Application name
+    window: str = ""  # Window title
+    parent_id: str = ""  # Parent element ID
     children_ids: list = field(default_factory=list)
 
     # Value
-    value: str = ""             # Current value (for text fields, checkboxes)
-    placeholder: str = ""       # Placeholder text
+    value: str = ""  # Current value (for text fields, checkboxes)
+    placeholder: str = ""  # Placeholder text
 
     # Metadata
-    depth: int = 0              # Nesting depth in tree
-    index: int = 0              # Sibling index
+    depth: int = 0  # Nesting depth in tree
+    index: int = 0  # Sibling index
     created_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
@@ -170,9 +172,15 @@ class UIElement:
     def is_clickable(self) -> bool:
         """Check if this element can be clicked."""
         clickable_types = {
-            ElementType.BUTTON, ElementType.MENU_ITEM, ElementType.LINK,
-            ElementType.CHECKBOX, ElementType.RADIO_BUTTON, ElementType.TAB,
-            ElementType.LIST_ITEM, ElementType.TABLE_ROW, ElementType.TABLE_CELL,
+            ElementType.BUTTON,
+            ElementType.MENU_ITEM,
+            ElementType.LINK,
+            ElementType.CHECKBOX,
+            ElementType.RADIO_BUTTON,
+            ElementType.TAB,
+            ElementType.LIST_ITEM,
+            ElementType.TABLE_ROW,
+            ElementType.TABLE_CELL,
         }
         if self.type in clickable_types:
             return ElementState.ENABLED in self.states or not self.states
@@ -181,7 +189,8 @@ class UIElement:
     def is_typeable(self) -> bool:
         """Check if this element can receive text input."""
         typeable_types = {
-            ElementType.TEXT_FIELD, ElementType.TEXT_AREA,
+            ElementType.TEXT_FIELD,
+            ElementType.TEXT_AREA,
         }
         return self.type in typeable_types
 
@@ -189,7 +198,7 @@ class UIElement:
         """Check if element has valid position data."""
         return bool(self.bounds) and self.bounds.get("width", 0) > 0
 
-    def center(self) -> Optional[tuple]:
+    def center(self) -> tuple | None:
         """Get the center point of this element."""
         if not self.has_bounds():
             return None
@@ -206,5 +215,7 @@ class UIElement:
             parts.append(f"[{','.join(self.states)}]")
         if self.has_bounds():
             b = self.bounds
-            parts.append(f"({b.get('x',0)},{b.get('y',0)} {b.get('width',0)}x{b.get('height',0)})")
+            parts.append(
+                f"({b.get('x', 0)},{b.get('y', 0)} {b.get('width', 0)}x{b.get('height', 0)})"
+            )
         return " ".join(parts)

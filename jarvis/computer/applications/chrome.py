@@ -7,17 +7,26 @@ profile = ApplicationProfile(
     bundle_id="com.google.Chrome",
     executable="Google Chrome",
     category="browser",
-
     common_buttons=[
-        "Back", "Forward", "Reload", "Home",
-        "New Tab", "New Window", "Bookmarks",
+        "Back",
+        "Forward",
+        "Reload",
+        "Home",
+        "New Tab",
+        "New Window",
+        "Bookmarks",
     ],
-
     common_menus=[
-        "Chrome", "File", "Edit", "View", "History", "Bookmarks",
-        "Profiles", "Window", "Help",
+        "Chrome",
+        "File",
+        "Edit",
+        "View",
+        "History",
+        "Bookmarks",
+        "Profiles",
+        "Window",
+        "Help",
     ],
-
     common_shortcuts={
         "new_tab": "Cmd+T",
         "new_window": "Cmd+N",
@@ -45,16 +54,19 @@ profile = ApplicationProfile(
         "focus_console": "Cmd+Option+J",
         "view_source": "Cmd+U",
     },
-
     workflows={
         "navigate": ["Click address bar (Cmd+L)", "Type URL", "Press Enter"],
         "search": ["Click address bar (Cmd+L)", "Type search query", "Press Enter"],
         "open_devtools": ["Cmd+Option+I"],
         "inspect_element": ["Right-click element", "Select Inspect"],
         "take_screenshot": ["Cmd+Shift+S (if extension installed)"],
-        "clear_cache": ["Shift+Cmd+R", "Open DevTools", "Right-click reload", "Empty Cache and Hard Reload"],
+        "clear_cache": [
+            "Shift+Cmd+R",
+            "Open DevTools",
+            "Right-click reload",
+            "Empty Cache and Hard Reload",
+        ],
     },
-
     interaction_notes=(
         "Chrome has tabs at the top, address bar, and extension icons. "
         "The DevTools (Cmd+Option+I) expose the DOM tree, console, network, etc. "

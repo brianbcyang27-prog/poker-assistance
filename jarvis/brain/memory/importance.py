@@ -13,9 +13,7 @@ Scoring signals:
 - Temporary information (0)
 """
 
-import re
 import logging
-from typing import Optional
 
 log = logging.getLogger("jarvis.memory.importance")
 
@@ -89,7 +87,7 @@ class ImportanceScorer:
     def score(
         self,
         text: str,
-        context: Optional[dict] = None,
+        context: dict | None = None,
     ) -> float:
         """Compute importance score for content.
 

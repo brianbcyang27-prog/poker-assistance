@@ -11,9 +11,10 @@ Automatically assembles context from ALL available sources:
 - Execution history
 - Relevant files
 """
+
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .models import BrainContext, MemoryEntry
 
@@ -42,7 +43,7 @@ class BrainContextManager:
         self,
         goal: str,
         project_name: str = "",
-        tools: Optional[List[str]] = None,
+        tools: list[str] | None = None,
     ) -> BrainContext:
         """Assemble complete context from ALL subsystems automatically."""
         prefs = await self.get_preferences()
@@ -54,7 +55,7 @@ class BrainContextManager:
 
         # v6.3.0: Pull from additional sources
         mission_history = await self.get_mission_history(goal)
-        working_ctx = await self.get_working_memory_context()
+        await self.get_working_memory_context()
         execution_history = await self.get_execution_history(goal)
 
         confidence = 0.5
@@ -87,7 +88,7 @@ class BrainContextManager:
             timestamp=time.time(),
         )
 
-    async def get_preferences(self) -> Dict[str, str]:
+    async def get_preferences(self) -> dict[str, str]:
         """Flatten all preferences into a simple key->value dict."""
         if not self._preferences:
             return {}
@@ -98,34 +99,32 @@ class BrainContextManager:
             logger.debug("Failed to get preferences: %s", exc)
             return {}
 
-    async def get_relevant_memories(
-        self, query: str, limit: int = 5
-    ) -> List[MemoryEntry]:
+    async def get_relevant_memories(self, query: str, limit: int = 5) -> list[MemoryEntry]:
         """Search the knowledge graph for memories matching the query."""
         if not self._kg:
             return []
         try:
             entities = await self._kg.search_entities(query, limit=limit)
-            results: List[MemoryEntry] = []
+            results: list[MemoryEntry] = []
             for e in entities:
-                results.append(MemoryEntry(
-                    id=e.id,
-                    content=f"{e.name}: {e.description}",
-                    source="knowledge_graph",
-                    memory_type=e.entity_type,
-                    importance=e.importance,
-                    confidence=e.confidence,
-                    related_entities=[],
-                    metadata=e.metadata,
-                ))
+                results.append(
+                    MemoryEntry(
+                        id=e.id,
+                        content=f"{e.name}: {e.description}",
+                        source="knowledge_graph",
+                        memory_type=e.entity_type,
+                        importance=e.importance,
+                        confidence=e.confidence,
+                        related_entities=[],
+                        metadata=e.metadata,
+                    )
+                )
             return results
         except Exception as exc:
             logger.debug("Failed to get relevant memories: %s", exc)
             return []
 
-    async def get_previous_attempts(
-        self, goal: str, limit: int = 5
-    ) -> List[Dict[str, Any]]:
+    async def get_previous_attempts(self, goal: str, limit: int = 5) -> list[dict[str, Any]]:
         """Find past attempts related to this goal."""
         if not self._decisions:
             return []
@@ -133,7 +132,8 @@ class BrainContextManager:
             q_lower = goal.lower()
             recent = await self._decisions.get_recent(n=limit * 3)
             matching = [
-                d.to_dict() for d in recent
+                d.to_dict()
+                for d in recent
                 if q_lower in d.title.lower()
                 or q_lower in d.description.lower()
                 or q_lower in d.reason.lower()
@@ -143,9 +143,7 @@ class BrainContextManager:
             logger.debug("Failed to get previous attempts: %s", exc)
             return []
 
-    async def get_project_context(
-        self, project_name: str
-    ) -> Dict[str, Any]:
+    async def get_project_context(self, project_name: str) -> dict[str, Any]:
         """Retrieve context for a named project."""
         if not self._kg or not project_name:
             return {}
@@ -161,9 +159,7 @@ class BrainContextManager:
             logger.debug("Failed to get project context: %s", exc)
             return {"name": project_name}
 
-    async def get_recent_decisions(
-        self, limit: int = 5
-    ) -> List[Any]:
+    async def get_recent_decisions(self, limit: int = 5) -> list[Any]:
         """Get the most recent decisions."""
         if not self._decisions:
             return []
@@ -173,9 +169,7 @@ class BrainContextManager:
             logger.debug("Failed to get recent decisions: %s", exc)
             return []
 
-    async def get_recent_events(
-        self, limit: int = 5
-    ) -> List[Any]:
+    async def get_recent_events(self, limit: int = 5) -> list[Any]:
         """Get the most recent timeline events."""
         if not self._timeline:
             return []
@@ -185,14 +179,16 @@ class BrainContextManager:
             logger.debug("Failed to get recent events: %s", exc)
             return []
 
-    async def get_mission_history(self, goal: str, limit: int = 3) -> List[Dict[str, Any]]:
+    async def get_mission_history(self, goal: str, limit: int = 3) -> list[dict[str, Any]]:
         """Find past missions related to this goal for resumption context."""
         try:
             from ...mission.manager import mission_manager
+
             missions = await mission_manager.list_completed()
             q_lower = goal.lower()
             related = [
-                m for m in missions
+                m
+                for m in missions
                 if q_lower in m.get("goal", "").lower()
                 or q_lower in m.get("user_request", "").lower()
             ]
@@ -201,25 +197,27 @@ class BrainContextManager:
             logger.debug("Failed to get related missions: %s", exc)
             return []
 
-    async def get_working_memory_context(self) -> Dict[str, str]:
+    async def get_working_memory_context(self) -> dict[str, str]:
         """Get active working memory slots for immediate context."""
         try:
             from ...brain.memory.working import WorkingMemoryManager
+
             wm = WorkingMemoryManager()
             return await wm.get_context(max_chars=2000)
         except Exception as exc:
             logger.debug("Failed to get working memory: %s", exc)
             return {}
 
-    async def get_execution_history(self, goal: str, limit: int = 3) -> List[Dict[str, Any]]:
+    async def get_execution_history(self, goal: str, limit: int = 3) -> list[dict[str, Any]]:
         """Find recent tool execution results related to this goal."""
         try:
             from ...core.database import get_db
+
             db = await get_db()
             # Search recent task results
             cursor = await db._db.execute(
                 "SELECT * FROM task_history WHERE goal LIKE ? ORDER BY completed_at DESC LIMIT ?",
-                (f"%{goal[:50]}%", limit)
+                (f"%{goal[:50]}%", limit),
             )
             rows = await cursor.fetchall()
             return [dict(r) for r in rows] if rows else []
@@ -231,7 +229,7 @@ class BrainContextManager:
         self,
         goal: str,
         project_name: str = "",
-        tools: Optional[List[str]] = None,
+        tools: list[str] | None = None,
     ) -> str:
         """Build and format context as a string ready for LLM prompt injection."""
         ctx = await self.build_context(goal, project_name, tools)

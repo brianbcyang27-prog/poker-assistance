@@ -1,9 +1,7 @@
 """Screen capture and analysis."""
+
 import asyncio
-import base64
-import subprocess
 from pathlib import Path
-from typing import Optional
 
 SCREENSHOT_DIR = Path("screenshots")
 SCREENSHOT_DIR.mkdir(exist_ok=True)
@@ -12,16 +10,20 @@ SCREENSHOT_DIR.mkdir(exist_ok=True)
 class ScreenController:
     """Captures and analyzes the screen."""
 
-    async def capture(self, name: Optional[str] = None) -> dict:
+    async def capture(self, name: str | None = None) -> dict:
         """Take a screenshot of the entire screen."""
         try:
-            fname = name or f"screen_{int(asyncio.get_event_loop().time())}"
+            import time
+
+            fname = name or f"screen_{int(time.time())}"
             path = SCREENSHOT_DIR / f"{fname}.png"
 
             proc = await asyncio.create_subprocess_exec(
-                "screencapture", "-x", str(path),
+                "screencapture",
+                "-x",
+                str(path),
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             await proc.communicate()
 
@@ -31,16 +33,24 @@ class ScreenController:
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
-    async def capture_region(self, x: int, y: int, width: int, height: int, name: Optional[str] = None) -> dict:
+    async def capture_region(
+        self, x: int, y: int, width: int, height: int, name: str | None = None
+    ) -> dict:
         """Capture a specific region of the screen."""
         try:
-            fname = name or f"region_{int(asyncio.get_event_loop().time())}"
+            import time
+
+            fname = name or f"region_{int(time.time())}"
             path = SCREENSHOT_DIR / f"{fname}.png"
 
             proc = await asyncio.create_subprocess_exec(
-                "screencapture", "-x", "-R", f"{x},{y},{width},{height}", str(path),
+                "screencapture",
+                "-x",
+                "-R",
+                f"{x},{y},{width},{height}",
+                str(path),
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             await proc.communicate()
 
@@ -53,7 +63,7 @@ class ScreenController:
     async def get_active_window(self) -> dict:
         """Get information about the active window."""
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set frontApp to first application process whose frontmost is true
                 set appName to name of frontApp
@@ -63,18 +73,20 @@ class ScreenController:
                 end try
                 return appName & "|||" & windowTitle
             end tell
-            '''
+            """
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             stdout, _ = await proc.communicate()
             parts = stdout.decode().strip().split("|||")
             return {
                 "ok": True,
                 "app": parts[0] if parts else "",
-                "title": parts[1] if len(parts) > 1 else ""
+                "title": parts[1] if len(parts) > 1 else "",
             }
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -83,9 +95,11 @@ class ScreenController:
         """Open an application."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "open", "-a", app_name,
+                "open",
+                "-a",
+                app_name,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             await proc.communicate()
             await asyncio.sleep(1)
@@ -97,9 +111,7 @@ class ScreenController:
         """Open a URL in the default browser."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "open", url,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                "open", url, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
             await proc.communicate()
             return {"ok": True, "url": url}
@@ -109,7 +121,7 @@ class ScreenController:
     async def list_windows(self) -> dict:
         """List all visible windows."""
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set appList to every application process whose visible is true
                 set result to ""
@@ -122,11 +134,13 @@ class ScreenController:
                 end repeat
                 return result
             end tell
-            '''
+            """
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
             )
             stdout, _ = await proc.communicate()
             windows = [w.strip() for w in stdout.decode().strip().split("\n") if w.strip()]

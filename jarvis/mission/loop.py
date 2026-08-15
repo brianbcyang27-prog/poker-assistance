@@ -4,14 +4,12 @@ Implements the observe -> understand -> plan -> act -> verify -> reflect ->
 remember -> improve cycle using JARVISBrain components.
 """
 
-import asyncio
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from .mission import Mission, MissionStatus
-from .replay.recorder import MissionRecorder
 from .replay.models import MissionReport
+from .replay.recorder import MissionRecorder
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +27,7 @@ class AutonomousLoop:
         report = await loop.execute("Build a real-time chat app")
     """
 
-    def __init__(self, brain: Any, storage_dir: Optional[str] = None) -> None:
+    def __init__(self, brain: Any, storage_dir: str | None = None) -> None:
         """
         Args:
             brain: A ``JARVISBrain`` instance providing ``context_manager``,
@@ -38,7 +36,7 @@ class AutonomousLoop:
         """
         self._brain = brain
         self._recorder = MissionRecorder(storage_dir=storage_dir)
-        self._reports: List[MissionReport] = []
+        self._reports: list[MissionReport] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -48,7 +46,7 @@ class AutonomousLoop:
         self,
         goal: str,
         project_name: str = "",
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> MissionReport:
         """Execute the full autonomous loop for a goal.
 
@@ -66,68 +64,95 @@ class AutonomousLoop:
         await self._recorder.start_recording(mission_id, goal)
 
         started_at = time.time()
-        lessons: List[str] = []
+        lessons: list[str] = []
         outcome = "failed"
         verification_text = ""
 
         try:
             # 1. Observe
             await self._recorder.record_event(
-                mission_id, "action", "Observe",
-                "Gathering environment context", agent_id="loop",
+                mission_id,
+                "action",
+                "Observe",
+                "Gathering environment context",
+                agent_id="loop",
             )
             observe_result = await self._observe(goal, project_name, context)
 
             # 2. Understand
             await self._recorder.record_event(
-                mission_id, "action", "Understand",
-                "Analysing context with reasoning", agent_id="loop",
+                mission_id,
+                "action",
+                "Understand",
+                "Analysing context with reasoning",
+                agent_id="loop",
             )
             understand_result = await self._understand(goal, observe_result)
 
             # 3. Plan
             await self._recorder.record_event(
-                mission_id, "plan", "Plan",
-                "Generating action plan", agent_id="loop",
+                mission_id,
+                "plan",
+                "Plan",
+                "Generating action plan",
+                agent_id="loop",
             )
             plan_result = await self._plan(goal, understand_result)
 
             # 4. Act
             await self._recorder.record_event(
-                mission_id, "action", "Act",
-                "Executing action plan", agent_id="loop",
+                mission_id,
+                "action",
+                "Act",
+                "Executing action plan",
+                agent_id="loop",
             )
             act_result = await self._act(plan_result, mission_id)
 
             # 5. Verify
             await self._recorder.record_event(
-                mission_id, "verification", "Verify",
-                "Checking execution results", agent_id="loop",
+                mission_id,
+                "verification",
+                "Verify",
+                "Checking execution results",
+                agent_id="loop",
             )
             verify_result = await self._verify(act_result)
             verification_text = verify_result.get("summary", "")
 
             # 6. Reflect
             await self._recorder.record_event(
-                mission_id, "action", "Reflect",
-                "Analysing mission outcome", agent_id="loop",
+                mission_id,
+                "action",
+                "Reflect",
+                "Analysing mission outcome",
+                agent_id="loop",
             )
             reflect_result = await self._reflect(
-                goal, plan_result, act_result, verify_result,
+                goal,
+                plan_result,
+                act_result,
+                verify_result,
             )
             lessons = reflect_result.get("lessons", [])
 
             # 7. Remember
             await self._recorder.record_event(
-                mission_id, "lesson", "Remember",
-                f"Storing {len(lessons)} lessons", agent_id="loop",
+                mission_id,
+                "lesson",
+                "Remember",
+                f"Storing {len(lessons)} lessons",
+                agent_id="loop",
             )
             await self._remember(mission_id, goal, lessons, reflect_result)
 
             # 8. Improve
             await self._recorder.record_event(
-                mission_id, "action", "Improve",
-                "Updating strategies", agent_id="loop",
+                mission_id,
+                "action",
+                "Improve",
+                "Updating strategies",
+                agent_id="loop",
             )
             await self._improve(reflect_result)
 
@@ -135,7 +160,10 @@ class AutonomousLoop:
 
         except Exception as exc:
             await self._recorder.record_error(
-                mission_id, "LoopError", str(exc), agent_id="loop",
+                mission_id,
+                "LoopError",
+                str(exc),
+                agent_id="loop",
             )
             # Attempt recovery
             try:
@@ -152,18 +180,21 @@ class AutonomousLoop:
         finally:
             duration = time.time() - started_at
             report = await self._recorder.complete(
-                mission_id, outcome, verification_text, lessons,
+                mission_id,
+                outcome,
+                verification_text,
+                lessons,
             )
             report.duration_seconds = round(duration, 2)
             self._reports.append(report)
 
         return report
 
-    async def get_mission_history(self) -> List[MissionReport]:
+    async def get_mission_history(self) -> list[MissionReport]:
         """Return all completed mission reports."""
         return list(self._reports)
 
-    async def get_improvement_trend(self) -> Dict[str, Any]:
+    async def get_improvement_trend(self) -> dict[str, Any]:
         """Analyse whether missions are getting better over time."""
         if len(self._reports) < 2:
             return {
@@ -174,11 +205,11 @@ class AutonomousLoop:
         recent = self._reports[-5:]
         older = self._reports[:-5] if len(self._reports) > 5 else self._reports[:1]
 
-        def _avg_duration(reports: List[MissionReport]) -> float:
+        def _avg_duration(reports: list[MissionReport]) -> float:
             durations = [r.duration_seconds for r in reports if r.duration_seconds > 0]
             return sum(durations) / len(durations) if durations else 0.0
 
-        def _success_rate(reports: List[MissionReport]) -> float:
+        def _success_rate(reports: list[MissionReport]) -> float:
             if not reports:
                 return 0.0
             return sum(1 for r in reports if r.outcome == "success") / len(reports)
@@ -214,10 +245,10 @@ class AutonomousLoop:
         self,
         goal: str,
         project_name: str,
-        context: Optional[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        context: dict[str, Any] | None,
+    ) -> dict[str, Any]:
         """Step 1: Gather environment context."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "goal": goal,
             "project": project_name,
             "user_context": context or {},
@@ -253,10 +284,12 @@ class AutonomousLoop:
         return result
 
     async def _understand(
-        self, goal: str, observe_result: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        self,
+        goal: str,
+        observe_result: dict[str, Any],
+    ) -> dict[str, Any]:
         """Step 2: Analyse context with reasoning."""
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "goal": goal,
             "analysis": "",
             "confidence": 0.0,
@@ -275,9 +308,7 @@ class AutonomousLoop:
                     else str(reasoning_result)
                 )
                 result["confidence"] = (
-                    reasoning_result.confidence
-                    if hasattr(reasoning_result, "confidence")
-                    else 0.5
+                    reasoning_result.confidence if hasattr(reasoning_result, "confidence") else 0.5
                 )
             except Exception as exc:
                 logger.debug("Reasoning failed: %s", exc)
@@ -286,8 +317,10 @@ class AutonomousLoop:
         return result
 
     async def _plan(
-        self, goal: str, understand_result: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        self,
+        goal: str,
+        understand_result: dict[str, Any],
+    ) -> dict[str, Any]:
         """Step 3: Generate action plan."""
         analysis = understand_result.get("analysis", "")
         return {
@@ -303,11 +336,13 @@ class AutonomousLoop:
         }
 
     async def _act(
-        self, plan_result: Dict[str, Any], mission_id: str,
-    ) -> Dict[str, Any]:
+        self,
+        plan_result: dict[str, Any],
+        mission_id: str,
+    ) -> dict[str, Any]:
         """Step 4: Execute the plan."""
         steps = plan_result.get("steps", [])
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
 
         for i, step in enumerate(steps):
             step_result = {
@@ -324,8 +359,9 @@ class AutonomousLoop:
         }
 
     async def _verify(
-        self, act_result: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        self,
+        act_result: dict[str, Any],
+    ) -> dict[str, Any]:
         """Step 5: Check execution results."""
         step_results = act_result.get("step_results", [])
         completed = sum(1 for s in step_results if s.get("status") == "completed")
@@ -342,12 +378,12 @@ class AutonomousLoop:
     async def _reflect(
         self,
         goal: str,
-        plan_result: Dict[str, Any],
-        act_result: Dict[str, Any],
-        verify_result: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        plan_result: dict[str, Any],
+        act_result: dict[str, Any],
+        verify_result: dict[str, Any],
+    ) -> dict[str, Any]:
         """Step 6: Analyse what happened."""
-        lessons: List[str] = []
+        lessons: list[str] = []
         outcome = verify_result.get("outcome", "unknown")
 
         if outcome == "success":
@@ -355,9 +391,7 @@ class AutonomousLoop:
         else:
             completed = verify_result.get("completed", 0)
             total = verify_result.get("total", 0)
-            lessons.append(
-                f"Partial completion ({completed}/{total}) for: {goal}"
-            )
+            lessons.append(f"Partial completion ({completed}/{total}) for: {goal}")
 
         return {
             "goal": goal,
@@ -370,8 +404,8 @@ class AutonomousLoop:
         self,
         mission_id: str,
         goal: str,
-        lessons: List[str],
-        reflect_result: Dict[str, Any],
+        lessons: list[str],
+        reflect_result: dict[str, Any],
     ) -> None:
         """Step 7: Store lessons in memory."""
         mem_mgr = getattr(self._brain, "memory_manager", None)
@@ -390,7 +424,7 @@ class AutonomousLoop:
                 except Exception as exc:
                     logger.debug("Memory store failed: %s", exc)
 
-    async def _improve(self, reflect_result: Dict[str, Any]) -> None:
+    async def _improve(self, reflect_result: dict[str, Any]) -> None:
         """Step 8: Update strategies based on reflection."""
         # Placeholder for strategy evolution — will plug into skill_engine
         # when available.

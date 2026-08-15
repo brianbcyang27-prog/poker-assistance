@@ -1,46 +1,44 @@
 """JARVIS - Chief Executive AI Agent."""
 
-from typing import Optional
-import json
-
-from .base import BaseAgent
-from ..core.models import AgentRole, AgentState, AgentMessage, Task
-from ..brain.llm import LLM
 from ..brain.dag_planner import dag_planner
+from ..brain.llm import LLM
+from ..core.models import AgentMessage, AgentRole, AgentState, Task
+from .base import BaseAgent
 
 
 class JarvisAgent(BaseAgent):
     """JARVIS - The Chief Executive AI.
-    
+
     JARVIS is the single point of contact for the user.
     JARVIS understands intent, plans, delegates to Kings,
     combines results, and speaks naturally.
-    
+
     JARVIS never directly performs specialized work.
     JARVIS delegates.
     """
-    
+
     def __init__(self):
         super().__init__()
         self._llm = LLM()
         self._kings: dict[str, BaseAgent] = {}
-    
+        self._last_intent = {}
+
     @property
     def card_id(self) -> str:
         return "J"
-    
+
     @property
     def name(self) -> str:
         return "JARVIS"
-    
+
     @property
     def role(self) -> AgentRole:
         return AgentRole.JARVIS
-    
+
     @property
     def title(self) -> str:
         return "Chief Executive AI"
-    
+
     @property
     def personality(self) -> str:
         return (
@@ -48,66 +46,76 @@ class JarvisAgent(BaseAgent):
             "Proactive in suggesting solutions. "
             "Clear and concise in communication."
         )
-    
+
     def register_king(self, king: BaseAgent):
         """Register a King agent under JARVIS."""
         self._kings[king.card_id] = king
-    
-    def get_king(self, card_id: str) -> Optional[BaseAgent]:
+
+    def get_king(self, card_id: str) -> BaseAgent | None:
         """Get a registered King by card_id."""
         return self._kings.get(card_id)
-    
+
     def get_all_kings(self) -> list[BaseAgent]:
         """Get all registered Kings."""
         return list(self._kings.values())
-    
+
     async def process_user_request(self, user_message: str) -> str:
         """Main entry point: process a user request and return response."""
         self.set_state(AgentState.THINKING)
 
         # v3.1: Emit event
-        from ..core.events import event_bus, Event
-        await event_bus.emit(Event(
-            type="jarvis.thinking",
-            data={"message": user_message},
-            source="J",
-        ))
-        
+        from ..core.events import Event, event_bus
+
+        await event_bus.emit(
+            Event(
+                type="jarvis.thinking",
+                data={"message": user_message},
+                source="J",
+            )
+        )
+
         # Check if LLM is available
         if not self._llm.is_available():
             self.set_state(AgentState.IDLE)
             return self._fallback_response(user_message)
-        
+
         # Analyze intent and determine which King(s) to delegate to
         delegation_plan = await self._analyze_intent(user_message)
         self._last_intent = delegation_plan
-        
+
         # Safety: if tasks exist, ALWAYS delegate — never fabricate a response
         tasks = delegation_plan.get("tasks", [])
         if tasks:
             delegation_plan["direct_response"] = False
             delegation_plan["response"] = ""
-        
+
         if delegation_plan.get("direct_response"):
             self.set_state(AgentState.IDLE)
-            await event_bus.emit(Event(
-                type="jarvis.responded",
-                data={"message": user_message, "response": delegation_plan.get("response", "")[:100]},
-                source="J",
-            ))
+            await event_bus.emit(
+                Event(
+                    type="jarvis.responded",
+                    data={
+                        "message": user_message,
+                        "response": delegation_plan.get("response", "")[:100],
+                    },
+                    source="J",
+                )
+            )
             return delegation_plan.get("response", "How can I help?")
-        
+
         # v3.1: Emit delegation event
-        await event_bus.emit(Event(
-            type="jarvis.delegated",
-            data={
-                "message": user_message,
-                "intent": delegation_plan.get("intent", ""),
-                "tasks": tasks,
-            },
-            source="J",
-        ))
-        
+        await event_bus.emit(
+            Event(
+                type="jarvis.delegated",
+                data={
+                    "message": user_message,
+                    "intent": delegation_plan.get("intent", ""),
+                    "tasks": tasks,
+                },
+                source="J",
+            )
+        )
+
         # Delegate to appropriate King(s)
         self.set_state(AgentState.WORKING)
 
@@ -115,9 +123,9 @@ class JarvisAgent(BaseAgent):
             results = await self._execute_as_mission(tasks, user_message)
         else:
             results = await self._execute_sequential(tasks, user_message)
-        
+
         self.set_state(AgentState.IDLE)
-        
+
         # Combine results into natural response
         if results:
             combined = "\n\n".join(results)
@@ -129,19 +137,20 @@ class JarvisAgent(BaseAgent):
             # v3.1: Speculative planning — predict follow-ups
             try:
                 from ..brain.speculative import speculative_planner
+
                 for task in delegation_plan.get("tasks", []):
                     speculative_planner.predict(task.get("name", "unknown"))
             except Exception:
                 pass
 
             return response
-        
+
         return "I've processed your request. How else can I help?"
-    
+
     def _fallback_response(self, user_message: str) -> str:
         """Provide a fallback response when no LLM is available."""
         msg_lower = user_message.lower().strip()
-        
+
         # Greetings
         if any(w in msg_lower for w in ["hello", "hi", "hey", "greetings"]):
             return (
@@ -156,7 +165,7 @@ class JarvisAgent(BaseAgent):
                 "- ♦ Research King + 3 workers\n"
                 "- ♣ System King + 3 workers"
             )
-        
+
         # Status
         if any(w in msg_lower for w in ["status", "who are you", "what are you"]):
             kings_status = "\n".join(
@@ -170,7 +179,7 @@ class JarvisAgent(BaseAgent):
                 f"{kings_status}\n\n"
                 f"Total workers: {sum(len(k.get_all_workers()) for k in self._kings.values())}"
             )
-        
+
         # Help
         if any(w in msg_lower for w in ["help", "what can you do"]):
             return (
@@ -181,20 +190,35 @@ class JarvisAgent(BaseAgent):
                 "**System** (♣): File management, terminal commands, system admin\n\n"
                 "Configure an LLM backend to unlock my full capabilities."
             )
-        
+
         # Default
         return (
-            f"I received your message: *\"{user_message}\"*\n\n"
+            f'I received your message: *"{user_message}"*\n\n'
             "I'm running in **demo mode** without an LLM backend.\n"
             "Configure `NVIDIA_API_KEY` or install Ollama for full AI responses."
         )
-    
+
     _KING_ALIASES = {
-        "spadek": "♠K", "spadesk": "♠K", "spade_k": "♠K", "spades_k": "♠K",
-        "heartk": "♥K", "heartsk": "♥K", "heart_k": "♥K", "hearts_k": "♥K",
-        "diamondk": "♦K", "diamondsk": "♦K", "diamond_k": "♦K", "diamonds_k": "♦K",
-        "clubk": "♣K", "clubsk": "♣K", "club_k": "♣K", "clubs_k": "♣K",
-        "engineering": "♠K", "personal": "♥K", "research": "♦K", "system": "♣K",
+        "spadek": "♠K",
+        "spadesk": "♠K",
+        "spade_k": "♠K",
+        "spades_k": "♠K",
+        "heartk": "♥K",
+        "heartsk": "♥K",
+        "heart_k": "♥K",
+        "hearts_k": "♥K",
+        "diamondk": "♦K",
+        "diamondsk": "♦K",
+        "diamond_k": "♦K",
+        "diamonds_k": "♦K",
+        "clubk": "♣K",
+        "clubsk": "♣K",
+        "club_k": "♣K",
+        "clubs_k": "♣K",
+        "engineering": "♠K",
+        "personal": "♥K",
+        "research": "♦K",
+        "system": "♣K",
     }
 
     @staticmethod
@@ -210,32 +234,37 @@ class JarvisAgent(BaseAgent):
 
     async def _analyze_intent(self, message: str) -> dict:
         """Use LLM to analyze user intent and create delegation plan."""
-        
+
         # Build project context for the LLM
         project_context = ""
         try:
             from ..brain.project_memory import project_memory
+
             active = await project_memory.get_active_project()
             if active:
                 project_context = f"""
 ACTIVE PROJECT (most recently worked on):
-- Name: {active['name']}
-- Path: {active['path']}
-- Description: {active.get('description', 'N/A')}
-- Server: {active.get('server_command', 'N/A')} (port {active.get('server_port', 'N/A')})
-- URL: {active.get('url', 'N/A')}
-- AI Tool: {active.get('ai_tool_command', 'N/A')}
-- Last worked on: {active.get('last_worked_on', 'N/A')}
+- Name: {active["name"]}
+- Path: {active["path"]}
+- Description: {active.get("description", "N/A")}
+- Server: {active.get("server_command", "N/A")} (port {active.get("server_port", "N/A")})
+- URL: {active.get("url", "N/A")}
+- AI Tool: {active.get("ai_tool_command", "N/A")}
+- Last worked on: {active.get("last_worked_on", "N/A")}
 
-When the user says things like "proceed with my project", "continue working", "resume", "I'm home let's work", 
-and doesn't specify WHICH project, assume they mean the ACTIVE PROJECT listed above.
+When the user says things like "proceed with my project", \
+"continue working", "resume", "I'm home let's work",\
+\nand doesn't specify WHICH project, assume they mean the ACTIVE PROJECT \
+listed above.
 To resume a project, delegate to ♣K with action "resume_project".
 To register a new project, delegate to ♣K with action "register_project".
 """
         except Exception:
             pass
 
-        system_prompt = f"""You are JARVIS, an AI operating system. Analyze the user's request and decide: delegate or talk.
+        system_prompt = f"""You are JARVIS, an AI operating system. \
+Analyze the user's request and decide: \
+delegate or talk.
 
 DECISION RULE — memorize this:
   If the request contains ANY of these words → direct_response = false, delegate to a King:
@@ -244,7 +273,8 @@ DECISION RULE — memorize this:
     test, analyze, monitor, control, turn on, turn off, connect, configure, manage, explore,
     diagnose, clean, optimize, backup, restore, clone, pull, push, fetch, execute, launch
 
-  If the request is ONLY a greeting, small talk, or question about JARVIS itself → direct_response = true
+  If the request is ONLY a greeting, small talk, or question about JARVIS itself → \
+direct_response = true
 
   WHEN IN DOUBT → direct_response = false. Delegation is always preferred over fabrication.
 
@@ -256,56 +286,71 @@ Available Kings (use EXACTLY these card_ids):
 - ♠K (Engineering King): Software development, coding, architecture, testing
 - ♥K (Personal King): Calendar, email, tasks, scheduling, personal organization
 - ♦K (Research King): Web research, documentation, fact-checking, analysis
-- ♣K (System King): File management, terminal commands, system administration, opening apps, resuming projects, scanning system
+- ♣K (System King): File management, terminal commands, system administration, \
+opening apps, resuming projects, scanning system
 
-The "king" field MUST use the exact card_id: ♠K, ♥K, ♦K, or ♣K. Do NOT write "spadeK" or "engineering".
+The "king" field MUST use the exact card_id: ♠K, ♥K, ♦K, or ♣K. Do NOT write "spadeK" or \
+"engineering".
 
 {project_context}
 
 RESPOND WITH ONLY VALID JSON:
 {{
     "intent": "<brief description>",
-    "tasks": [{{"king": "<king_card_id>", "name": "<task name>", "description": "<what to do>", "priority": 5}}],
-    "direct_response": false,
+    "tasks": [{{"king": "<king_card_id>", \
+"name": "<task name>", "description": "<what to do>", "priority": 5}}],\
+\n    "direct_response": false,
     "response": ""
 }}
 
 EXAMPLES (study these carefully):
 - "hello" → {{"direct_response": true, "response": "Hello! How can I help?", "tasks": []}}
-- "scan my system" → {{"direct_response": false, "tasks": [{{"king": "♣K", "name": "System scan", "description": "Scan the user's computer: list drives, OS info, disk usage, running processes, network info"}}], "response": ""}}
-- "what files are on my desktop" → {{"direct_response": false, "tasks": [{{"king": "♣K", "name": "List desktop", "description": "List all files and folders on the Desktop"}}], "response": ""}}
-- "search the web for python tutorials" → {{"direct_response": false, "tasks": [{{"king": "♦K", "name": "Web search", "description": "Search for Python tutorials"}}], "response": ""}}
-- "I'm home, let's proceed with my project" → {{"direct_response": false, "tasks": [{{"king": "♣K", "name": "Resume project", "description": "Resume the active project"}}], "response": ""}}
-- "what is JARVIS?" → {{"direct_response": true, "response": "JARVIS is your AI operating system...", "tasks": []}}"""
-        
+- "scan my system" → {{"direct_response": false, \
+"tasks": [{{"king": "♣K", "name": "System scan", \
+"description": "Scan the user's computer: \
+list drives, OS info, disk usage, running processes, \
+network info"}}], "response": ""}}\n- "what files are on my desktop" → \
+{{"direct_response": false, "tasks": [{{"king": "♣K", "name": "List desktop", \
+"description": "List all files and folders on the Desktop"}}], \
+"response": ""}}\n- "search the web for python tutorials" → \
+{{"direct_response": false, "tasks": [{{"king": "♦K", "name": "Web search", \
+"description": "Search for Python tutorials"}}], \
+"response": ""}}\n- "I'm home, let's proceed with my project" → \
+{{"direct_response": false, "tasks": [{{"king": "♣K", "name": "Resume project", \
+"description": "Resume the active project"}}], \
+"response": ""}}\n- "what is JARVIS?" → {{"direct_response": true, \
+"response": "JARVIS is your AI operating system...", \
+"tasks": []}}"""
+
         response = self._llm.chat_json(
             message=f"User request: {message}",
             system_prompt=system_prompt,
         )
-        
+
         # Normalize king card_ids (LLM may write 'clubK' instead of '♣K')
         for task in response.get("tasks", []):
             if "king" in task:
                 task["king"] = self._normalize_king(task["king"])
-        
+
         return response
-    
+
     async def _compose_response(self, user_message: str, agent_results: str) -> str:
         """Compose a natural response from agent results."""
-        system_prompt = """You are JARVIS. Compose a natural, helpful response based on the work completed by your agents.
+        system_prompt = """You are JARVIS. Compose a natural, helpful response based on the work \
+completed by your agents.
 Be professional, concise, and helpful. Include relevant details from the agent work."""
-        
+
         response = self._llm.chat(
             message=f"User asked: {user_message}\n\nAgent results:\n{agent_results}",
             system_prompt=system_prompt,
         )
-        
+
         return response
-    
-    def process_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+
+    def process_message(self, message: AgentMessage) -> AgentMessage | None:
         """Process messages from Kings."""
         self._message_history.append(message)
-        
+
         # Kings report results back to JARVIS
         if message.status == "completed":
             return AgentMessage(
@@ -316,9 +361,9 @@ Be professional, concise, and helpful. Include relevant details from the agent w
                 status="completed",
                 confidence=message.confidence,
             )
-        
+
         return None
-    
+
     async def execute_task(self, task: Task) -> AgentMessage:
         """JARVIS doesn't execute tasks directly - it delegates."""
         return AgentMessage(
@@ -328,20 +373,22 @@ Be professional, concise, and helpful. Include relevant details from the agent w
             content="Delegated to appropriate King",
             status="delegated",
         )
-    
+
     async def _execute_as_mission(self, tasks: list, user_message: str) -> list[str]:
         """Execute multiple tasks via the MissionExecutor as a DAG mission."""
         from ..brain.mission_executor import mission_executor
 
         mission_tasks = []
         for i, task in enumerate(tasks):
-            mission_tasks.append({
-                "id": f"task_{i}",
-                "name": task.get("name", "Task"),
-                "description": task.get("description", user_message),
-                "assigned_to": task.get("king", "♠K"),
-                "priority": task.get("priority", 5),
-            })
+            mission_tasks.append(
+                {
+                    "id": f"task_{i}",
+                    "name": task.get("name", "Task"),
+                    "description": task.get("description", user_message),
+                    "assigned_to": task.get("king", "♠K"),
+                    "priority": task.get("priority", 5),
+                }
+            )
 
         create_result = mission_executor.create_and_execute(user_message, mission_tasks)
         if not create_result.get("ok"):
@@ -355,7 +402,11 @@ Be professional, concise, and helpful. Include relevant details from the agent w
         for node in nodes:
             results.append(f"[{node.name}] {node.result or node.status.value}")
 
-        return results if results else [f"Mission finished: {final_status.get('progress', 0):.0%} complete"]
+        return (
+            results
+            if results
+            else [f"Mission finished: {final_status.get('progress', 0):.0%} complete"]
+        )
 
     async def _execute_sequential(self, tasks: list, user_message: str) -> list[str]:
         """Execute single tasks sequentially (original behavior)."""
@@ -389,8 +440,5 @@ Be professional, concise, and helpful. Include relevant details from the agent w
             "card_id": self.card_id,
             "name": self.name,
             "state": self.state.value,
-            "kings": {
-                king.card_id: king.to_dict()
-                for king in self._kings.values()
-            },
+            "kings": {king.card_id: king.to_dict() for king in self._kings.values()},
         }

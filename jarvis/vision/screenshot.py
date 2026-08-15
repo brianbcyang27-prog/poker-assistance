@@ -5,12 +5,11 @@ Stores screenshots with metadata for vision analysis.
 """
 
 import asyncio
+import base64
+import logging
 import os
 import time
-import logging
-import base64
-from typing import Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 log = logging.getLogger("jarvis.vision.screenshot")
 
@@ -20,6 +19,7 @@ SCREENSHOT_DIR = "/tmp/jarvis_screenshots"
 @dataclass
 class ScreenRegion:
     """A rectangular region of the screen."""
+
     x: int = 0
     y: int = 0
     width: int = 0
@@ -35,11 +35,12 @@ class ScreenRegion:
 @dataclass
 class CapturedScreenshot:
     """A captured screenshot with metadata."""
+
     id: str = ""
     path: str = ""
     timestamp: float = 0.0
     application: str = ""
-    region: Optional[ScreenRegion] = None
+    region: ScreenRegion | None = None
     width: int = 0
     height: int = 0
     file_size: int = 0
@@ -85,7 +86,9 @@ class ScreenCapture:
         """Run the screencapture command."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "screencapture", *args, path,
+                "screencapture",
+                *args,
+                path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -101,15 +104,15 @@ class ScreenCapture:
             with open(path, "rb") as f:
                 header = f.read(32)
             # PNG header: width at bytes 16-19, height at bytes 20-23
-            if header[:8] == b'\x89PNG\r\n\x1a\n':
-                w = int.from_bytes(header[16:20], 'big')
-                h = int.from_bytes(header[20:24], 'big')
+            if header[:8] == b"\x89PNG\r\n\x1a\n":
+                w = int.from_bytes(header[16:20], "big")
+                h = int.from_bytes(header[20:24], "big")
                 return w, h
         except Exception:
             pass
         return 1920, 1080  # fallback
 
-    async def full_screen(self) -> Optional[CapturedScreenshot]:
+    async def full_screen(self) -> CapturedScreenshot | None:
         """Capture the entire screen."""
         sid = self._next_id()
         path = os.path.join(self._dir, f"{sid}.png")
@@ -131,7 +134,7 @@ class ScreenCapture:
         log.info("Full screen captured: %s (%dx%d)", sid, w, h)
         return screenshot
 
-    async def active_window(self) -> Optional[CapturedScreenshot]:
+    async def active_window(self) -> CapturedScreenshot | None:
         """Capture the active window."""
         sid = self._next_id()
         path = os.path.join(self._dir, f"{sid}.png")
@@ -158,7 +161,7 @@ class ScreenCapture:
         log.info("Active window captured: %s (%s, %dx%d)", sid, app, w, h)
         return screenshot
 
-    async def region(self, r: ScreenRegion) -> Optional[CapturedScreenshot]:
+    async def region(self, r: ScreenRegion) -> CapturedScreenshot | None:
         """Capture a specific screen region."""
         if not r.is_valid():
             return None
@@ -188,14 +191,16 @@ class ScreenCapture:
     async def _get_active_app(self) -> str:
         """Get the name of the active application."""
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set frontApp to first application process whose frontmost is true
                 return name of frontApp
             end tell
-            '''
+            """
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )

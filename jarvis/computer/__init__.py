@@ -12,27 +12,41 @@ Multi-perception (v4.5.0):
     smart.type("search", "query") → accessibility first, vision fallback
 """
 
-from .actions import RiskLevel, ActionStatus, ActionType, ActionResult, ActionRecord
-from .permissions import PermissionSystem, PermissionDecision, permission_system
-from .sandbox import Sandbox, SandboxConfig, SandboxResult, default_sandbox
-from .observer import ScreenObserver, ScreenState, WindowInfo, observer
-from .manager import ComputerManager, computer_manager
-from .providers import platform_provider
 from .accessibility import AccessibilityManager, accessibility_manager
+from .actions import ActionRecord, ActionResult, ActionStatus, ActionType, RiskLevel
+from .manager import ComputerManager, computer_manager
+from .observer import ScreenObserver, ScreenState, WindowInfo, observer
+from .permissions import PermissionDecision, PermissionSystem, permission_system
+from .providers import platform_provider
+from .sandbox import Sandbox, SandboxConfig, SandboxResult, default_sandbox
 
 __all__ = [
     # Models
-    "RiskLevel", "ActionStatus", "ActionType", "ActionResult", "ActionRecord",
+    "RiskLevel",
+    "ActionStatus",
+    "ActionType",
+    "ActionResult",
+    "ActionRecord",
     # Permissions
-    "PermissionSystem", "PermissionDecision", "permission_system",
+    "PermissionSystem",
+    "PermissionDecision",
+    "permission_system",
     # Sandbox
-    "Sandbox", "SandboxConfig", "SandboxResult", "default_sandbox",
+    "Sandbox",
+    "SandboxConfig",
+    "SandboxResult",
+    "default_sandbox",
     # Observer
-    "ScreenObserver", "ScreenState", "WindowInfo", "observer",
+    "ScreenObserver",
+    "ScreenState",
+    "WindowInfo",
+    "observer",
     # Manager
-    "ComputerManager", "computer_manager",
+    "ComputerManager",
+    "computer_manager",
     # Provider
     "platform_provider",
     # Accessibility (v4.4.0)
-    "AccessibilityManager", "accessibility_manager",
+    "AccessibilityManager",
+    "accessibility_manager",
 ]

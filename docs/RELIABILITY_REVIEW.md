@@ -34,7 +34,9 @@ async def load_session_context(self, session_id: str):
 ### 2. Blocking `time.sleep()` in Async Context
 **File:** `jarvis/brain/llm.py:128-140`
 ```python
-import time as _time; _time.sleep(delay)
+import time as _time
+
+_time.sleep(delay)
 ```
 **Risk:** Blocks entire event loop, stalling all concurrent requests
 **Fix:** Use `asyncio.sleep` or make method async

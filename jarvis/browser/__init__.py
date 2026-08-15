@@ -10,11 +10,11 @@ Usage:
 """
 
 from .browser_state import BrowserState, BrowserStatus, TabInfo
-from .security import BrowserSecurity, BrowserDecision
-from .sessions import SessionManager, BrowserSession, session_manager
-from .extractor import PageExtractor, PageData, extractor
-from .playwright_provider import PlaywrightProvider, BrowserResult, playwright_provider
+from .extractor import PageData, PageExtractor, extractor
 from .manager import BrowserManager, browser_manager
+from .playwright_provider import BrowserResult, PlaywrightProvider, playwright_provider
+from .security import BrowserDecision, BrowserSecurity
+from .sessions import BrowserSession, SessionManager, session_manager
 
 __all__ = [
     "BrowserState",

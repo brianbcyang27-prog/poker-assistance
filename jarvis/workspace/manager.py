@@ -1,11 +1,16 @@
-"""Workspace Manager — unified mission tracking and coordination (v6.1.0)."""
+"""Workspace Manager — unified mission tracking and coordination (v6.1.0).
+
+Runtime split (v9):
+  - WorkspaceManager + DAGPlanner + MissionExecutor: production DAG pipeline
+  - MissionManager: replay/legacy API, lightweight lifecycle control
+  Both write to the same workspaces SQLite table (via core.database.Database).
+"""
 
 import json
-from typing import Optional
 from datetime import datetime
 
-from ..core.models import Workspace, Task, AgentState
 from ..core.database import get_db
+from ..core.models import AgentState, Task, Workspace
 
 
 class WorkspaceManager:
@@ -35,7 +40,7 @@ class WorkspaceManager:
         await db.save_workspace(ws.model_dump())
         return ws
 
-    async def get_workspace(self, workspace_id: str) -> Optional[Workspace]:
+    async def get_workspace(self, workspace_id: str) -> Workspace | None:
         """Get a workspace by ID."""
         if workspace_id in self._active_workspaces:
             return self._active_workspaces[workspace_id]
@@ -60,20 +65,22 @@ class WorkspaceManager:
                     issues = json.loads(issues)
                 except (json.JSONDecodeError, TypeError):
                     issues = []
-            tasks.append(Task(
-                id=td["id"],
-                name=td["name"],
-                description=td["description"],
-                assigned_to=td["assigned_to"],
-                status=td["status"],
-                priority=td["priority"],
-                dependencies=deps,
-                result=td.get("result"),
-                confidence=td.get("confidence", 0.0),
-                issues=issues,
-                created_at=td.get("created_at"),
-                completed_at=td.get("completed_at"),
-            ))
+            tasks.append(
+                Task(
+                    id=td["id"],
+                    name=td["name"],
+                    description=td["description"],
+                    assigned_to=td["assigned_to"],
+                    status=td["status"],
+                    priority=td["priority"],
+                    dependencies=deps,
+                    result=td.get("result"),
+                    confidence=td.get("confidence", 0.0),
+                    issues=issues,
+                    created_at=td.get("created_at"),
+                    completed_at=td.get("completed_at"),
+                )
+            )
 
         ws = Workspace(
             id=data["id"],
@@ -107,8 +114,16 @@ class WorkspaceManager:
     async def get_active_workspaces(self) -> list[Workspace]:
         """Get all active workspaces (planning, working, reviewing)."""
         db = await get_db()
-        active_statuses = ["planning", "working", "reviewing", "created",
-                           "researching", "executing", "verifying", "paused"]
+        active_statuses = [
+            "planning",
+            "working",
+            "reviewing",
+            "created",
+            "researching",
+            "executing",
+            "verifying",
+            "paused",
+        ]
         results = []
         for st in active_statuses:
             data = await db.get_all_workspaces(status=st, limit=50)
@@ -137,9 +152,9 @@ class WorkspaceManager:
         workspace_id: str,
         task_id: str,
         status: AgentState,
-        result: Optional[str] = None,
+        result: str | None = None,
         confidence: float = 0.0,
-        issues: Optional[list[str]] = None,
+        issues: list[str] | None = None,
     ) -> bool:
         """Update a task's status."""
         workspace = await self.get_workspace(workspace_id)
@@ -226,7 +241,11 @@ class WorkspaceManager:
 
         if workspace.started_at:
             try:
-                started = workspace.started_at if isinstance(workspace.started_at, datetime) else datetime.fromisoformat(str(workspace.started_at))
+                started = (
+                    workspace.started_at
+                    if isinstance(workspace.started_at, datetime)
+                    else datetime.fromisoformat(str(workspace.started_at))
+                )
                 workspace.duration_ms = (datetime.now() - started).total_seconds() * 1000
             except Exception:
                 pass
@@ -234,15 +253,17 @@ class WorkspaceManager:
         db = await get_db()
         await db.save_workspace(workspace.model_dump())
 
-        await db.save_task_history({
-            "plan_id": workspace_id,
-            "user_request": workspace.user_request or workspace.goal,
-            "summary": f"Workspace completed: {workspace.goal}",
-            "tasks_json": json.dumps([t.model_dump() for t in workspace.tasks]),
-            "workspace_id": workspace_id,
-            "owner": workspace.owner,
-            "duration_ms": int(workspace.duration_ms),
-        })
+        await db.save_task_history(
+            {
+                "plan_id": workspace_id,
+                "user_request": workspace.user_request or workspace.goal,
+                "summary": f"Workspace completed: {workspace.goal}",
+                "tasks_json": json.dumps([t.model_dump() for t in workspace.tasks]),
+                "workspace_id": workspace_id,
+                "owner": workspace.owner,
+                "duration_ms": int(workspace.duration_ms),
+            }
+        )
 
         try:
             lesson = {
@@ -268,7 +289,9 @@ class WorkspaceManager:
         if not workspace:
             return {"error": "Workspace not found"}
 
-        status_val = workspace.status.value if hasattr(workspace.status, "value") else workspace.status
+        status_val = (
+            workspace.status.value if hasattr(workspace.status, "value") else workspace.status
+        )
         return {
             "id": workspace.id,
             "goal": workspace.goal,
@@ -301,13 +324,15 @@ class WorkspaceManager:
         query_lower = query.lower()
         results = []
         for d in all_ws:
-            if (query_lower in (d.get("goal", "") + " " + d.get("user_request", "")).lower()):
-                results.append({
-                    "id": d["id"],
-                    "goal": d["goal"],
-                    "status": d["status"],
-                    "created_at": d.get("created_at"),
-                })
+            if query_lower in (d.get("goal", "") + " " + d.get("user_request", "")).lower():
+                results.append(
+                    {
+                        "id": d["id"],
+                        "goal": d["goal"],
+                        "status": d["status"],
+                        "created_at": d.get("created_at"),
+                    }
+                )
                 if len(results) >= limit:
                     break
         return results

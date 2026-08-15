@@ -6,10 +6,8 @@ Remembers:
   - Object location caches for frequently used apps
 """
 
-import time
-import json
 import logging
-from typing import Optional, List
+import time
 from dataclasses import dataclass, field
 
 log = logging.getLogger("jarvis.vision.memory")
@@ -18,6 +16,7 @@ log = logging.getLogger("jarvis.vision.memory")
 @dataclass
 class VisualWorkflow:
     """A step-by-step visual workflow."""
+
     id: str = ""
     name: str = ""
     description: str = ""
@@ -51,6 +50,7 @@ class VisualWorkflow:
 @dataclass
 class ScreenshotRecord:
     """Record of a captured screenshot with analysis."""
+
     id: str = ""
     path: str = ""
     application: str = ""
@@ -82,7 +82,7 @@ class VisionMemory:
     """
 
     def __init__(self, max_history: int = 100):
-        self._screenshots: List[ScreenshotRecord] = []
+        self._screenshots: list[ScreenshotRecord] = []
         self._workflows: dict[str, VisualWorkflow] = {}
         self._object_cache: dict[str, dict] = {}  # app -> {name -> {x, y, type, last_seen}}
         self._max_history = max_history
@@ -100,7 +100,7 @@ class VisionMemory:
 
         # Trim history
         if len(self._screenshots) > self._max_history:
-            self._screenshots = self._screenshots[-self._max_history:]
+            self._screenshots = self._screenshots[-self._max_history :]
 
         # Update object cache
         if analysis and analysis.objects:
@@ -110,18 +110,20 @@ class VisionMemory:
             for obj in analysis.objects:
                 if obj.name:
                     self._object_cache[app][obj.name.lower()] = {
-                        "x": obj.x, "y": obj.y,
-                        "type": obj.type, "name": obj.name,
+                        "x": obj.x,
+                        "y": obj.y,
+                        "type": obj.type,
+                        "name": obj.name,
                         "last_seen": time.time(),
                     }
 
         return record
 
-    def get_recent_screenshots(self, limit: int = 10) -> List[ScreenshotRecord]:
+    def get_recent_screenshots(self, limit: int = 10) -> list[ScreenshotRecord]:
         """Get recent screenshot records."""
         return self._screenshots[-limit:]
 
-    def find_cached_location(self, app: str, element_name: str) -> Optional[dict]:
+    def find_cached_location(self, app: str, element_name: str) -> dict | None:
         """Find a cached element location from previous analysis.
 
         Returns {"x": int, "y": int, "type": str} or None.
@@ -133,11 +135,11 @@ class VisionMemory:
         """Save a visual workflow."""
         self._workflows[workflow.id] = workflow
 
-    def get_workflow(self, workflow_id: str) -> Optional[VisualWorkflow]:
+    def get_workflow(self, workflow_id: str) -> VisualWorkflow | None:
         """Get a visual workflow by ID."""
         return self._workflows.get(workflow_id)
 
-    def find_workflows(self, app: str = "", query: str = "") -> List[VisualWorkflow]:
+    def find_workflows(self, app: str = "", query: str = "") -> list[VisualWorkflow]:
         """Find workflows by application or query."""
         results = list(self._workflows.values())
         if app:
@@ -145,9 +147,9 @@ class VisionMemory:
         if query:
             query_lower = query.lower()
             results = [
-                w for w in results
-                if query_lower in w.name.lower()
-                or query_lower in w.description.lower()
+                w
+                for w in results
+                if query_lower in w.name.lower() or query_lower in w.description.lower()
             ]
         return results
 

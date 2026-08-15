@@ -10,9 +10,7 @@ Risk levels for browser actions:
   DANGEROUS — financial transactions, deleting accounts, sharing credentials
 """
 
-import re
 import logging
-from typing import Optional
 from dataclasses import dataclass
 
 log = logging.getLogger("jarvis.browser.security")
@@ -29,7 +27,6 @@ BROWSER_ACTION_RISKS = {
     "get_links": "safe",
     "get_text": "safe",
     "list_tabs": "safe",
-
     # Low
     "navigate": "low",
     "click": "low",
@@ -41,21 +38,18 @@ BROWSER_ACTION_RISKS = {
     "new_tab": "low",
     "close_tab": "low",
     "switch_tab": "low",
-
     # Medium
     "type": "medium",
     "fill_form": "medium",
     "select_option": "medium",
     "download": "medium",
     "upload": "medium",
-
     # High
     "login": "high",
     "submit_form": "high",
     "send_message": "high",
     "post_comment": "high",
     "share": "high",
-
     # Dangerous
     "payment": "dangerous",
     "purchase": "dangerous",
@@ -68,22 +62,36 @@ BROWSER_ACTION_RISKS = {
 
 # Domains that are always safe to browse
 SAFE_DOMAINS = [
-    "google.com", "github.com", "stackoverflow.com",
-    "wikipedia.org", "docs.python.org", "developer.mozilla.org",
-    "npmjs.com", "pypi.org", "arxiv.org",
+    "google.com",
+    "github.com",
+    "stackoverflow.com",
+    "wikipedia.org",
+    "docs.python.org",
+    "developer.mozilla.org",
+    "npmjs.com",
+    "pypi.org",
+    "arxiv.org",
 ]
 
 # Domains that require extra caution
 SENSITIVE_DOMAINS = [
-    "bank", "paypal", "venmo", "cashapp",
-    "amazon.com", "ebay.com",  # purchases
-    "facebook.com", "twitter.com", "instagram.com",  # social (posting)
-    "gmail.com", "outlook.com",  # email (sending)
+    "bank",
+    "paypal",
+    "venmo",
+    "cashapp",
+    "amazon.com",
+    "ebay.com",  # purchases
+    "facebook.com",
+    "twitter.com",
+    "instagram.com",  # social (posting)
+    "gmail.com",
+    "outlook.com",  # email (sending)
 ]
 
 # Domains that should never be accessed automatically
 BLOCKED_DOMAINS = [
-    "malware.com", "phishing.com",  # placeholder examples
+    "malware.com",
+    "phishing.com",  # placeholder examples
 ]
 
 
@@ -106,7 +114,7 @@ class BrowserSecurity:
         action: str,
         url: str = "",
         agent: str = "",
-        context: Optional[dict] = None,
+        context: dict | None = None,
     ) -> "BrowserDecision":
         """Check if a browser action is allowed.
 
@@ -131,8 +139,10 @@ class BrowserSecurity:
         cache_key = f"{action}:{url}:{agent}"
         if cache_key in self._approval_cache:
             return BrowserDecision(
-                allowed=True, risk_level=risk,
-                reason="Previously approved", approved_by="cache",
+                allowed=True,
+                risk_level=risk,
+                reason="Previously approved",
+                approved_by="cache",
             )
 
         # Step 4: Apply policy
@@ -145,6 +155,7 @@ class BrowserSecurity:
     def classify_url_risk(self, url: str) -> str:
         """Classify the risk level based on URL."""
         from urllib.parse import urlparse
+
         try:
             parsed = urlparse(url)
             domain = parsed.netloc.lower()
@@ -181,43 +192,57 @@ class BrowserSecurity:
                 return BrowserDecision(allowed=True, risk_level=risk, reason="Permissive mode")
             if risk == "high":
                 return BrowserDecision(
-                    allowed=True, risk_level=risk,
-                    reason="Permissive mode (high risk)", requires_confirmation=True,
+                    allowed=True,
+                    risk_level=risk,
+                    reason="Permissive mode (high risk)",
+                    requires_confirmation=True,
                 )
             return BrowserDecision(
-                allowed=False, risk_level=risk,
-                reason="Permissive mode blocks dangerous", requires_approval=True,
+                allowed=False,
+                risk_level=risk,
+                reason="Permissive mode blocks dangerous",
+                requires_approval=True,
             )
 
         if self.mode == "strict":
             if risk == "safe":
                 return BrowserDecision(allowed=True, risk_level=risk, reason="Strict: safe only")
             return BrowserDecision(
-                allowed=False, risk_level=risk,
-                reason="Strict mode: requires approval", requires_approval=True,
+                allowed=False,
+                risk_level=risk,
+                reason="Strict mode: requires approval",
+                requires_approval=True,
             )
 
         # Normal mode
         if risk in ("safe", "low"):
             return BrowserDecision(
-                allowed=True, risk_level=risk,
-                reason=f"Auto-approved: {risk}", approved_by="auto",
+                allowed=True,
+                risk_level=risk,
+                reason=f"Auto-approved: {risk}",
+                approved_by="auto",
             )
         if risk == "medium":
             return BrowserDecision(
-                allowed=True, risk_level=risk,
+                allowed=True,
+                risk_level=risk,
                 reason="Medium risk: allowed with notification",
-                requires_confirmation=True, approved_by="notification",
+                requires_confirmation=True,
+                approved_by="notification",
             )
         if risk == "high":
             return BrowserDecision(
-                allowed=False, risk_level=risk,
+                allowed=False,
+                risk_level=risk,
                 reason="High risk: requires confirmation",
-                requires_confirmation=True, requires_approval=True,
+                requires_confirmation=True,
+                requires_approval=True,
             )
         return BrowserDecision(
-            allowed=False, risk_level=risk,
-            reason="Dangerous: blocked", requires_approval=True,
+            allowed=False,
+            risk_level=risk,
+            reason="Dangerous: blocked",
+            requires_approval=True,
         )
 
     def approve(self, action: str, url: str = "", agent: str = ""):
@@ -243,6 +268,7 @@ class BrowserSecurity:
 @dataclass
 class BrowserDecision:
     """Result of a browser security check."""
+
     allowed: bool
     risk_level: str
     reason: str

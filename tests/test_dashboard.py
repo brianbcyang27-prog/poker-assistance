@@ -1,24 +1,24 @@
 """Tests for JARVIS Dashboard engine (v5.2.0)."""
 
-import sys
-import os
 import asyncio
-import pytest
+import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from jarvis.dashboard import Dashboard, ProjectMetrics, HealthReport, HealthIssue
+from jarvis.dashboard import Dashboard, HealthIssue, HealthReport, ProjectMetrics
 
 REPO_PATH = os.path.join(os.path.dirname(__file__), "..")
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.new_event_loop().run_until_complete(coro)
 
 
 # ════════════════════════════════════════════════════════════
 # Data Model Tests
 # ════════════════════════════════════════════════════════════
+
 
 class TestProjectMetrics:
     def test_create_metrics(self):
@@ -46,9 +46,13 @@ class TestHealthReport:
 class TestHealthIssue:
     def test_create_issue(self):
         issue = HealthIssue(
-            file="main.py", line=10, category="naming",
-            severity="warning", description="Bad name",
-            suggestion="Rename", auto_fixable=True,
+            file="main.py",
+            line=10,
+            category="naming",
+            severity="warning",
+            description="Bad name",
+            suggestion="Rename",
+            auto_fixable=True,
         )
         assert issue.file == "main.py"
         assert issue.auto_fixable is True
@@ -57,6 +61,7 @@ class TestHealthIssue:
 # ════════════════════════════════════════════════════════════
 # Dashboard Integration Tests
 # ════════════════════════════════════════════════════════════
+
 
 class TestDashboard:
     def setup_method(self):

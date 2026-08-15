@@ -105,21 +105,25 @@ class InputEvent:
     app_bundle_id: str | None = None
     ax_element_ref: str | None = None  # semantic ref, not coordinates
 
+
 @dataclass
 class DemoRecording:
     session_id: str
     events: list[InputEvent]
     screenshots: list[bytes]  # PNG frames
-    ax_trees: list[dict]     # accessibility tree snapshots
-    metadata: dict           # app context, screen resolution
+    ax_trees: list[dict]  # accessibility tree snapshots
+    metadata: dict  # app context, screen resolution
+
 
 class DemoRecorder:
     async def start_recording(self) -> str: ...
     async def stop_recording(self) -> DemoRecording: ...
-    
+
+
 class DemoReplayer:
-    async def replay(self, recording: DemoRecording, 
-                     parameterize: dict | None = None) -> ReplayResult: ...
+    async def replay(
+        self, recording: DemoRecording, parameterize: dict | None = None
+    ) -> ReplayResult: ...
 ```
 
 **Libraries:** `pyobjc` (macOS APIs), `Pillow` (screenshots), Pydantic (event schemas)
@@ -151,7 +155,7 @@ class DemoReplayer:
 class ExecutionMemory:
     def __init__(self, db: aiosqlite.Connection):
         self.db = db
-    
+
     async def init_schema(self):
         await self.db.executescript("""
             CREATE TABLE IF NOT EXISTS memories (
@@ -168,27 +172,27 @@ class ExecutionMemory:
                 USING fts5(content, context, keywords, 
                            content=memories, content_rowid=rowid);
         """)
-    
+
     async def remember(self, content: str, mem_type: str, context: dict) -> str:
         """Store memory with automatic FTS indexing."""
         mem_id = uuid.uuid4().hex
         await self.db.execute(
             "INSERT INTO memories (id, type, content, context, created_at) VALUES (?,?,?,?,?)",
-            (mem_id, mem_type, content, json.dumps(context), datetime.utcnow().isoformat())
+            (mem_id, mem_type, content, json.dumps(context), datetime.utcnow().isoformat()),
         )
         await self.db.commit()
         return mem_id
-    
+
     async def recall(self, query: str, limit: int = 10) -> list[dict]:
         """BM25 retrieval via FTS5."""
         rows = await self.db.execute_fetchall(
             """SELECT m.*, rank FROM memories_fts 
                JOIN memories m ON memories_fts.rowid = m.rowid
                WHERE memories_fts MATCH ? ORDER BY rank LIMIT ?""",
-            (query, limit)
+            (query, limit),
         )
         return [dict(r) for r in rows]
-    
+
     async def boot(self, task_context: str) -> list[dict]:
         """Load relevant memories for new task context."""
         return await self.recall(task_context, limit=20)
@@ -217,35 +221,41 @@ class ExecutionMemory:
 ```python
 from abc import ABC, abstractmethod
 
+
 class MemoryProvider(ABC):
     @abstractmethod
     async def remember(self, content: str, mem_type: str, **kwargs) -> str: ...
-    
+
     @abstractmethod
     async def recall(self, query: str, limit: int = 10) -> list[dict]: ...
-    
+
     @abstractmethod
     async def boot(self, context: str) -> list[dict]: ...
-    
+
     @abstractmethod
     async def forget(self, memory_id: str) -> bool: ...
 
+
 class SqliteMemoryProvider(MemoryProvider):
     """Default: SQLite + FTS5, zero external deps."""
+
     ...
+
 
 class HybridMemoryProvider(MemoryProvider):
     """SQLite + optional embeddings via httpx to local API."""
+
     ...
+
 
 class MemoryManager:
     def __init__(self):
         self._providers: dict[str, MemoryProvider] = {}
         self._active: str = "sqlite"
-    
+
     def register(self, name: str, provider: MemoryProvider): ...
     def set_active(self, name: str): ...
-    
+
     @property
     def provider(self) -> MemoryProvider:
         return self._providers[self._active]
@@ -354,9 +364,10 @@ class ActionResult(BaseModel):
     screenshot_path: str | None = None
     ax_tree_hash: str | None = None  # for change detection
 
+
 class AgentComputerInterface:
     """Semantic actions over shell + accessibility APIs."""
-    
+
     async def screenshot(self, app: str | None = None) -> bytes: ...
     async def get_ui_tree(self, app: str) -> dict: ...
     async def click(self, x: float, y: float, app: str | None = None) -> ActionResult: ...
@@ -366,7 +377,7 @@ class AgentComputerInterface:
     async def scroll(self, direction: str, amount: int, app: str | None = None) -> ActionResult: ...
     async def run_shell(self, command: str, timeout: float = 30.0) -> ActionResult: ...
     async def open_app(self, bundle_id: str) -> ActionResult: ...
-    
+
     def classify_action(self, action: str) -> str:
         """Returns 'read', 'write', 'destructive', 'external'."""
         ...
@@ -404,53 +415,57 @@ class TaskNode(BaseModel):
     status: str = "pending"  # pending, running, completed, failed
     result: Any = None
 
+
 class MissionPlan(BaseModel):
     mission_id: str
     goal: str
     tasks: list[TaskNode]
     max_rounds: int = 10
 
+
 class DAGPlanner:
     def __init__(self, llm: LLMClient, tools: dict[str, Callable]):
         self.llm = llm
         self.tools = tools
-    
+
     async def plan(self, goal: str, available_tools: list[dict]) -> MissionPlan:
         """LLM generates task DAG from goal."""
         prompt = build_planning_prompt(goal, available_tools)
         response = await self.llm.complete(prompt, response_format=MissionPlan)
         return MissionPlan.model_validate_json(response)
-    
+
     async def execute(self, plan: MissionPlan) -> dict:
         """Execute DAG with dependency resolution."""
         completed = set()
         while len(completed) < len(plan.tasks):
-            ready = [t for t in plan.tasks 
-                    if t.id not in completed and t.status == "pending"
-                    and all(d in completed for d in t.dependencies)]
-            
+            ready = [
+                t
+                for t in plan.tasks
+                if t.id not in completed
+                and t.status == "pending"
+                and all(d in completed for d in t.dependencies)
+            ]
+
             if not ready:
                 break  # deadlock or all done
-            
+
             parallel_tasks = [t for t in ready if t.parallel]
             sequential_tasks = [t for t in ready if not t.parallel]
-            
+
             # Run parallel batch
             if parallel_tasks:
-                results = await asyncio.gather(*[
-                    self._execute_task(t) for t in parallel_tasks
-                ])
+                results = await asyncio.gather(*[self._execute_task(t) for t in parallel_tasks])
                 for t, r in zip(parallel_tasks, results):
                     t.result = r
                     t.status = "completed"
                     completed.add(t.id)
-            
+
             # Run sequential tasks
             for t in sequential_tasks:
                 t.result = await self._execute_task(t)
                 t.status = "completed"
                 completed.add(t.id)
-        
+
         return {t.id: t.result for t in plan.tasks}
 ```
 
@@ -482,22 +497,22 @@ class ReviewVerdict(BaseModel):
     reason: str
     suggested_revision: str | None = None
 
+
 class ReviewPipeline:
     def __init__(self, judge_model: str, max_retries: int = 2):
         self.judge = LLMClient(model=judge_model)
         self.max_retries = max_retries
-    
+
     async def review(self, task: str, output: str, criteria: list[str]) -> ReviewVerdict:
         prompt = build_review_prompt(task, output, criteria)
         response = await self.judge.complete(prompt, response_format=ReviewVerdict)
         return ReviewVerdict.model_validate_json(response)
-    
-    async def execute_with_review(self, task: str, executor: Callable, 
-                                   criteria: list[str]) -> Any:
+
+    async def execute_with_review(self, task: str, executor: Callable, criteria: list[str]) -> Any:
         for attempt in range(self.max_retries + 1):
             output = await executor(task)
             verdict = await self.review(task, str(output), criteria)
-            
+
             if verdict.verdict == "pass" or verdict.confidence > 0.9:
                 return output
             elif verdict.verdict == "needs_revision" and attempt < self.max_retries:
@@ -538,31 +553,40 @@ class WorkerProfile(BaseModel):
     total_tasks: int = 0
     cost_per_task_usd: float = 0.0
 
+
 class TeamAssembler:
     def __init__(self, db: aiosqlite.Connection):
         self.db = db
-    
-    async def find_workers(self, required_capabilities: list[str], 
-                          top_k: int = 5) -> list[WorkerProfile]:
+
+    async def find_workers(
+        self, required_capabilities: list[str], top_k: int = 5
+    ) -> list[WorkerProfile]:
         """Find best workers by capability match + performance."""
-        rows = await self.db.execute_fetchall("""
+        rows = await self.db.execute_fetchall(
+            """
             SELECT * FROM workers 
             WHERE capabilities LIKE ? OR capabilities LIKE ? OR ...
             ORDER BY success_rate DESC, avg_latency_ms ASC
             LIMIT ?
-        """, [f"%{cap}%" for cap in required_capabilities] + [top_k])
+        """,
+            [f"%{cap}%" for cap in required_capabilities] + [top_k],
+        )
         return [WorkerProfile(**dict(r)) for r in rows]
-    
-    async def record_outcome(self, worker_id: str, task_id: str, 
-                            success: bool, latency_ms: float, cost_usd: float):
+
+    async def record_outcome(
+        self, worker_id: str, task_id: str, success: bool, latency_ms: float, cost_usd: float
+    ):
         """Update worker performance stats."""
-        await self.db.execute("""
+        await self.db.execute(
+            """
             UPDATE workers SET 
                 total_tasks = total_tasks + 1,
                 success_rate = (success_rate * total_tasks + ?) / (total_tasks + 1),
                 avg_latency_ms = avg_latency_ms * 0.7 + ? * 0.3
             WHERE worker_id = ?
-        """, (1.0 if success else 0.0, latency_ms, worker_id))
+        """,
+            (1.0 if success else 0.0, latency_ms, worker_id),
+        )
         await self.db.commit()
 ```
 
@@ -591,51 +615,66 @@ import logging, json, time, uuid
 
 logger = logging.getLogger("agent")
 
+
 class DecisionTracer:
     """Structured decision tracing without OTel dependency."""
-    
+
     def __init__(self, run_id: str):
         self.run_id = run_id
         self.span_id = 0
-    
+
     def start_span(self, name: str, parent_id: str | None = None) -> str:
         span_id = f"{self.run_id}:{self.span_id}"
         self.span_id += 1
-        logger.info(json.dumps({
-            "event": "span_start",
-            "run_id": self.run_id,
-            "span_id": span_id,
-            "parent_id": parent_id,
-            "name": name,
-            "ts": time.time()
-        }))
+        logger.info(
+            json.dumps(
+                {
+                    "event": "span_start",
+                    "run_id": self.run_id,
+                    "span_id": span_id,
+                    "parent_id": parent_id,
+                    "name": name,
+                    "ts": time.time(),
+                }
+            )
+        )
         return span_id
-    
-    def log_decision(self, span_id: str, intent: str, why: str, 
-                     context_source: str, risk: str, reversible: bool):
-        logger.info(json.dumps({
-            "event": "decision",
-            "run_id": self.run_id,
-            "span_id": span_id,
-            "intent": intent,
-            "why": why,
-            "context_source": context_source,
-            "risk": risk,
-            "reversible": reversible,
-            "ts": time.time()
-        }))
-    
-    def end_span(self, span_id: str, status: str = "ok", 
-                 tokens_used: int = 0, cost_usd: float = 0.0):
-        logger.info(json.dumps({
-            "event": "span_end",
-            "run_id": self.run_id,
-            "span_id": span_id,
-            "status": status,
-            "tokens_used": tokens_used,
-            "cost_usd": cost_usd,
-            "ts": time.time()
-        }))
+
+    def log_decision(
+        self, span_id: str, intent: str, why: str, context_source: str, risk: str, reversible: bool
+    ):
+        logger.info(
+            json.dumps(
+                {
+                    "event": "decision",
+                    "run_id": self.run_id,
+                    "span_id": span_id,
+                    "intent": intent,
+                    "why": why,
+                    "context_source": context_source,
+                    "risk": risk,
+                    "reversible": reversible,
+                    "ts": time.time(),
+                }
+            )
+        )
+
+    def end_span(
+        self, span_id: str, status: str = "ok", tokens_used: int = 0, cost_usd: float = 0.0
+    ):
+        logger.info(
+            json.dumps(
+                {
+                    "event": "span_end",
+                    "run_id": self.run_id,
+                    "span_id": span_id,
+                    "status": status,
+                    "tokens_used": tokens_used,
+                    "cost_usd": cost_usd,
+                    "ts": time.time(),
+                }
+            )
+        )
 ```
 
 **Libraries:** Python `logging` (structured JSON), `structlog` (optional, for better formatting)
@@ -672,33 +711,36 @@ import asyncio, re
 from collections import defaultdict
 from dataclasses import dataclass, field
 
+
 @dataclass
 class Event:
     topic: str
     data: dict
     timestamp: float = field(default_factory=time.time)
 
+
 class EventBus:
     def __init__(self):
         self._handlers: dict[str, list[Callable]] = defaultdict(list)
         self._history: list[Event] = []
         self._history_max: int = 1000
-    
+
     def on(self, topic_pattern: str, handler: Callable):
         self._handlers[topic_pattern].append(handler)
-    
+
     def once(self, topic_pattern: str, handler: Callable):
         async def wrapper(*args, **kwargs):
             self._handlers[topic_pattern].remove(wrapper)
             await handler(*args, **kwargs)
+
         self._handlers[topic_pattern].append(wrapper)
-    
+
     async def emit(self, topic: str, data: dict):
         event = Event(topic=topic, data=data)
         self._history.append(event)
         if len(self._history) > self._history_max:
-            self._history = self._history[-self._history_max:]
-        
+            self._history = self._history[-self._history_max :]
+
         for pattern, handlers in self._handlers.items():
             if self._matches(pattern, topic):
                 for handler in handlers:
@@ -706,7 +748,7 @@ class EventBus:
                         await handler(event)
                     else:
                         handler(event)
-    
+
     def _matches(self, pattern: str, topic: str) -> bool:
         regex = pattern.replace(".", r"\.").replace("*", "[^.]+")
         return bool(re.fullmatch(regex, topic))
@@ -754,20 +796,24 @@ class ToolEntry(BaseModel):
     cost_per_call_usd: float = 0.0
     total_calls: int = 0
 
+
 class CapabilityRegistry:
     def __init__(self, db: aiosqlite.Connection):
         self.db = db
-    
+
     async def register(self, entry: ToolEntry): ...
     async def search(self, query: str, top_k: int = 5) -> list[ToolEntry]:
         """FTS5 semantic search over tool descriptions."""
         ...
+
     async def recommend(self, task: str, budget_usd: float | None = None) -> ToolEntry:
         """Rank by similarity * reliability, filter by budget."""
         ...
+
     async def ping(self, tool_id: str, success: bool, latency_ms: float):
         """Update reliability stats."""
         ...
+
     def to_openai_tool(self, entry: ToolEntry) -> dict:
         """Convert to OpenAI function-calling format."""
         return {
@@ -775,8 +821,8 @@ class CapabilityRegistry:
             "function": {
                 "name": entry.name,
                 "description": entry.description,
-                "parameters": entry.input_schema
-            }
+                "parameters": entry.input_schema,
+            },
         }
 ```
 
@@ -809,24 +855,25 @@ class ModelConfig(BaseModel):
     max_tokens: int
     strengths: list[str]  # ["code", "reasoning", "creative", "fast"]
 
+
 class ModelRouter:
     def __init__(self, models: list[ModelConfig]):
         self.models = models
         self.task_classifier = LLMClient(model="gpt-4o-mini")  # cheap classifier
-    
+
     async def route(self, task: str, task_type: str | None = None) -> ModelConfig:
         if task_type is None:
             task_type = await self._classify(task)
         return self._select_model(task_type)
-    
+
     async def _classify(self, task: str) -> str:
         """Classify task into category using cheap model."""
         response = await self.task_classifier.complete(
             f"Classify this task into one of: code, reasoning, creative, summarization, chat, translation.\n\nTask: {task}",
-            max_tokens=20
+            max_tokens=20,
         )
         return response.strip().lower()
-    
+
     def _select_model(self, task_type: str) -> ModelConfig:
         """Select best model for task type (cheapest that handles it)."""
         # Sort by cost, return first that has the capability
@@ -864,10 +911,11 @@ class MissionEvent(BaseModel):
     payload: dict
     timestamp: float = Field(default_factory=time.time)
 
+
 class MissionTimeline:
     def __init__(self, db: aiosqlite.Connection):
         self.db = db
-    
+
     async def init_schema(self):
         await self.db.executescript("""
             CREATE TABLE IF NOT EXISTS mission_events (
@@ -881,22 +929,27 @@ class MissionTimeline:
             );
             CREATE INDEX IF NOT EXISTS idx_events_mission ON mission_events(mission_id);
         """)
-    
+
     async def append(self, event: MissionEvent):
         await self.db.execute(
             "INSERT INTO mission_events (event_id, mission_id, seq, event_type, payload, timestamp) VALUES (?,?,?,?,?,?)",
-            (event.event_id, event.mission_id, event.seq, event.event_type, 
-             json.dumps(event.payload), event.timestamp)
+            (
+                event.event_id,
+                event.mission_id,
+                event.seq,
+                event.event_type,
+                json.dumps(event.payload),
+                event.timestamp,
+            ),
         )
         await self.db.commit()
-    
+
     async def get_timeline(self, mission_id: str) -> list[MissionEvent]:
         rows = await self.db.execute_fetchall(
-            "SELECT * FROM mission_events WHERE mission_id = ? ORDER BY seq",
-            (mission_id,)
+            "SELECT * FROM mission_events WHERE mission_id = ? ORDER BY seq", (mission_id,)
         )
         return [MissionEvent(**{**dict(r), "payload": json.loads(r["payload"])}) for r in rows]
-    
+
     async def get_state_at(self, mission_id: str, seq: int) -> dict:
         """Replay events up to seq to reconstruct state."""
         events = await self.get_timeline(mission_id)
@@ -906,7 +959,7 @@ class MissionTimeline:
                 break
             state = apply_event(state, e)  # state machine
         return state
-    
+
     async def replay_mission(self, mission_id: str) -> dict:
         """Full replay for debugging."""
         events = await self.get_timeline(mission_id)
@@ -951,13 +1004,15 @@ class Skill(BaseModel):
     deprecated: bool = False
     version: int = 1
 
+
 class SkillEvolver:
     def __init__(self, db: aiosqlite.Connection):
         self.db = db
-    
+
     async def record_use(self, skill_id: str, success: bool, latency_ms: float):
         """Track skill performance."""
-        await self.db.execute("""
+        await self.db.execute(
+            """
             UPDATE skills SET 
                 total_uses = total_uses + 1,
                 successful_uses = successful_uses + ?,
@@ -965,18 +1020,28 @@ class SkillEvolver:
                 avg_latency_ms = avg_latency_ms * 0.7 + ? * 0.3,
                 last_used = ?
             WHERE skill_id = ?
-        """, (1 if success else 0, 1 if success else 0, latency_ms,
-              datetime.utcnow().isoformat(), skill_id))
+        """,
+            (
+                1 if success else 0,
+                1 if success else 0,
+                latency_ms,
+                datetime.utcnow().isoformat(),
+                skill_id,
+            ),
+        )
         await self.db.commit()
-    
+
     async def curate(self, min_uses: int = 5, deprecation_threshold: float = 0.3):
         """Background: deprecate low-performing skills."""
-        await self.db.execute("""
+        await self.db.execute(
+            """
             UPDATE skills SET deprecated = 1 
             WHERE total_uses >= ? AND success_rate < ? AND deprecated = 0
-        """, (min_uses, deprecation_threshold))
+        """,
+            (min_uses, deprecation_threshold),
+        )
         await self.db.commit()
-    
+
     async def get_active_skills(self, category: str | None = None) -> list[Skill]:
         query = "SELECT * FROM skills WHERE deprecated = 0"
         params = []
@@ -986,7 +1051,7 @@ class SkillEvolver:
         query += " ORDER BY success_rate DESC"
         rows = await self.db.execute_fetchall(query, params)
         return [Skill(**dict(r)) for r in rows]
-    
+
     async def improve_skill(self, skill_id: str, feedback: str, new_procedure: str):
         """Update skill based on failure feedback."""
         skill = await self.get_skill(skill_id)
@@ -995,11 +1060,11 @@ class SkillEvolver:
         # Store old version for history
         await self.db.execute(
             "INSERT INTO skill_history (skill_id, version, procedure, feedback, created_at) VALUES (?,?,?,?,?)",
-            (skill_id, skill.version - 1, skill.procedure, feedback, datetime.utcnow().isoformat())
+            (skill_id, skill.version - 1, skill.procedure, feedback, datetime.utcnow().isoformat()),
         )
         await self.db.execute(
             "UPDATE skills SET procedure = ?, version = version + 1 WHERE skill_id = ?",
-            (new_procedure, skill_id)
+            (new_procedure, skill_id),
         )
         await self.db.commit()
 ```

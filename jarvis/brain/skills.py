@@ -1,11 +1,10 @@
 """Skill learning system - save and reuse successful task workflows."""
-import asyncio
+
 import json
 import re
 import time
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
-from dataclasses import dataclass, field, asdict
 
 SKILLS_DIR = Path("memory_store")
 SKILLS_DIR.mkdir(parents=True, exist_ok=True)
@@ -16,7 +15,7 @@ SKILLS_FILE = SKILLS_DIR / "skills.json"
 class Skill:
     name: str
     description: str
-    steps: List[Dict[str, str]]
+    steps: list[dict[str, str]]
     success_count: int = 0
     failure_count: int = 0
     created_at: float = 0.0
@@ -48,9 +47,9 @@ class Skill:
 class SkillManager:
     """Manages reusable skill definitions learned from experience."""
 
-    def __init__(self, skills_path: Optional[Path] = None):
+    def __init__(self, skills_path: Path | None = None):
         self._path = skills_path or SKILLS_FILE
-        self._skills: Dict[str, Skill] = {}
+        self._skills: dict[str, Skill] = {}
         self._load()
 
     def _load(self):
@@ -65,12 +64,13 @@ class SkillManager:
         data = {k: v.to_dict() for k, v in self._skills.items()}
         self._path.write_text(json.dumps(data, indent=2))
 
-    async def record_skill(
-        self, name: str, description: str, steps: List[Dict[str, str]]
-    ) -> dict:
+    async def record_skill(self, name: str, description: str, steps: list[dict[str, str]]) -> dict:
         """Save a new skill from a completed task."""
         if name in self._skills:
-            return {"ok": False, "error": f"Skill '{name}' already exists. Use update or delete first."}
+            return {
+                "ok": False,
+                "error": f"Skill '{name}' already exists. Use update or delete first.",
+            }
 
         skill = Skill(
             name=name,
@@ -85,10 +85,10 @@ class SkillManager:
 
     async def find_similar(self, description: str) -> dict:
         """Find skills matching a description via keyword overlap."""
-        keywords = set(re.findall(r'\w+', description.lower()))
+        keywords = set(re.findall(r"\w+", description.lower()))
         scored = []
         for skill in self._skills.values():
-            skill_words = set(re.findall(r'\w+', skill.description.lower()))
+            skill_words = set(re.findall(r"\w+", skill.description.lower()))
             overlap = len(keywords & skill_words)
             if overlap > 0:
                 scored.append((overlap, skill))
@@ -97,8 +97,12 @@ class SkillManager:
             "ok": True,
             "query": description,
             "matches": [
-                {"name": s.name, "description": s.description, "score": score,
-                 "success_rate": s.success_rate}
+                {
+                    "name": s.name,
+                    "description": s.description,
+                    "score": score,
+                    "success_rate": s.success_rate,
+                }
                 for score, s in scored
             ],
         }

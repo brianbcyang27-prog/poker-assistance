@@ -19,14 +19,15 @@ Response format:
 }
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional, Any
-import uuid
 import time
+import uuid
+
+from pydantic import BaseModel, Field
 
 
 class IoTMessage(BaseModel):
     """Message sent TO an ESP32 device."""
+
     cmd: str
     payload: dict = Field(default_factory=dict)
     id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
@@ -35,6 +36,7 @@ class IoTMessage(BaseModel):
 
 class IoTResponse(BaseModel):
     """Response FROM an ESP32 device."""
+
     status: str = "ok"
     data: dict = Field(default_factory=dict)
     id: str = ""
@@ -43,6 +45,7 @@ class IoTResponse(BaseModel):
 
 class DeviceInfo(BaseModel):
     """Information about a connected ESP32 device."""
+
     device_id: str
     name: str
     ip: str

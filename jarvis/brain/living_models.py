@@ -1,9 +1,8 @@
 """Living Intelligence Models - Data structures for the background brain loop."""
 
 import time
-import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
@@ -14,13 +13,13 @@ class ContextSnapshot:
     active_app: str = ""
     active_file: str = ""
     git_branch: str = ""
-    browser_tabs: List[str] = field(default_factory=list)
-    open_files: List[str] = field(default_factory=list)
-    running_terminals: List[str] = field(default_factory=list)
+    browser_tabs: list[str] = field(default_factory=list)
+    open_files: list[str] = field(default_factory=list)
+    running_terminals: list[str] = field(default_factory=list)
     current_mission: str = ""
     cpu_percent: float = 0.0
     memory_percent: float = 0.0
-    context_dict: Dict[str, Any] = field(default_factory=dict)
+    context_dict: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -29,9 +28,9 @@ class Understanding:
 
     snapshot: ContextSnapshot = field(default_factory=ContextSnapshot)
     summary: str = ""
-    detected_patterns: List[str] = field(default_factory=list)
-    anomalies: List[str] = field(default_factory=list)
-    context_changes: List[str] = field(default_factory=list)
+    detected_patterns: list[str] = field(default_factory=list)
+    anomalies: list[str] = field(default_factory=list)
+    context_changes: list[str] = field(default_factory=list)
 
 
 @dataclass

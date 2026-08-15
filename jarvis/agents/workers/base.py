@@ -4,12 +4,11 @@ import asyncio
 import json
 import re
 from abc import abstractmethod
-from typing import Optional
 
-from ..base import CardAgent
-from ...core.models import Suit, Rank, AgentState, AgentMessage, Task
-from ...core.reliability import config as reliability_config
 from ...brain.llm import LLM
+from ...core.models import AgentMessage, AgentState, Rank, Suit, Task
+from ...core.reliability import config as reliability_config
+from ..base import CardAgent
 
 
 class BaseWorker(CardAgent):
@@ -38,23 +37,28 @@ class BaseWorker(CardAgent):
     def get_tools(self):
         if self._tools is None:
             from ...computer.controller import controller
+
             self._tools = controller
         return self._tools
 
     async def _llm_chat(self, message: str, system_prompt: str, **kwargs) -> str:
         """Run sync LLM calls off the event loop."""
-        return await asyncio.to_thread(self._llm.chat, message=message, system_prompt=system_prompt, **kwargs)
+        return await asyncio.to_thread(
+            self._llm.chat, message=message, system_prompt=system_prompt, **kwargs
+        )
 
     def _extract_tool_calls(self, response: str) -> list[tuple[str, dict]]:
         """Extract tool calls from bracket syntax or JSON blocks."""
         calls: list[tuple[str, dict]] = []
 
-        for action_str, args_str in re.findall(r'\[TOOL:\s*([\w\.]+)\((.*?)\)\]', response, re.DOTALL):
+        for action_str, args_str in re.findall(
+            r"\[TOOL:\s*([\w\.]+)\((.*?)\)\]", response, re.DOTALL
+        ):
             params = {}
             if args_str.strip():
                 for key, value in re.findall(r'(\w+)="([^"]*)"', args_str):
                     params[key] = value
-                for key, value in re.findall(r'(\w+)=(\d+\.?\d*)', args_str):
+                for key, value in re.findall(r"(\w+)=(\d+\.?\d*)", args_str):
                     if key not in params:
                         try:
                             num = float(value)
@@ -63,7 +67,7 @@ class BaseWorker(CardAgent):
                             params[key] = value
             calls.append((action_str, params))
 
-        for block in re.findall(r'```json\s*(\{.*?\})\s*```', response, re.DOTALL | re.IGNORECASE):
+        for block in re.findall(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL | re.IGNORECASE):
             try:
                 payload = json.loads(block)
             except Exception:
@@ -86,6 +90,7 @@ class BaseWorker(CardAgent):
     @property
     def role(self):
         from ...core.models import AgentRole
+
         return AgentRole.WORKER
 
     @abstractmethod
@@ -94,75 +99,85 @@ class BaseWorker(CardAgent):
 
     # === Collaboration Methods ===
 
-    async def request_help(self, question: str, task_id: str = "") -> Optional[str]:
+    async def request_help(self, question: str, task_id: str = "") -> str | None:
         """Request help from a peer worker via the event bus.
 
         Emits a worker.help_request event and waits up to 15s for a response.
         """
-        from ...core.events import event_bus, Event
+        from ...core.events import Event, event_bus
 
         request_id = f"help_{self.card_id}_{task_id}_{id(question)}"
-        future: asyncio.Future = asyncio.get_event_loop().create_future()
+        future: asyncio.Future = asyncio.get_running_loop().create_future()
         self._pending_help[request_id] = future
 
-        await event_bus.emit(Event(
-            type="worker.help_request",
-            data={
-                "worker": self.card_id,
-                "request_id": request_id,
-                "question": question,
-                "task_id": task_id,
-            },
-            source=self.card_id,
-        ))
+        await event_bus.emit(
+            Event(
+                type="worker.help_request",
+                data={
+                    "worker": self.card_id,
+                    "request_id": request_id,
+                    "question": question,
+                    "task_id": task_id,
+                },
+                source=self.card_id,
+            )
+        )
 
         try:
-            response = await asyncio.wait_for(future, timeout=reliability_config.worker_timeout / 20)
+            response = await asyncio.wait_for(
+                future, timeout=reliability_config.worker_timeout / 20
+            )
             return response
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return None
         finally:
             self._pending_help.pop(request_id, None)
 
     async def respond_to_help(self, request_id: str, responder: str, answer: str):
         """Respond to a help request from a peer."""
-        from ...core.events import event_bus, Event
+        from ...core.events import Event, event_bus
 
-        await event_bus.emit(Event(
-            type="worker.help_response",
-            data={
-                "responder": responder,
-                "request_id": request_id,
-                "answer": answer,
-            },
-            source=self.card_id,
-        ))
+        await event_bus.emit(
+            Event(
+                type="worker.help_response",
+                data={
+                    "responder": responder,
+                    "request_id": request_id,
+                    "answer": answer,
+                },
+                source=self.card_id,
+            )
+        )
 
     async def share_result(self, task_name: str, result_summary: str):
         """Share a result with peers via the event bus."""
-        from ...core.events import event_bus, Event
+        from ...core.events import Event, event_bus
 
-        await event_bus.emit(Event(
-            type="worker.result_shared",
-            data={
-                "worker": self.card_id,
-                "task": task_name,
-                "summary": result_summary[:500],
-            },
-            source=self.card_id,
-        ))
+        await event_bus.emit(
+            Event(
+                type="worker.result_shared",
+                data={
+                    "worker": self.card_id,
+                    "task": task_name,
+                    "summary": result_summary[:500],
+                },
+                source=self.card_id,
+            )
+        )
 
     async def broadcast(self, message_type: str, data: dict):
         """Broadcast a discovery or status to all peers."""
-        from ...core.events import event_bus, Event
+        from ...core.events import Event, event_bus
 
-        await event_bus.emit(Event(
-            type=f"worker.broadcast.{message_type}",
-            data={"worker": self.card_id, **data},
-            source=self.card_id,
-        ))
+        await event_bus.emit(
+            Event(
+                type=f"worker.broadcast.{message_type}",
+                data={"worker": self.card_id, **data},
+                source=self.card_id,
+            )
+        )
 
-    def _setup_collaboration_listener(self):
+    async def _setup_collaboration_listener(self):
         """Subscribe to events from peers. Called once during initialization."""
         from ...core.events import event_bus
 
@@ -176,9 +191,9 @@ class BaseWorker(CardAgent):
             if worker_id != self.card_id:
                 self._peer_results[worker_id] = event.data.get("summary", "")
 
-        event_bus.on("worker.help_response", _on_help_response)
-        event_bus.on("worker.result_shared", _on_result_shared)
-    
+        await event_bus.on("worker.help_response", _on_help_response)
+        await event_bus.on("worker.result_shared", _on_result_shared)
+
     async def execute_task(self, task: Task, peer_context: str = "") -> AgentMessage:
         """Execute a task and return result with confidence.
 
@@ -186,16 +201,18 @@ class BaseWorker(CardAgent):
             task: The task to execute.
             peer_context: Results from previously completed workers in the same mission.
         """
-        from ...core.events import event_bus, Event
+        from ...core.events import Event, event_bus
 
         self.set_state(AgentState.WORKING)
-        self._setup_collaboration_listener()
+        await self._setup_collaboration_listener()
 
-        await event_bus.emit(Event(
-            type="worker.started",
-            data={"worker": self.card_id, "task": task.name},
-            source=self.card_id,
-        ))
+        await event_bus.emit(
+            Event(
+                type="worker.started",
+                data={"worker": self.card_id, "task": task.name},
+                source=self.card_id,
+            )
+        )
 
         try:
             system_prompt = self.get_system_prompt()
@@ -241,6 +258,7 @@ After receiving tool results or peer help, continue your work. When done, provid
             # Review pipeline
             try:
                 from ...brain.review import review_pipeline
+
                 review = await review_pipeline.review(
                     task_type=task.name,
                     task_description=task.description,
@@ -248,31 +266,28 @@ After receiving tool results or peer help, continue your work. When done, provid
                     confidence=confidence,
                     issues=issues,
                 )
-                if review.verdict.value == "fail":
-                    status = "completed_with_issues"
-                else:
-                    status = "completed"
                 issues = list(set(issues + review.issues))
             except Exception:
                 review = None
-                status = "completed"
 
             self.set_state(AgentState.COMPLETED)
 
             # Share result with peers
             await self.share_result(task.name, response[:500])
 
-            await event_bus.emit(Event(
-                type="worker.completed",
-                data={
-                    "worker": self.card_id,
-                    "task": task.name,
-                    "confidence": confidence,
-                    "issues": issues,
-                    "review": review.to_dict() if review else None,
-                },
-                source=self.card_id,
-            ))
+            await event_bus.emit(
+                Event(
+                    type="worker.completed",
+                    data={
+                        "worker": self.card_id,
+                        "task": task.name,
+                        "confidence": confidence,
+                        "issues": issues,
+                        "review": review.to_dict() if review else None,
+                    },
+                    source=self.card_id,
+                )
+            )
 
             return AgentMessage(
                 sender=self.card_id,
@@ -286,15 +301,17 @@ After receiving tool results or peer help, continue your work. When done, provid
 
         except Exception as e:
             self.set_state(AgentState.ERROR)
-            await event_bus.emit(Event(
-                type="worker.error",
-                data={
-                    "worker": self.card_id,
-                    "task": task.name,
-                    "error": str(e),
-                },
-                source=self.card_id,
-            ))
+            await event_bus.emit(
+                Event(
+                    type="worker.error",
+                    data={
+                        "worker": self.card_id,
+                        "task": task.name,
+                        "error": str(e),
+                    },
+                    source=self.card_id,
+                )
+            )
             return AgentMessage(
                 sender=self.card_id,
                 receiver="K",
@@ -304,7 +321,7 @@ After receiving tool results or peer help, continue your work. When done, provid
                 confidence=0.0,
                 issues=[str(e)],
             )
-    
+
     async def _process_tool_calls(self, response: str) -> str:
         """Parse and execute tool calls from LLM response."""
         tool_executor = self.get_tools()
@@ -312,7 +329,7 @@ After receiving tool results or peer help, continue your work. When done, provid
 
         for _ in range(max_iterations):
             # Handle help requests
-            help_matches = re.findall(r'\[HELP_REQUEST:\s*(.*?)\]', response)
+            help_matches = re.findall(r"\[HELP_REQUEST:\s*(.*?)\]", response)
             for question in help_matches:
                 answer = await self.request_help(question)
                 if answer:
@@ -326,16 +343,19 @@ After receiving tool results or peer help, continue your work. When done, provid
                 break
 
             for action_str, params in matches:
+                from ...core.events import Event, event_bus
 
-                await event_bus.emit(Event(
-                    type="worker.tool_call",
-                    data={
-                        "worker": self.card_id,
-                        "action": action_str,
-                        "params": str(params)[:100],
-                    },
-                    source=self.card_id,
-                ))
+                await event_bus.emit(
+                    Event(
+                        type="worker.tool_call",
+                        data={
+                            "worker": self.card_id,
+                            "action": action_str,
+                            "params": str(params)[:100],
+                        },
+                        source=self.card_id,
+                    )
+                )
 
                 result = await tool_executor.execute(action_str, **params)
                 result_str = f"\n[TOOL RESULT: {action_str}] {result}\n"
@@ -345,13 +365,13 @@ After receiving tool results or peer help, continue your work. When done, provid
                 )
 
         return response
-    
+
     async def _assess_confidence(self, task: Task, response: str) -> float:
         """Assess confidence in the response."""
         system_prompt = """Assess your confidence in this work on a scale of 0.0 to 1.0.
 Consider: completeness, accuracy, potential issues, limitations.
 Respond with just the number."""
-        
+
         try:
             result = await self._llm_chat(
                 message=f"Task: {task.name}\nResponse: {response[:500]}",
@@ -362,28 +382,28 @@ Respond with just the number."""
             return max(0.0, min(1.0, confidence))
         except (ValueError, Exception):
             return 0.8  # Default confidence
-    
+
     async def _identify_issues(self, task: Task, response: str) -> list[str]:
         """Identify potential issues with the response."""
         system_prompt = """Identify any potential issues, limitations, or concerns with this work.
 List each issue on a new line, or respond with "None" if there are no issues."""
-        
+
         try:
             result = await self._llm_chat(
                 message=f"Task: {task.name}\nResponse: {response[:500]}",
                 system_prompt=system_prompt,
                 temperature=0.1,
             )
-            
+
             if result.strip().lower() == "none":
                 return []
-            
+
             return [line.strip() for line in result.strip().split("\n") if line.strip()]
-        
+
         except Exception:
             return []
-    
-    def process_message(self, message: AgentMessage) -> Optional[AgentMessage]:
+
+    def process_message(self, message: AgentMessage) -> AgentMessage | None:
         """Process messages from peers (help requests, shared results)."""
         if message.status == "help_request":
             answer = self._handle_help_request(message.content)
@@ -400,8 +420,13 @@ List each issue on a new line, or respond with "None" if there are no issues."""
         """Answer a help request based on this worker's knowledge."""
         try:
             response = self._llm.chat(
-                message=f"A peer worker asked: {question}\n\nProvide a brief, helpful answer based on your expertise.",
-                system_prompt=f"You are {self.name}, a {self.title}. Help a peer with their question briefly.",
+                message=(
+                    f"A peer worker asked: {question}\n\n"
+                    f"Provide a brief, helpful answer based on your expertise."
+                ),
+                system_prompt=(
+                    f"You are {self.name}, a {self.title}. Help a peer with their question briefly."
+                ),
                 temperature=0.3,
             )
             return response

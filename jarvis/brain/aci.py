@@ -5,15 +5,16 @@ broadcast capabilities for agent-to-agent communication.
 """
 
 import time
-import asyncio
-from enum import Enum
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Optional, Callable, Awaitable
+from enum import Enum, StrEnum
+
 from loguru import logger
 
 
-class MessageType(str, Enum):
+class MessageType(StrEnum):
     """Typed messages for structured communication."""
+
     TASK_ASSIGN = "task_assign"
     TASK_RESULT = "task_result"
     TASK_UPDATE = "task_update"
@@ -28,6 +29,7 @@ class MessageType(str, Enum):
 
 class MessagePriority(int, Enum):
     """Message priority levels."""
+
     LOW = 0
     NORMAL = 1
     HIGH = 2
@@ -37,6 +39,7 @@ class MessagePriority(int, Enum):
 @dataclass
 class ACIMessage:
     """Structured message for inter-agent communication."""
+
     id: str
     msg_type: MessageType
     sender: str
@@ -44,7 +47,7 @@ class ACIMessage:
     payload: dict = field(default_factory=dict)
     priority: MessagePriority = MessagePriority.NORMAL
     timestamp: float = field(default_factory=time.time)
-    reply_to: Optional[str] = None  # ID of message being replied to
+    reply_to: str | None = None  # ID of message being replied to
     ttl: float = 300.0  # Time to live in seconds
     delivered: bool = False
     read: bool = False
@@ -85,7 +88,7 @@ class MessageQueue:
         self._queue.sort(key=lambda m: m.priority.value, reverse=True)
         return True
 
-    async def dequeue(self) -> Optional[ACIMessage]:
+    async def dequeue(self) -> ACIMessage | None:
         """Get the highest-priority non-expired message."""
         while self._queue:
             msg = self._queue[0]
@@ -131,7 +134,7 @@ class ACI:
         msg_type: MessageType,
         payload: dict = None,
         priority: MessagePriority = MessagePriority.NORMAL,
-        reply_to: Optional[str] = None,
+        reply_to: str | None = None,
         ttl: float = 300.0,
     ) -> ACIMessage:
         """Send a message from one agent to another."""
@@ -159,7 +162,7 @@ class ACI:
         # Record in history
         self._history.append(msg)
         if len(self._history) > self._max_history:
-            self._history = self._history[-self._max_history:]
+            self._history = self._history[-self._max_history :]
 
         # Notify type handlers
         for handler in self._handlers.get(msg_type.value, []):
@@ -178,7 +181,7 @@ class ACI:
         logger.debug(f"ACI: {sender} → {receiver} [{msg_type.value}] priority={priority.value}")
         return msg
 
-    async def receive(self, agent_id: str) -> Optional[ACIMessage]:
+    async def receive(self, agent_id: str) -> ACIMessage | None:
         """Receive the next message for an agent."""
         queue = self._get_queue(agent_id)
         msg = await queue.dequeue()
@@ -220,9 +223,9 @@ class ACI:
 
     def get_history(
         self,
-        sender: Optional[str] = None,
-        receiver: Optional[str] = None,
-        msg_type: Optional[MessageType] = None,
+        sender: str | None = None,
+        receiver: str | None = None,
+        msg_type: MessageType | None = None,
         limit: int = 50,
     ) -> list[ACIMessage]:
         """Get message history with optional filters."""

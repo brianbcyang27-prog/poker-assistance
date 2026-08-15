@@ -1,25 +1,23 @@
 """Tests for JARVIS OS Integration (v5.0.0)."""
 
-import pytest
-import asyncio
 import os
 import sys
-import tempfile
-from unittest.mock import patch, MagicMock, AsyncMock
+
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from jarvis.os.notifications import NotificationManager
-from jarvis.os.clipboard import ClipboardManager, ClipboardEntry
-from jarvis.os.hotkeys import HotkeyManager
-from jarvis.os.menubar import MenuBarManager
-from jarvis.os.watcher import FileWatcher
-from jarvis.os.manager import OSManager
 from jarvis.computer.actions import ActionType
 from jarvis.computer.manager import ComputerManager
-
+from jarvis.os.clipboard import ClipboardEntry, ClipboardManager
+from jarvis.os.hotkeys import HotkeyManager
+from jarvis.os.manager import OSManager
+from jarvis.os.menubar import MenuBarManager
+from jarvis.os.notifications import NotificationManager
+from jarvis.os.watcher import FileWatcher
 
 # ── NotificationManager Tests ────────────────────────────
+
 
 class TestNotificationManager:
     def setup_method(self):
@@ -40,8 +38,9 @@ class TestNotificationManager:
         assert history == []
 
     def test_get_history_limit(self):
+
         from jarvis.os.notifications import Notification
-        from datetime import datetime
+
         for i in range(15):
             self.nm.history.append(Notification(title=f"Test {i}", message=f"Message {i}"))
         history = self.nm.get_history(limit=5)
@@ -50,10 +49,11 @@ class TestNotificationManager:
 
     def test_escape(self):
         assert self.nm._escape('hello "world"') == 'hello \\"world\\"'
-        assert self.nm._escape('path\\to\\file') == 'path\\\\to\\\\file'
+        assert self.nm._escape("path\\to\\file") == "path\\\\to\\\\file"
 
 
 # ── ClipboardManager Tests ───────────────────────────────
+
 
 class TestClipboardManager:
     def setup_method(self):
@@ -88,8 +88,6 @@ class TestClipboardManager:
         assert len(called) == 0  # No callback yet
 
     def test_history_tracking(self):
-        from jarvis.os.clipboard import ClipboardEntry
-        from datetime import datetime
         for i in range(5):
             self.cm.history.append(ClipboardEntry(content=f"item {i}", content_type="text"))
         history = self.cm.get_history(limit=3)
@@ -98,6 +96,7 @@ class TestClipboardManager:
 
 
 # ── HotkeyManager Tests ──────────────────────────────────
+
 
 class TestHotkeyManager:
     def setup_method(self):
@@ -136,6 +135,7 @@ class TestHotkeyManager:
 
 # ── MenuBarManager Tests ─────────────────────────────────
 
+
 class TestMenuBarManager:
     def setup_method(self):
         self.mm = MenuBarManager()
@@ -166,6 +166,7 @@ class TestMenuBarManager:
 
 
 # ── FileWatcher Tests ────────────────────────────────────
+
 
 class TestFileWatcher:
     def setup_method(self):
@@ -200,6 +201,7 @@ class TestFileWatcher:
 
 
 # ── OSManager Tests ──────────────────────────────────────
+
 
 class TestOSManager:
     def setup_method(self):
@@ -253,6 +255,7 @@ class TestOSManager:
 
 
 # ── ActionType Tests ─────────────────────────────────────
+
 
 class TestActionTypeOS:
     def test_os_action_type_exists(self):

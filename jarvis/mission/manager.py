@@ -1,30 +1,50 @@
-"""MissionManager — persistent long-running mission lifecycle manager."""
+"""MissionManager — persistent long-running mission lifecycle manager.
 
-import json
+Persistence: Uses the SQLite workspaces table (via Database) for unified storage
+with MissionManager. WorkspaceManager also writes to the same table.
+"""
+
 import logging
-import os
 import time
 import uuid
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .mission import Mission, MissionStatus
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_STORAGE = Path("jarvis_missions.json")
-
 
 class MissionManager:
-    """Create, control, persist, and replay long-running missions."""
+    """Create, control, persist, and replay long-running missions.
 
-    def __init__(self, storage_path: Optional[str] = None) -> None:
-        self._missions: Dict[str, Mission] = {}
-        self._storage = Path(storage_path) if storage_path else _DEFAULT_STORAGE
-        self._progress: Dict[str, Dict[str, Any]] = {}
-        self._start_times: Dict[str, float] = {}
-        self._durations: Dict[str, List[float]] = {}
+    Runtime split (v9):
+      - MissionManager: replay/legacy API, lightweight lifecycle control
+      - WorkspaceManager + DAGPlanner + MissionExecutor: production DAG pipeline
+      Both write to the same workspaces SQLite table.
+    """
+
+    def __init__(self, storage_path: str | None = None, *, use_db: bool = True) -> None:
+        self._missions: dict[str, Mission] = {}
+        self._progress: dict[str, dict[str, Any]] = {}
+        self._start_times: dict[str, float] = {}
+        self._use_db = use_db
+        if storage_path is not None:
+            logger.debug("storage_path=%r is ignored — persistence is now DB-backed", storage_path)
+
+    # ------------------------------------------------------------------
+    # Database access
+    # ------------------------------------------------------------------
+
+    async def _db(self):
+        if not self._use_db:
+            return None
+        try:
+            from jarvis.core.database import get_db
+
+            return await get_db()
+        except Exception:
+            return None
 
     # ------------------------------------------------------------------
     # CRUD
@@ -39,13 +59,31 @@ class MissionManager:
         )
         self._missions[mission.id] = mission
         self._progress[mission.id] = {"steps_total": 0, "steps_done": 0, "status": "created"}
+        db = await self._db()
+        if db:
+            try:
+                await db.save_mission(mission.model_dump())
+            except Exception:
+                logger.warning("Failed to persist mission %s to DB", mission.id, exc_info=True)
         logger.info("Created mission %s", mission.id)
         return mission
 
-    async def get(self, mission_id: str) -> Optional[Mission]:
-        return self._missions.get(mission_id)
+    async def get(self, mission_id: str) -> Mission | None:
+        if mission_id in self._missions:
+            return self._missions[mission_id]
+        db = await self._db()
+        if db:
+            try:
+                data = await db.get_mission(mission_id)
+                if data:
+                    mission = self._mission_from_dict(data)
+                    self._missions[mission_id] = mission
+                    return mission
+            except Exception:
+                logger.warning("Failed to load mission %s from DB", mission_id, exc_info=True)
+        return None
 
-    async def list_active(self) -> List[Mission]:
+    async def list_active(self) -> list[Mission]:
         active_statuses = {
             MissionStatus.CREATED,
             MissionStatus.RESEARCHING,
@@ -57,7 +95,7 @@ class MissionManager:
         }
         return [m for m in self._missions.values() if m.status in active_statuses]
 
-    async def list_completed(self) -> List[Mission]:
+    async def list_completed(self) -> list[Mission]:
         return [
             m
             for m in self._missions.values()
@@ -76,6 +114,7 @@ class MissionManager:
         mission.started_at = datetime.now()
         self._start_times[mission_id] = time.time()
         self._progress.setdefault(mission_id, {}).update({"status": "running"})
+        await self._persist_status(mission_id, mission.status)
         logger.info("Started mission %s", mission_id)
 
     async def pause(self, mission_id: str) -> None:
@@ -84,15 +123,16 @@ class MissionManager:
             return
         mission.status = MissionStatus.PAUSED
         self._progress.setdefault(mission_id, {}).update({"status": "paused"})
+        await self._persist_status(mission_id, MissionStatus.PAUSED)
         logger.info("Paused mission %s", mission_id)
 
     async def resume(self, mission_id: str) -> None:
         mission = self._require(mission_id)
         if mission.status != MissionStatus.PAUSED:
             raise RuntimeError("Mission is not paused")
-        # Resume to the next logical stage (default: executing)
         mission.status = MissionStatus.EXECUTING
         self._progress.setdefault(mission_id, {}).update({"status": "running"})
+        await self._persist_status(mission_id, MissionStatus.EXECUTING)
         logger.info("Resumed mission %s", mission_id)
 
     async def cancel(self, mission_id: str) -> None:
@@ -102,7 +142,18 @@ class MissionManager:
         mission.status = MissionStatus.FAILED
         mission.add_error("Cancelled by user")
         self._progress.setdefault(mission_id, {}).update({"status": "cancelled"})
+        await self._persist_status(mission_id, MissionStatus.FAILED)
         logger.info("Cancelled mission %s", mission_id)
+
+        # Propagate cancellation to the running executor task
+        try:
+            from jarvis.brain.mission_executor import mission_executor
+
+            mission_executor.cancel_execution(mission_id)
+        except Exception:
+            logger.warning(
+                "Failed to propagate cancellation to executor for %s", mission_id, exc_info=True
+            )
 
     async def retry(self, mission_id: str) -> None:
         mission = self._require(mission_id)
@@ -111,13 +162,14 @@ class MissionManager:
         mission.status = MissionStatus.CREATED
         mission.errors.clear()
         self._progress.setdefault(mission_id, {}).update({"status": "retrying"})
+        await self._persist_status(mission_id, MissionStatus.CREATED)
         logger.info("Retrying mission %s", mission_id)
 
     # ------------------------------------------------------------------
     # Progress & ETA
     # ------------------------------------------------------------------
 
-    async def get_progress(self, mission_id: str) -> Dict[str, Any]:
+    async def get_progress(self, mission_id: str) -> dict[str, Any]:
         self._require(mission_id)
         prog = self._progress.get(mission_id, {})
         mission = self._missions[mission_id]
@@ -134,8 +186,7 @@ class MissionManager:
             ),
         }
 
-    async def get_eta(self, mission_id: str) -> Optional[float]:
-        """Estimated seconds remaining based on average stage duration."""
+    async def get_eta(self, mission_id: str) -> float | None:
         self._require(mission_id)
         start = self._start_times.get(mission_id)
         if start is None:
@@ -155,7 +206,6 @@ class MissionManager:
     # ------------------------------------------------------------------
 
     async def replay(self, mission_id: str) -> Mission:
-        """Create a new mission cloned from a completed/failed one."""
         original = self._require(mission_id)
         clone = await self.create(
             user_request=f"[REPLAY] {original.user_request}",
@@ -166,42 +216,33 @@ class MissionManager:
         return clone
 
     # ------------------------------------------------------------------
-    # Persistence
+    # Persistence (now DB-backed; signatures preserved for backward compat)
     # ------------------------------------------------------------------
 
     async def save(self) -> None:
-        import tempfile
-        data: List[Dict[str, Any]] = []
-        for m in self._missions.values():
-            entry = m.to_dict()
-            entry["_progress"] = self._progress.get(m.id, {})
-            data.append(entry)
-        
-        # Atomic write: write to temp file, then rename
-        tmp = self._storage.with_suffix('.tmp')
-        tmp.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False, default=str),
-            encoding="utf-8",
-        )
-        tmp.rename(self._storage)
-        logger.info("Saved %d missions to %s", len(data), self._storage)
+        """Save all cached missions to the database (replaces JSON persistence)."""
+        try:
+            db = await self._db()
+            for m in self._missions.values():
+                try:
+                    await db.save_mission(m.model_dump())
+                except Exception:
+                    logger.warning("Failed to save mission %s", m.id, exc_info=True)
+            logger.info("Saved %d missions to database", len(self._missions))
+        except Exception:
+            logger.warning("Failed to save missions to database", exc_info=True)
 
     async def load(self) -> None:
-        if not self._storage.is_file():
-            return
-        raw = json.loads(self._storage.read_text(encoding="utf-8"))
-        for entry in raw:
-            mission = Mission(
-                id=entry.get("id", ""),
-                user_request=entry.get("user_request", ""),
-                goal=entry.get("goal", ""),
-                status=entry.get("status", MissionStatus.CREATED),
-                current_stage=entry.get("current_stage", ""),
-                priority=entry.get("priority", "normal"),
-            )
-            self._missions[mission.id] = mission
-            self._progress[mission.id] = entry.get("_progress", {})
-        logger.info("Loaded %d missions from %s", len(raw), self._storage)
+        """Load missions from the database into the cache."""
+        try:
+            db = await self._db()
+            raw = await db.list_missions(limit=1000)
+            for entry in raw:
+                mission = self._mission_from_dict(entry)
+                self._missions[mission.id] = mission
+            logger.info("Loaded %d missions from database", len(raw))
+        except Exception:
+            logger.warning("Failed to load missions from database", exc_info=True)
 
     # ------------------------------------------------------------------
     # Internal
@@ -213,4 +254,32 @@ class MissionManager:
             raise KeyError(f"Mission '{mission_id}' not found")
         return mission
 
+    async def _persist_status(self, mission_id: str, status: str) -> None:
+        try:
+            db = await self._db()
+            await db.update_mission_status(mission_id, status)
+        except Exception:
+            pass
 
+    @staticmethod
+    def _mission_from_dict(data: dict) -> Mission:
+        return Mission(
+            id=data.get("id", ""),
+            user_request=data.get("user_request", ""),
+            goal=data.get("goal", ""),
+            owner=data.get("owner", ""),
+            status=data.get("status", MissionStatus.CREATED),
+            current_stage=data.get("current_stage", "understand"),
+            priority=data.get("priority", "normal"),
+            research_findings=data.get("research_findings", []),
+            tool_candidates=data.get("tool_candidates", []),
+            architecture_plan=data.get("architecture_plan"),
+            execution_results=data.get("execution_results", []),
+            verification_results=data.get("verification_results", []),
+            review_items=data.get("review_items", []),
+            memory_record=data.get("memory_record"),
+            final_report=data.get("final_report", ""),
+            timeline_events=data.get("timeline_events", []),
+            stage_history=data.get("stage_history", []),
+            errors=data.get("errors", []),
+        )

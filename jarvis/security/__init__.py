@@ -10,41 +10,65 @@ Provides:
 - Security dashboard
 """
 
+from .audit import AuditLog
+from .crypto import VaultCrypto
 from .exceptions import (
+    DecryptionError,
+    MigrationError,
+    ProviderError,
+    ScannerError,
     SecurityError,
+    VaultCorruptedError,
     VaultError,
     VaultLockedError,
-    VaultCorruptedError,
-    DecryptionError,
-    ProviderError,
-    MigrationError,
-    ScannerError,
 )
-from .crypto import VaultCrypto
-from .vault import EncryptedVault
-from .providers import SecretProvider, KeychainProvider, VaultProvider, EnvProvider, DotEnvProvider, GitHubProvider
-from .secret_manager import SecretManager
 from .migration import VaultMigration
-from .audit import AuditLog
-from .scanner import SecretScanner
+from .providers import (
+    DotEnvProvider,
+    EnvProvider,
+    GitHubProvider,
+    KeychainProvider,
+    SecretProvider,
+    VaultProvider,
+)
 from .redactor import LogRedactor
+from .scanner import SecretScanner
+from .secret_manager import SecretManager
+from .vault import EncryptedVault
 
 __all__ = [
-    "SecurityError", "VaultError", "VaultLockedError", "VaultCorruptedError",
-    "DecryptionError", "ProviderError", "MigrationError", "ScannerError",
-    "VaultCrypto", "EncryptedVault",
-    "SecretProvider", "KeychainProvider", "VaultProvider", "EnvProvider",
-    "DotEnvProvider", "GitHubProvider",
-    "SecretManager", "VaultMigration", "AuditLog", "SecretScanner", "LogRedactor",
+    "SecurityError",
+    "VaultError",
+    "VaultLockedError",
+    "VaultCorruptedError",
+    "DecryptionError",
+    "ProviderError",
+    "MigrationError",
+    "ScannerError",
+    "VaultCrypto",
+    "EncryptedVault",
+    "SecretProvider",
+    "KeychainProvider",
+    "VaultProvider",
+    "EnvProvider",
+    "DotEnvProvider",
+    "GitHubProvider",
+    "SecretManager",
+    "VaultMigration",
+    "AuditLog",
+    "SecretScanner",
+    "LogRedactor",
 ]
 
 _manager = None
+
 
 def get_manager() -> "SecretManager":
     global _manager
     if _manager is None:
         _manager = SecretManager()
     return _manager
+
 
 def get_secret(key: str, default: str = "") -> str:
     return get_manager().get(key, default=default)

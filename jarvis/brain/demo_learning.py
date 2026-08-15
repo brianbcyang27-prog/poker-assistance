@@ -4,13 +4,12 @@ From OpenAdapt/OSWorld pattern: record user action sequences,
 abstract them into reusable workflows, and replay with variations.
 """
 
-import time
 import json
-from pathlib import Path
+import time
 from dataclasses import dataclass, field
-from typing import Optional
-from loguru import logger
+from pathlib import Path
 
+from loguru import logger
 
 DEMO_DIR = Path("memory_store")
 DEMO_DIR.mkdir(parents=True, exist_ok=True)
@@ -20,6 +19,7 @@ DEMOS_FILE = DEMO_DIR / "demos.json"
 @dataclass
 class Action:
     """A single recorded action."""
+
     action_type: str  # click, type, navigate, scroll, keypress, wait
     target: str = ""  # element/URL/command
     value: str = ""  # text to type, key, etc.
@@ -56,6 +56,7 @@ class Action:
 @dataclass
 class Demo:
     """A recorded demonstration (sequence of actions)."""
+
     id: str
     name: str
     description: str
@@ -93,7 +94,7 @@ class DemoLearner:
 
     def __init__(self):
         self._demos: dict[str, Demo] = {}
-        self._recording: Optional[str] = None  # currently recording demo id
+        self._recording: str | None = None  # currently recording demo id
         self._current_actions: list[Action] = []
         self._load()
 
@@ -122,7 +123,9 @@ class DemoLearner:
         data = [d.to_dict() for d in self._demos.values()]
         DEMOS_FILE.write_text(json.dumps(data, indent=2))
 
-    async def start_recording(self, name: str, description: str = "", tags: list[str] = None) -> str:
+    async def start_recording(
+        self, name: str, description: str = "", tags: list[str] = None
+    ) -> str:
         """Start recording a new demo."""
         demo_id = f"demo_{int(time.time())}_{name.lower().replace(' ', '_')[:30]}"
         self._recording = demo_id
@@ -144,7 +147,7 @@ class DemoLearner:
         action.timestamp = time.time()
         self._current_actions.append(action)
 
-    async def stop_recording(self) -> Optional[Demo]:
+    async def stop_recording(self) -> Demo | None:
         """Stop recording and save the demo."""
         if not self._recording:
             return None
@@ -159,10 +162,10 @@ class DemoLearner:
         self._current_actions = []
         return demo
 
-    async def get_demo(self, demo_id: str) -> Optional[Demo]:
+    async def get_demo(self, demo_id: str) -> Demo | None:
         return self._demos.get(demo_id)
 
-    async def list_demos(self, tag: Optional[str] = None) -> list[Demo]:
+    async def list_demos(self, tag: str | None = None) -> list[Demo]:
         demos = list(self._demos.values())
         if tag:
             demos = [d for d in demos if tag in d.tags]
@@ -192,14 +195,15 @@ class DemoLearner:
     def _parametrize(self, value: str) -> str:
         """Replace specific values with parameters."""
         import re
+
         # Replace URLs with {{URL}}
-        value = re.sub(r'https?://[^\s]+', '{{URL}}', value)
+        value = re.sub(r"https?://[^\s]+", "{{URL}}", value)
         # Replace file paths with {{PATH}}
-        value = re.sub(r'/[\w/\\.-]+', '{{PATH}}', value)
+        value = re.sub(r"/[\w/\\.-]+", "{{PATH}}", value)
         # Replace timestamps with {{TIME}}
-        value = re.sub(r'\d{4}-\d{2}-\d{2}', '{{DATE}}', value)
+        value = re.sub(r"\d{4}-\d{2}-\d{2}", "{{DATE}}", value)
         # Replace numbers with {{NUM}}
-        value = re.sub(r'\b\d{3,}\b', '{{NUM}}', value)
+        value = re.sub(r"\b\d{3,}\b", "{{NUM}}", value)
         return value
 
     async def replay(self, demo_id: str, variations: dict = None) -> dict:
@@ -240,10 +244,11 @@ class DemoLearner:
     async def find_similar(self, description: str) -> list[Demo]:
         """Find demos similar to a description."""
         import re
-        keywords = set(re.findall(r'\w{3,}', description.lower()))
+
+        keywords = set(re.findall(r"\w{3,}", description.lower()))
         scored = []
         for demo in self._demos.values():
-            demo_words = set(re.findall(r'\w{3,}', (demo.name + " " + demo.description).lower()))
+            demo_words = set(re.findall(r"\w{3,}", (demo.name + " " + demo.description).lower()))
             overlap = len(keywords & demo_words)
             if overlap > 0:
                 scored.append((overlap, demo))
@@ -260,10 +265,7 @@ class DemoLearner:
     def get_stats(self) -> dict:
         total = len(self._demos)
         total_actions = sum(len(d.actions) for d in self._demos.values())
-        avg_success = (
-            sum(d.success_rate for d in self._demos.values()) / total
-            if total > 0 else 0
-        )
+        avg_success = sum(d.success_rate for d in self._demos.values()) / total if total > 0 else 0
         return {
             "total_demos": total,
             "total_actions": total_actions,

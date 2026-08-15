@@ -15,9 +15,8 @@ import logging
 import time
 
 from jarvis.core.reliability import config as reliability_config
-from typing import Optional, List
 
-from .base import VisionProvider, VisionResult, DetectedObject
+from .base import DetectedObject, VisionProvider, VisionResult
 
 log = logging.getLogger("jarvis.vision.providers.local")
 
@@ -35,6 +34,7 @@ class OllamaVisionProvider(VisionProvider):
 
     def __init__(self, host: str = ""):
         import os
+
         self._host = host or os.environ.get("OLLAMA_HOST", "http://localhost:11434")
         self._model = os.environ.get("VISION_MODEL", "qwen2.5-vl")
         self._initialized = False
@@ -50,6 +50,7 @@ class OllamaVisionProvider(VisionProvider):
     def _check_ollama_sync(self) -> bool:
         """Quick synchronous check if Ollama is reachable."""
         import urllib.request
+
         try:
             req = urllib.request.Request(f"{self._host}/api/tags", method="GET")
             with urllib.request.urlopen(req, timeout=2) as resp:
@@ -64,11 +65,15 @@ class OllamaVisionProvider(VisionProvider):
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                "curl", "-s", f"{self._host}/api/tags",
+                "curl",
+                "-s",
+                f"{self._host}/api/tags",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.ws_timeout)
+            stdout, _ = await asyncio.wait_for(
+                proc.communicate(), timeout=reliability_config.ws_timeout
+            )
             data = json.loads(stdout.decode())
 
             models = [m.get("name", "") for m in data.get("models", [])]
@@ -76,9 +81,10 @@ class OllamaVisionProvider(VisionProvider):
 
             if not model_available:
                 log.warning(
-                    "Model '%s' not found in Ollama. Available: %s. "
-                    "Run: ollama pull %s",
-                    self._model, models, self._model,
+                    "Model '%s' not found in Ollama. Available: %s. Run: ollama pull %s",
+                    self._model,
+                    models,
+                    self._model,
                 )
 
             self._initialized = True
@@ -103,19 +109,24 @@ class OllamaVisionProvider(VisionProvider):
 
         if not image_base64 and image_path:
             import base64
+
             try:
                 with open(image_path, "rb") as f:
                     image_base64 = base64.b64encode(f.read()).decode()
             except Exception as e:
                 return VisionResult(
-                    success=False, error=f"Failed to read image: {e}",
-                    provider=self.name, model=self._model,
+                    success=False,
+                    error=f"Failed to read image: {e}",
+                    provider=self.name,
+                    model=self._model,
                 )
 
         if not image_base64:
             return VisionResult(
-                success=False, error="No image provided",
-                provider=self.name, model=self._model,
+                success=False,
+                error="No image provided",
+                provider=self.name,
+                model=self._model,
             )
 
         prompt = prompt or (
@@ -142,30 +153,41 @@ class OllamaVisionProvider(VisionProvider):
         try:
             payload_json = json.dumps(payload)
             proc = await asyncio.create_subprocess_exec(
-                "curl", "-s", "-X", "POST",
+                "curl",
+                "-s",
+                "-X",
+                "POST",
                 f"{self._host}/api/generate",
-                "-H", "Content-Type: application/json",
-                "-d", payload_json,
+                "-H",
+                "Content-Type: application/json",
+                "-d",
+                payload_json,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.llm_timeout)
+            stdout, _ = await asyncio.wait_for(
+                proc.communicate(), timeout=reliability_config.llm_timeout
+            )
             response = json.loads(stdout.decode())
             raw_text = response.get("response", "")
 
             duration = (time.time() - start) * 1000
             return self._parse_response(raw_text, duration)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return VisionResult(
-                success=False, error="Ollama request timed out",
-                provider=self.name, model=self._model,
+                success=False,
+                error="Ollama request timed out",
+                provider=self.name,
+                model=self._model,
                 duration_ms=(time.time() - start) * 1000,
             )
         except Exception as e:
             return VisionResult(
-                success=False, error=str(e),
-                provider=self.name, model=self._model,
+                success=False,
+                error=str(e),
+                provider=self.name,
+                model=self._model,
                 duration_ms=(time.time() - start) * 1000,
             )
 
@@ -174,7 +196,7 @@ class OllamaVisionProvider(VisionProvider):
         result = await self.analyze_image(
             image_path=image_path,
             prompt="Describe what you see on this screen in 2-3 sentences. "
-                   "Include the application name, main content, and any notable UI elements.",
+            "Include the application name, main content, and any notable UI elements.",
         )
         return result.screen_description or result.raw_response
 
@@ -183,8 +205,8 @@ class OllamaVisionProvider(VisionProvider):
         result = await self.analyze_image(
             image_path=image_path,
             prompt=f'Find all UI elements matching "{query}" in this screenshot. '
-                   "Return a JSON array of objects with type, name, x, y, width, height, confidence. "
-                   "Return ONLY the JSON array, no markdown.",
+            "Return a JSON array of objects with type, name, x, y, width, height, confidence. "
+            "Return ONLY the JSON array, no markdown.",
         )
         return result.objects
 
@@ -192,11 +214,15 @@ class OllamaVisionProvider(VisionProvider):
         """Check Ollama health."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "curl", "-s", f"{self._host}/api/tags",
+                "curl",
+                "-s",
+                f"{self._host}/api/tags",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=reliability_config.health_check_timeout)
+            stdout, _ = await asyncio.wait_for(
+                proc.communicate(), timeout=reliability_config.health_check_timeout
+            )
             data = json.loads(stdout.decode())
             models = [m.get("name", "") for m in data.get("models", [])]
             return {
@@ -230,7 +256,8 @@ class OllamaVisionProvider(VisionProvider):
         except json.JSONDecodeError:
             # Try to find JSON in the response
             import re
-            json_match = re.search(r'\{[\s\S]*\}', text)
+
+            json_match = re.search(r"\{[\s\S]*\}", text)
             if json_match:
                 try:
                     data = json.loads(json_match.group())
@@ -251,17 +278,19 @@ class OllamaVisionProvider(VisionProvider):
         if isinstance(objects_raw, list):
             for obj in objects_raw:
                 if isinstance(obj, dict):
-                    result.objects.append(DetectedObject(
-                        type=obj.get("type", "unknown"),
-                        name=obj.get("name", ""),
-                        x=int(obj.get("x", 0)),
-                        y=int(obj.get("y", 0)),
-                        width=int(obj.get("width", 0)),
-                        height=int(obj.get("height", 0)),
-                        confidence=float(obj.get("confidence", 0.5)),
-                        description=obj.get("description", ""),
-                        color=obj.get("color", ""),
-                        state=obj.get("state", ""),
-                    ))
+                    result.objects.append(
+                        DetectedObject(
+                            type=obj.get("type", "unknown"),
+                            name=obj.get("name", ""),
+                            x=int(obj.get("x", 0)),
+                            y=int(obj.get("y", 0)),
+                            width=int(obj.get("width", 0)),
+                            height=int(obj.get("height", 0)),
+                            confidence=float(obj.get("confidence", 0.5)),
+                            description=obj.get("description", ""),
+                            color=obj.get("color", ""),
+                            state=obj.get("state", ""),
+                        )
+                    )
 
         return result

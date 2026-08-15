@@ -1,9 +1,8 @@
 """Tests for JARVIS Continuous Learning Engine (v5.2.0)."""
 
-import sys
-import os
 import asyncio
-import pytest
+import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -11,12 +10,13 @@ from jarvis.learning import LearningEngine, LearningRecord, SkillUpdate
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.new_event_loop().run_until_complete(coro)
 
 
 # ════════════════════════════════════════════════════════════
 # Data Model Tests
 # ════════════════════════════════════════════════════════════
+
 
 class TestLearningModels:
     def test_learning_record(self):
@@ -50,6 +50,7 @@ class TestLearningModels:
 # Engine Tests
 # ════════════════════════════════════════════════════════════
 
+
 class TestLearningEngine:
     def setup_method(self):
         self.engine = LearningEngine()
@@ -59,7 +60,12 @@ class TestLearningEngine:
             "mission_id": "test_mission_1",
             "libraries_used": ["requests", "beautifulsoup4"],
             "actions": [
-                {"type": "research", "tool": "github", "reusable": True, "skill_name": "github_search"},
+                {
+                    "type": "research",
+                    "tool": "github",
+                    "reusable": True,
+                    "skill_name": "github_search",
+                },
                 {"type": "execute", "tool": "python", "failed": True, "error": "ImportError"},
             ],
             "plan": ["research_libraries", "create_project"],
@@ -112,8 +118,12 @@ class TestLearningEngine:
 
     def test_update_knowledge_base(self):
         record = LearningRecord(
-            mission_id="m1", libraries_discovered=[], patterns_learned=[],
-            mistakes=[], speed_improvements=[], skill_suggestions=[],
+            mission_id="m1",
+            libraries_discovered=[],
+            patterns_learned=[],
+            mistakes=[],
+            speed_improvements=[],
+            skill_suggestions=[],
             knowledge_updates=[],
         )
         _run(self.engine.update_knowledge_base(record))
@@ -128,7 +138,8 @@ class TestLearningEngine:
             libraries_discovered=["fastapi"],
             patterns_learned=["async web api development"],
             mistakes=["forgot error handling"],
-            speed_improvements=[], skill_suggestions=[],
+            speed_improvements=[],
+            skill_suggestions=[],
             knowledge_updates=[],
         )
         _run(self.engine.update_knowledge_base(record))
@@ -149,7 +160,11 @@ class TestLearningEngine:
         # First create
         _run(self.engine.improve_skill("caching", {"mission_id": "m1", "actions": []}))
         # Then improve
-        update = _run(self.engine.improve_skill("caching", {"mission_id": "m2", "actions": [{"optimization": "Use Redis"}]}))
+        update = _run(
+            self.engine.improve_skill(
+                "caching", {"mission_id": "m2", "actions": [{"optimization": "Use Redis"}]}
+            )
+        )
         assert update.before is not None
 
     def test_mission_without_id(self):

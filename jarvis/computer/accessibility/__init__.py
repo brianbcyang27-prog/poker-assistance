@@ -15,10 +15,10 @@ Usage:
     element = tree.find("Save")
 """
 
-from .element import UIElement, ElementType, ElementState
-from .tree import AccessibilityTree
 from .base import AccessibilityProvider
+from .element import ElementState, ElementType, UIElement
 from .manager import AccessibilityManager, accessibility_manager
+from .tree import AccessibilityTree
 
 __all__ = [
     "UIElement",

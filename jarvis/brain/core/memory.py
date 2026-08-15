@@ -1,7 +1,7 @@
 """Unified memory manager — single entry point for all memory operations."""
+
 import logging
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .models import MemoryEntry
 
@@ -26,7 +26,7 @@ class MemoryManager:
         self._timeline = timeline_engine
         self._consolidation = consolidation_engine
         self._extractor = knowledge_extractor
-        self._memories: Dict[str, MemoryEntry] = {}
+        self._memories: dict[str, MemoryEntry] = {}
 
     async def remember(
         self,
@@ -34,8 +34,8 @@ class MemoryManager:
         memory_type: str = "fact",
         importance: str = "useful",
         source: str = "manual",
-        related_entities: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        related_entities: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> MemoryEntry:
         """Store a new memory across all relevant subsystems."""
         entry = MemoryEntry(
@@ -50,7 +50,8 @@ class MemoryManager:
 
         if self._kg:
             try:
-                from jarvis.knowledge.models import Entity, ImportanceLevel
+                from jarvis.brain.memory.graph import Entity
+
                 entity = Entity(
                     name=content[:100],
                     entity_type=memory_type,
@@ -63,7 +64,9 @@ class MemoryManager:
             except Exception as exc:
                 logger.debug("Failed to store in knowledge graph: %s", exc)
 
-        logger.debug("Remembered: %s (type=%s, importance=%s)", content[:60], memory_type, importance)
+        logger.debug(
+            "Remembered: %s (type=%s, importance=%s)", content[:60], memory_type, importance
+        )
         return entry
 
     async def recall(
@@ -71,9 +74,9 @@ class MemoryManager:
         query: str,
         limit: int = 10,
         memory_type: str = "",
-    ) -> List[MemoryEntry]:
+    ) -> list[MemoryEntry]:
         """Search all memory sources for relevant entries."""
-        results: List[MemoryEntry] = []
+        results: list[MemoryEntry] = []
 
         if self._kg:
             try:
@@ -81,15 +84,17 @@ class MemoryManager:
                 for e in entities:
                     if memory_type and e.entity_type != memory_type:
                         continue
-                    results.append(MemoryEntry(
-                        id=e.id,
-                        content=f"{e.name}: {e.description}",
-                        source="knowledge_graph",
-                        memory_type=e.entity_type,
-                        importance=e.importance,
-                        confidence=e.confidence,
-                        metadata=e.metadata,
-                    ))
+                    results.append(
+                        MemoryEntry(
+                            id=e.id,
+                            content=f"{e.name}: {e.description}",
+                            source="knowledge_graph",
+                            memory_type=e.entity_type,
+                            importance=e.importance,
+                            confidence=e.confidence,
+                            metadata=e.metadata,
+                        )
+                    )
             except Exception as exc:
                 logger.debug("Knowledge graph recall failed: %s", exc)
 
@@ -118,9 +123,9 @@ class MemoryManager:
                 logger.debug("Failed to delete from knowledge graph: %s", exc)
         return False
 
-    async def get_profile(self) -> Dict[str, Any]:
+    async def get_profile(self) -> dict[str, Any]:
         """Build a user profile from preferences and memories."""
-        profile: Dict[str, Any] = {
+        profile: dict[str, Any] = {
             "preferences": {},
             "facts": [],
             "lessons": [],
@@ -152,7 +157,7 @@ class MemoryManager:
 
     async def get_context_string(self) -> str:
         """Build a formatted context string for LLM injection."""
-        lines: List[str] = []
+        lines: list[str] = []
 
         profile = await self.get_profile()
         if profile["preferences"]:
@@ -182,7 +187,7 @@ class MemoryManager:
 
         return "\n".join(lines) if lines else "No context available."
 
-    async def consolidate(self) -> Dict[str, Any]:
+    async def consolidate(self) -> dict[str, Any]:
         """Run memory consolidation across subsystems."""
         if not self._consolidation:
             return {"ok": False, "error": "No consolidation engine available"}
@@ -193,9 +198,9 @@ class MemoryManager:
             logger.error("Consolidation failed: %s", exc)
             return {"ok": False, "error": str(exc)}
 
-    async def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Return memory statistics from all subsystems."""
-        stats: Dict[str, Any] = {
+        stats: dict[str, Any] = {
             "local_memories": len(self._memories),
             "kg_stats": {},
             "preferences_count": 0,
@@ -236,9 +241,9 @@ class MemoryManager:
 
         return stats
 
-    async def export_all(self) -> Dict[str, Any]:
+    async def export_all(self) -> dict[str, Any]:
         """Full export of all memory subsystems."""
-        export: Dict[str, Any] = {
+        export: dict[str, Any] = {
             "memories": [m.to_dict() for m in self._memories.values()],
             "profile": await self.get_profile(),
             "stats": await self.get_stats(),

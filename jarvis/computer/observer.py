@@ -9,7 +9,6 @@ Provides capabilities to understand what's on screen:
 
 import asyncio
 import logging
-from typing import Optional
 from dataclasses import dataclass
 
 log = logging.getLogger("jarvis.computer.observer")
@@ -18,6 +17,7 @@ log = logging.getLogger("jarvis.computer.observer")
 @dataclass
 class WindowInfo:
     """Information about a window."""
+
     name: str = ""
     app: str = ""
     title: str = ""
@@ -43,10 +43,11 @@ class WindowInfo:
 @dataclass
 class ScreenState:
     """Current state of the screen."""
-    active_window: Optional[WindowInfo] = None
+
+    active_window: WindowInfo | None = None
     windows: list[WindowInfo] = None
     screen_size: dict = None  # {width, height}
-    screenshot_path: Optional[str] = None
+    screenshot_path: str | None = None
 
     def __post_init__(self):
         if self.windows is None:
@@ -93,10 +94,10 @@ class ScreenObserver:
             screenshot_path=screenshot_path,
         )
 
-    async def get_active_window(self) -> Optional[WindowInfo]:
+    async def get_active_window(self) -> WindowInfo | None:
         """Get information about the currently focused window."""
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set frontApp to first application process whose frontmost is true
                 set appName to name of frontApp
@@ -108,9 +109,11 @@ class ScreenObserver:
                 end try
                 return appName & "|||" & windowTitle & "|||" & appPID
             end tell
-            '''
+            """
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -133,7 +136,7 @@ class ScreenObserver:
         """List all visible windows."""
         windows = []
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set allWindows to {}
                 repeat with proc in (every application process whose visible is true)
@@ -145,9 +148,11 @@ class ScreenObserver:
                 end repeat
                 return allWindows
             end tell
-            '''
+            """
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -157,10 +162,12 @@ class ScreenObserver:
             for line in output.split(", "):
                 if "|||" in line:
                     parts = line.split("|||")
-                    windows.append(WindowInfo(
-                        app=parts[0].strip(),
-                        title=parts[1].strip() if len(parts) > 1 else "",
-                    ))
+                    windows.append(
+                        WindowInfo(
+                            app=parts[0].strip(),
+                            title=parts[1].strip() if len(parts) > 1 else "",
+                        )
+                    )
         except Exception as e:
             log.debug(f"Window listing failed: {e}")
         return windows
@@ -169,8 +176,9 @@ class ScreenObserver:
         """Get screen resolution."""
         try:
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e",
-                "tell application \"Finder\" to get bounds of window of desktop",
+                "osascript",
+                "-e",
+                'tell application "Finder" to get bounds of window of desktop',
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -184,14 +192,17 @@ class ScreenObserver:
             log.debug(f"Screen size detection failed: {e}")
         return {"width": 1920, "height": 1080}
 
-    async def take_screenshot(self, path: Optional[str] = None) -> Optional[str]:
+    async def take_screenshot(self, path: str | None = None) -> str | None:
         """Take a screenshot and return the file path."""
         import time
+
         if path is None:
             path = f"/tmp/jarvis_screenshot_{int(time.time())}.png"
         try:
             proc = await asyncio.create_subprocess_exec(
-                "screencapture", "-x", path,
+                "screencapture",
+                "-x",
+                path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -206,7 +217,7 @@ class ScreenObserver:
         """Get UI elements from the active window via accessibility API."""
         elements = []
         try:
-            script = '''
+            script = """
             tell application "System Events"
                 set frontApp to first application process whose frontmost is true
                 tell frontApp
@@ -217,15 +228,18 @@ class ScreenObserver:
                             set elemDesc to description of elem
                             set elemRole to role of elem
                             set elemValue to value of elem
-                            set output to output & elemRole & "|||" & elemDesc & "|||" & elemValue & "\\n"
+                            set output to output & elemRole & "|||" & elemDesc & "|||" & elemValue ¬
+                                & "\\n"
                         end try
                     end repeat
                     return output
                 end tell
             end tell
-            '''
+            """
             proc = await asyncio.create_subprocess_exec(
-                "osascript", "-e", script,
+                "osascript",
+                "-e",
+                script,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -235,11 +249,13 @@ class ScreenObserver:
             for line in output.split("\n"):
                 if "|||" in line:
                     parts = line.split("|||")
-                    elements.append({
-                        "role": parts[0].strip() if len(parts) > 0 else "",
-                        "description": parts[1].strip() if len(parts) > 1 else "",
-                        "value": parts[2].strip() if len(parts) > 2 else "",
-                    })
+                    elements.append(
+                        {
+                            "role": parts[0].strip() if len(parts) > 0 else "",
+                            "description": parts[1].strip() if len(parts) > 1 else "",
+                            "value": parts[2].strip() if len(parts) > 2 else "",
+                        }
+                    )
         except Exception as e:
             log.debug(f"UI element detection failed: {e}")
         return elements

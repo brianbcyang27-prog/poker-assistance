@@ -1,8 +1,12 @@
-"""Workspace router — unified mission tracking (v6.1.0)."""
+"""Workspace router — unified mission tracking (v6.1.0).
+
+Persistence: MissionManager and WorkspaceManager both write to the same
+workspaces SQLite table (via core.database.Database). This router
+uses WorkspaceManager for the production DAG pipeline path.
+"""
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel
-from typing import Optional
 
 import jarvis.web.main as web_main
 from jarvis.core.database import get_db
@@ -30,11 +34,13 @@ class StageRequest(BaseModel):
 
 # === LIST ===
 
+
 @router.get("")
-async def list_workspaces(status: Optional[str] = None):
+async def list_workspaces(status: str | None = None):
     """List active workspaces, optionally filtered by status."""
     if status:
         from jarvis.core.database import get_db
+
         db = await get_db()
         data = await db.get_all_workspaces(status=status)
         return data
@@ -44,6 +50,7 @@ async def list_workspaces(status: Optional[str] = None):
 
 # === SEARCH ===
 
+
 @router.get("/search")
 async def search_workspaces(q: str = Query(""), limit: int = 20):
     """Search workspaces by goal or user request."""
@@ -51,6 +58,7 @@ async def search_workspaces(q: str = Query(""), limit: int = 20):
 
 
 # === HISTORY ===
+
 
 @router.get("/history")
 async def list_workspace_history(
@@ -66,6 +74,7 @@ async def list_workspace_history(
 
 # === CREATE ===
 
+
 @router.post("")
 async def create_workspace(req: CreateWorkspaceRequest):
     """Create a new workspace."""
@@ -79,6 +88,7 @@ async def create_workspace(req: CreateWorkspaceRequest):
 
 
 # === GET ===
+
 
 @router.get("/{workspace_id}")
 async def get_workspace(workspace_id: str):
@@ -127,7 +137,9 @@ async def replay_workspace(workspace_id: str):
         "goal": workspace.goal,
         "owner": workspace.owner,
         "user_request": workspace.user_request,
-        "status": workspace.status.value if hasattr(workspace.status, "value") else workspace.status,
+        "status": workspace.status.value
+        if hasattr(workspace.status, "value")
+        else workspace.status,
         "final_report": workspace.final_report,
         "tasks": [
             {
@@ -159,11 +171,15 @@ async def list_workspace_lessons(limit: int = Query(20, ge=1, le=100)):
 
 # === MUTATIONS ===
 
+
 @router.post("/{workspace_id}/timeline")
 async def add_timeline_event(workspace_id: str, req: TimelineEventRequest):
     """Add a timeline event to a workspace."""
     ok = await web_main.workspace_manager.add_timeline_event(
-        workspace_id, req.event_type, req.source, req.description,
+        workspace_id,
+        req.event_type,
+        req.source,
+        req.description,
     )
     if not ok:
         return {"error": "Workspace not found"}
@@ -174,7 +190,9 @@ async def add_timeline_event(workspace_id: str, req: TimelineEventRequest):
 async def record_stage(workspace_id: str, req: StageRequest):
     """Record a pipeline stage transition."""
     ok = await web_main.workspace_manager.record_stage(
-        workspace_id, req.stage, req.action,
+        workspace_id,
+        req.stage,
+        req.action,
     )
     if not ok:
         return {"error": "Workspace not found"}

@@ -2,12 +2,13 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 
 @dataclass
 class HealthIssue:
     """A specific code quality issue found during analysis."""
+
     file: str
     line: int
     category: str
@@ -20,15 +21,17 @@ class HealthIssue:
 @dataclass
 class HealthReport:
     """Aggregated code health analysis result."""
+
     overall_score: float  # 0-100
-    grades: Dict[str, str] = field(default_factory=dict)  # category -> A-F
-    issues: List[HealthIssue] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
+    grades: dict[str, str] = field(default_factory=dict)  # category -> A-F
+    issues: list[HealthIssue] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ProjectMetrics:
     """Complete project metrics snapshot."""
+
     health_score: float = 0.0
     architecture_score: float = 0.0
     debt_score: float = 0.0
@@ -47,11 +50,11 @@ class ProjectMetrics:
     total_classes: int = 0
     total_functions: int = 0
     total_tests: int = 0
-    languages: Dict[str, int] = field(default_factory=dict)
-    frameworks: List[str] = field(default_factory=list)
+    languages: dict[str, int] = field(default_factory=dict)
+    frameworks: list[str] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.utcnow)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "health_score": self.health_score,
             "architecture_score": self.architecture_score,

@@ -4,12 +4,11 @@ Combines screenshot capture with vision model analysis
 to produce structured understanding of the screen state.
 """
 
-import time
 import logging
-from typing import Optional
+import time
 from dataclasses import dataclass, field
 
-from .providers.base import VisionResult, DetectedObject
+from .providers.base import VisionResult
 
 log = logging.getLogger("jarvis.vision.analyzer")
 
@@ -17,6 +16,7 @@ log = logging.getLogger("jarvis.vision.analyzer")
 @dataclass
 class ScreenAnalysis:
     """Complete analysis of a screen capture."""
+
     application: str = ""
     description: str = ""
     objects: list = field(default_factory=list)

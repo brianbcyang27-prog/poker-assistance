@@ -5,11 +5,11 @@ Initial version defines interfaces for future implementation.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
-from enum import Enum
+from enum import StrEnum
+from typing import Any
 
 
-class SimulationType(str, Enum):
+class SimulationType(StrEnum):
     THERMAL = "thermal"
     STRESS = "stress"
     KINEMATIC = "kinematic"
@@ -18,7 +18,7 @@ class SimulationType(str, Enum):
     ELECTROMAGNETIC = "electromagnetic"
 
 
-class SimulationStatus(str, Enum):
+class SimulationStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -39,14 +39,12 @@ class SimulationProvider(ABC):
 
     @property
     @abstractmethod
-    def supported_types(self) -> List[SimulationType]:
+    def supported_types(self) -> list[SimulationType]:
         """Types of simulation this engine supports."""
         ...
 
     @abstractmethod
-    async def create_simulation(
-        self, sim_type: SimulationType, params: Dict[str, Any]
-    ) -> Dict:
+    async def create_simulation(self, sim_type: SimulationType, params: dict[str, Any]) -> dict:
         """Create a new simulation.
 
         Returns:
@@ -55,7 +53,7 @@ class SimulationProvider(ABC):
         ...
 
     @abstractmethod
-    async def run(self, simulation_id: str) -> Dict:
+    async def run(self, simulation_id: str) -> dict:
         """Run simulation.
 
         Returns:
@@ -64,7 +62,7 @@ class SimulationProvider(ABC):
         ...
 
     @abstractmethod
-    async def get_results(self, simulation_id: str) -> Dict:
+    async def get_results(self, simulation_id: str) -> dict:
         """Get simulation results.
 
         Returns:
@@ -73,7 +71,7 @@ class SimulationProvider(ABC):
         ...
 
     @abstractmethod
-    async def list_simulations(self) -> List[Dict]:
+    async def list_simulations(self) -> list[dict]:
         """List all simulations.
 
         Returns:
@@ -81,7 +79,7 @@ class SimulationProvider(ABC):
         """
         ...
 
-    async def estimate_compute(self, sim_type: SimulationType, params: Dict) -> Dict:
+    async def estimate_compute(self, sim_type: SimulationType, params: dict) -> dict:
         """Estimate compute requirements for a simulation.
 
         Returns:

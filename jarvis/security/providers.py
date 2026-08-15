@@ -15,7 +15,6 @@ import os
 import subprocess
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
 
 
 class SecretProvider(ABC):
@@ -32,7 +31,7 @@ class SecretProvider(ABC):
         """Lower number = higher priority."""
 
     @abstractmethod
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         """Resolve a secret. Returns None if not found."""
 
     def has(self, key: str) -> bool:
@@ -50,11 +49,13 @@ class KeychainProvider(SecretProvider):
     def priority(self) -> int:
         return 10
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         try:
             result = subprocess.run(
                 ["security", "find-generic-password", "-s", f"jarvis-{key}", "-w"],
-                capture_output=True, text=True, timeout=5
+                capture_output=True,
+                text=True,
+                timeout=5,
             )
             if result.returncode == 0:
                 return result.stdout.strip()
@@ -65,9 +66,19 @@ class KeychainProvider(SecretProvider):
     def set(self, key: str, value: str) -> bool:
         try:
             subprocess.run(
-                ["security", "add-generic-password",
-                 "-s", f"jarvis-{key}", "-a", "jarvis", "-w", value, "-U"],
-                capture_output=True, timeout=5
+                [
+                    "security",
+                    "add-generic-password",
+                    "-s",
+                    f"jarvis-{key}",
+                    "-a",
+                    "jarvis",
+                    "-w",
+                    value,
+                    "-U",
+                ],
+                capture_output=True,
+                timeout=5,
             )
             return True
         except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -77,7 +88,8 @@ class KeychainProvider(SecretProvider):
         try:
             subprocess.run(
                 ["security", "delete-generic-password", "-s", f"jarvis-{key}"],
-                capture_output=True, timeout=5
+                capture_output=True,
+                timeout=5,
             )
             return True
         except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -101,7 +113,7 @@ class VaultProvider(SecretProvider):
     def set_vault(self, vault) -> None:
         self._vault = vault
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         if self._vault and self._vault.is_unlocked:
             value = self._vault.get(key)
             if value:
@@ -120,16 +132,16 @@ class EnvProvider(SecretProvider):
     def priority(self) -> int:
         return 30
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         return os.environ.get(key) or None
 
 
 class DotEnvProvider(SecretProvider):
     """Legacy .env file provider."""
 
-    def __init__(self, env_path: Optional[str] = None):
+    def __init__(self, env_path: str | None = None):
         self._env_path = Path(env_path) if env_path else Path.cwd() / ".env"
-        self._cache: Optional[dict] = None
+        self._cache: dict | None = None
 
     @property
     def name(self) -> str:
@@ -139,7 +151,7 @@ class DotEnvProvider(SecretProvider):
     def priority(self) -> int:
         return 40
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         if self._cache is None:
             self._cache = self._parse()
         return self._cache.get(key)
@@ -177,7 +189,7 @@ class GitHubProvider(SecretProvider):
     def priority(self) -> int:
         return 50
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         if os.environ.get("GITHUB_ACTIONS") != "true":
             return None
         return os.environ.get(key)
