@@ -1,0 +1,53 @@
+# LiteLLM test proxy config - JARVIS AI Router Research (Phase 7)
+# Isolated test only. Production JARVIS untouched.
+
+model_list:
+  # Primary: NVIDIA NIM (matches JARVIS production model exactly)
+  - model_name: nvidia-jarvis
+    litellm_params:
+      model: nvidia_nim/meta/llama-3.1-8b-instruct
+      api_key: os.environ/NVIDIA_API_KEY
+      api_base: os.environ/NVIDIA_API_BASE
+
+  # Fallback target: same provider, different model (exercises model-level failover)
+  - model_name: nvidia-backup
+    litellm_params:
+      model: nvidia_nim/meta/llama3-8b-instruct
+      api_key: os.environ/NVIDIA_API_KEY
+      api_base: os.environ/NVIDIA_API_BASE
+
+  # Local model via Ollama (small model for fast local-leg test)
+  - model_name: ollama-local
+    litellm_params:
+      model: ollama/qwen2.5:0.5b
+      api_base: http://localhost:11434
+
+  # Intentionally bad key model to trigger provider-level fallback (A -> B)
+  - model_name: bad-key-primary
+    litellm_params:
+      model: nvidia_nim/meta/llama-3.1-8b-instruct
+      api_key: "sk-invalid-key-for-fallback-testing"
+
+  # Cascade test: two bad-key NIM models, then local Ollama as final fallback
+  - model_name: cascade-bad1
+    litellm_params:
+      model: nvidia_nim/meta/llama-3.1-8b-instruct
+      api_key: "sk-invalid-key-cascade-1"
+  - model_name: cascade-bad2
+    litellm_params:
+      model: nvidia_nim/meta/llama3-8b-instruct
+      api_key: "sk-invalid-key-cascade-2"
+
+litellm_settings:
+  num_retries: 1
+  fallbacks:
+    - {"bad-key-primary": ["nvidia-jarvis"]}
+    - {"cascade-bad1": ["cascade-bad2", "ollama-local"]}
+
+router_settings:
+  routing_strategy: simple-shuffle
+  cooldown_time: 30
+  allowed_fails: 3
+
+general_settings:
+  master_key: sk-jarvis-test-master-key

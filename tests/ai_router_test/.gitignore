@@ -1,0 +1,3 @@
+# Isolated AI router research venv — never commit
+.venv/
+proxy.log
